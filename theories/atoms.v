@@ -39,8 +39,6 @@ Fixpoint string_ord (x y:string) :=
        (a = b /\ string_ord x' y')
   end.
 
-Obligation Tactic := idtac.
-
 Program Definition string_ord_mixin : Preord.mixin_of string :=
   Preord.Mixin string string_ord _ _.
 Next Obligation.
@@ -295,7 +293,7 @@ Section idents_length.
       (well_founded_induction (well_founded_ltof _ (@List.length string))); intros.
     constructor; intros.
     destruct H1. simpl in *.
-    elimtype False. lia.
+    exfalso. lia.
     simpl in *. destruct H1.
     destruct y; simpl in *.  
     subst n. apply H0.

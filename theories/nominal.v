@@ -1532,7 +1532,7 @@ Next Obligation.
   simpl in H.
   rewrite <- nom_compose.
   destruct (Perm.support_axiom p w).
-  elimtype False.
+  exfalso.
   eapply fresh_atom_is_fresh'.
   2: unfold w in H1; apply H1.
   unfold atoms.
@@ -1559,7 +1559,7 @@ Next Obligation.
   destruct (string_dec w v).
   subst v.
 
-  elimtype False.
+  exfalso.
   eapply fresh_atom_is_fresh'.
   2: unfold w in H3; apply H3.
   unfold atoms.
@@ -1709,7 +1709,7 @@ Next Obligation.
   rewrite (support_axiom A (PERM.swap u u') x). auto.
   simpl; intros.
   destruct (string_dec u v0). subst v0.
-  elimtype False.
+  exfalso.
   eapply fresh_atom_is_fresh'. 
   2: unfold u in H2; apply H2.
   hnf; intros.
@@ -1760,7 +1760,7 @@ Next Obligation.
   simpl; intros.
   destruct (string_dec u v0).
   subst v0.
-  elimtype False.
+  exfalso.
   eapply fresh_atom_is_fresh'. 
   2: unfold u in H2; apply H2.
   hnf; intros.

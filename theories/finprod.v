@@ -508,7 +508,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
         discriminate.
       - left. intro.
         generalize (o i). clear o.
-        destruct (x i); destruct (y i); intuition auto.
+        destruct (x i); destruct (y i); intuition.
         + hnf. auto.
         + elim n; auto.
         + elim n; auto.
@@ -539,7 +539,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
         * subst i2; auto.
           hnf. simpl. rewrite H1. rewrite H0. auto.
         * discriminate.
-      + rewrite app_ass; auto.
+      + rewrite <- app_assoc; auto.
       + left; intros.
         destruct (string_dec i i2).
         * subst i2.
@@ -563,7 +563,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
           ** subst i0; auto.
              hnf. rewrite H1. rewrite H0. auto.
           ** discriminate.
-        * rewrite app_ass. auto.
+        * rewrite <- app_assoc. auto.
         * left. intros. 
           destruct (string_dec i i0).
           ** subst i0. 

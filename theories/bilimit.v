@@ -879,7 +879,7 @@ Section total_fixpoint.
   Proof.
     induction i; simpl; intros; auto.
     destruct j.
-    - elimtype False. inversion H1.
+    - exfalso. inversion H1.
     - apply Functor.respects.
       apply IHi.
   Qed.
@@ -896,7 +896,7 @@ Section total_fixpoint.
       revert k Hjk; induction j; simpl; intros.
       + apply cat_ident1.
       + destruct k.
-        { elimtype False. inversion Hjk. }
+        { exfalso. inversion Hjk. }
         simpl.
         rewrite (@cat_assoc (EMBED false)).
         apply cat_respects; auto.
@@ -904,9 +904,9 @@ Section total_fixpoint.
         symmetry. apply IHj.
     
     - intros. destruct j.
-      + elimtype False. inversion Hij.
+      + exfalso. inversion Hij.
       + destruct k.
-        * elimtype False. inversion Hjk.
+        * exfalso. inversion Hjk.
         * simpl.
           erewrite <- (Functor.compose F _ _ _ (iter_hom j k _)).
           ** reflexivity.

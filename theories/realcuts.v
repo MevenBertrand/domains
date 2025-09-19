@@ -806,7 +806,7 @@ Proof.
   apply pow2_ge1.
   intro b. induction b using N.peano_ind.
   intros.
-  elimtype False. zify. omega.
+  exfalso. zify. omega.
   intros.
   replace (N.succ a) with (1+a)%N.
   replace (N.succ b) with (1+b)%N.

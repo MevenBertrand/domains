@@ -5,6 +5,7 @@ Require Import Program.
 Require Export notations.
 
 #[global]Obligation Tactic := idtac.
+#[global] Ltac Tauto.intuition_solver ::= auto.
 
 (** * Setoids and equality.
 

@@ -134,7 +134,7 @@ Proof.
   unfold rint_enum.
   case_eq (Qlt_le_dec (rint_end i) (rint_start i)).
   - intros.
-    elimtype False.
+    exfalso.
     generalize (rint_proper i). intros.
     assert (rint_end i < rint_end i).
     { eapply Qlt_le_trans. apply q. auto. }

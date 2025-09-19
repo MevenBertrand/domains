@@ -22,6 +22,10 @@ Require Import realdom.
 Require Import Qabs.
 Require Import Qminmax.
 
+Require Import basics.
+
+#[local] Ltac Tauto.intuition_solver ::= auto with qarith zarith.
+
 
 (**  The rational numbers inject into RealDom.
   *)

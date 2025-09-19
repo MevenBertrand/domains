@@ -26,7 +26,7 @@ Lemma cusl_finset (A:preord) (C:cusl A) (X:finset A) (HX:inh true X) :
   { z | least_upper_bound z X } + { forall z, upper_bound z X -> False }.
 Proof.
   revert HX. induction X; intros.
-  - elimtype False. hnf in HX.
+  - exfalso. hnf in HX.
     destruct HX. apply nil_elem in H. auto.
   - destruct X.
     + left. exists a.

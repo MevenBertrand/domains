@@ -438,7 +438,7 @@ Section normal_sets.
           }
           clear m H6 H7 H8.
           intros Y1 Y2. revert Y1. induction Y2; simpl; intros.
-          * rewrite <- List.app_nil_end in H6.
+          * rewrite <- app_nil_r in H6.
             destruct H8 as [?[??]].
             elim H8.
           * destruct (eff_ord_dec A Heff a m).
@@ -448,7 +448,7 @@ Section normal_sets.
                    assert (m' ∈ (Y2:finset A)).
                    { destruct H10 as [q [??]].
                      rewrite <- H6 in H10.
-                     apply List.in_app_or in H10.
+                     apply in_app_or in H10.
                      destruct H10.
                      - elim H12.
                        transitivity m; auto.
@@ -461,7 +461,7 @@ Section normal_sets.
                        exists q; split; auto.
                    } 
                    destruct (IHY2 (Y1 ++ a::nil)%list) with m'.
-                   **** rewrite List.app_ass.
+                   **** rewrite <- app_assoc.
                         simpl. auto.
                    **** intros.
                         destruct H14 as [p [??]].
@@ -504,7 +504,7 @@ Section normal_sets.
                               transitivity q; auto.
             ** destruct (IHY2 (Y1++(a::nil))%list) with m.
                *** rewrite <- H6.
-                   rewrite List.app_ass; auto.
+                   rewrite <- List.app_assoc; auto.
                *** intros.
                    destruct H10 as [p [??]].
                    apply List.in_app_or in H10.
@@ -1123,7 +1123,7 @@ Proof.
     + intro.
       case_eq R.
       * intro.
-        elimtype False.
+        exfalso.
         destruct Hinh.
         destruct x.
         ** apply left_finset_elem in H1.

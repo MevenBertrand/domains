@@ -3,6 +3,10 @@ Require Import Qminmax.
 Require Import Setoid.
 Require Import Lia.
 
+Require Import basics.
+
+#[local] Ltac Tauto.intuition_solver ::= auto with qarith.
+
 Lemma Q_dense (q1 q2:Q) :
   q1 < q2 -> exists q', q1 < q' /\ q' < q2.
 Proof.
@@ -86,7 +90,8 @@ Proof.
   red.
   split.
   destruct (H (rint_start r)); auto.
-  split; intuition. apply rint_proper.
+  split; intuition.
+  apply rint_proper.
   destruct (H (rint_end r)); auto.
   split; intuition. apply rint_proper.
   destruct H. destruct H0.
@@ -530,7 +535,8 @@ Section solve_simple_quadratic.
     apply Qlt_trans with t; auto.
     rewrite <- H1. auto.
     rewrite <- (Qmult_inj_r _ _ (z-s)) in H; auto.
-    field_simplify in H. 2: contradiction.
+    field_simplify in H.
+    2:assumption.
     assert (z^2 == s^2).
     apply  (Qplus_inj_r _ _ (-(s^2))). ring_simplify.
     field_simplify. auto.
@@ -1985,7 +1991,7 @@ Proof.
 
   destruct (Qlt_le_dec (1/rint_end x) (rint_start y) ).
 
-  right. intro.
+   right. intro.
     hnf in H.
     destruct (H (rint_end x)).
     split; auto. apply rint_proper. apply Qle_refl.
@@ -1994,12 +2000,13 @@ Proof.
     field_simplify in q.
     apply (Qlt_irrefl x0).
     eapply Qlt_le_trans with (rint_start y); auto.
+    intro q.
     apply n. red. rewrite <- q.
     split. apply rint_proper. intuition.
 
   destruct (Qlt_le_dec (rint_end y) (1/rint_start x)).
 
-  right. intro.
+   right. intro.
     hnf in H.
     destruct (H (rint_start x)).
     split; auto. apply Qle_refl. apply rint_proper.
@@ -2008,6 +2015,7 @@ Proof.
     field_simplify in q0.
     apply (Qlt_irrefl x0).
     apply Qle_lt_trans with (rint_end y); auto.
+    intro q0.
     apply n. red. rewrite <- q0.
     split. apply Qle_refl. apply rint_proper.
 
@@ -2164,4 +2172,3 @@ Proof.
   rewrite <- (Qplus_lt_l _ _ (-b1)). ring_simplify. auto.
   rewrite <- H7. ring.
 Qed.
-

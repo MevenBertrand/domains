@@ -147,7 +147,7 @@ Section fixpoint.
   Proof.
     induction i; simpl; intros; auto.
     destruct j.
-    - elimtype False. inversion H1.
+    - exfalso. inversion H1.
     - apply Functor.respects.
       apply IHi.
   Qed.
@@ -164,9 +164,9 @@ Section fixpoint.
     induction i. simpl; intros.
     - apply initiate_univ.
     - intros. destruct j.
-      + elimtype False. inversion Hij.
+      + exfalso. inversion Hij.
       + destruct k.
-        * elimtype False. inversion Hjk.
+        * exfalso. inversion Hjk.
         * simpl.
           erewrite <- (Functor.compose F _ _ _ (iter_hom j k _)).
           ** reflexivity.

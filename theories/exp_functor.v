@@ -867,7 +867,7 @@ Section expF_decompose.
     induction X; intros.
     - destruct hf.
       { hnf in Hinh.
-        elimtype False. destruct Hinh. apply nil_elem in H. auto.
+        exfalso. destruct Hinh. apply nil_elem in H. auto.
       }
       destruct (choose_ub_set I nil).
       exists x. exists nil. simpl; auto.

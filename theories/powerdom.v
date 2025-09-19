@@ -3964,15 +3964,15 @@ Proof.
     + hnf; simpl; intros.
       apply app_elem in H. destruct H.
       * destruct (H2 x) as [y [??]]; auto.
-        simpl in H0. rewrite <- app_ass.
+        simpl in H0. rewrite app_assoc.
         exists y. split; auto.
         apply app_elem; auto.
       * exists x. split; auto.
-        rewrite <- app_ass.  
+        rewrite app_assoc.  
         apply app_elem; auto.
 
     + hnf; simpl; intros.
-      rewrite <- app_ass in H.
+      rewrite app_assoc in H.
       apply app_elem in H.
       destruct H.
       * destruct (H2 y) as [x [??]]; auto.
@@ -3986,16 +3986,16 @@ Proof.
         hnf; simpl; intros.
         apply app_elem in H. destruct H.
         ** destruct (H2 x) as [y [??]]; auto.
-           simpl in H0. rewrite <- app_ass.
+           simpl in H0. rewrite app_assoc.
            exists y. split; auto.
            apply app_elem; auto.
         ** exists x. split; auto.
-           rewrite <- app_ass.  
+           rewrite app_assoc.
            apply app_elem; auto.
 
       * destruct H2 as [_ H2].
         hnf; simpl; intros.
-        rewrite <- app_ass in H.
+        rewrite app_assoc in H.
         apply app_elem in H.
         destruct H.
         ** destruct (H2 y) as [x [??]]; auto.

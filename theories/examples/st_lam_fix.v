@@ -1210,7 +1210,7 @@ Proof.
     simpl in q. fold q.
     destruct (string_dec q x0).
     subst q.
-    elimtype False.
+    exfalso.
     clear -H1 e.
     assert (x0 ∈ ‖Γ₂‖).
     apply env_supp_inenv. eauto.
@@ -1306,7 +1306,7 @@ Proof.
     simpl in q. fold q.
     destruct (string_dec q x0).
     subst q.
-    elimtype False.
+    exfalso.
     clear -H1 e.
     assert (x0 ∈ ‖Γ₂‖).
     apply env_supp_inenv. eauto.
@@ -1443,7 +1443,7 @@ Proof.
   simpl in *. fold q1. fold q2.  
   destruct (string_dec q1 a).
   subst a.
-  elimtype False.
+  exfalso.
   
   assert (q1 ∈ ‖Γ₂‖).
   apply env_supp_inenv. eauto.
@@ -1528,7 +1528,7 @@ Proof.
   simpl in *. fold q1. fold q2.  
   destruct (string_dec q1 a).
   subst a.
-  elimtype False.
+  exfalso.
   
   assert (q1 ∈ ‖Γ₂‖).
   apply env_supp_inenv. eauto.
@@ -2540,7 +2540,7 @@ Proof.
 
   split. 2: apply bottom_least.
   hnf. intros [u x] Hx. destruct x.
-  elimtype False.
+  exfalso.
   destruct (fundamental_lemma' τ m) as [z [??]].
   red; intros. simpl.
   exists c.

@@ -254,7 +254,7 @@ Lemma value_app_inv σ₁ σ₂ x y :
   value x /\ value y.
 Proof.
   intros. inv H.
-  elimtype False.
+  exfalso.
   eapply eval_no_redex.
   apply H8. reflexivity. eauto. eauto. eauto.
   split; auto.
@@ -336,7 +336,7 @@ Proof.
     (refl_equal _) (refl_equal _) (refl_equal _) H0).
   intros. destruct H2. 
   destruct (H2 x2).
-  elimtype False. eapply eval_no_redex.
+  exfalso. eapply eval_no_redex.
   apply H. reflexivity. apply H0. apply H1. eauto.
   inv H2. 
   left; intros. econstructor. econstructor.
@@ -350,7 +350,7 @@ Proof.
   econstructor. econstructor.
   simpl in *.
   inv H13.
-  elimtype False. eapply eval_no_redex.
+  exfalso. eapply eval_no_redex.
   apply H13. reflexivity. eauto. eauto. eauto.
   assert (Hm₁ : tmsize _ m₁ <
          S (S (S (S (tmsize (σ₁ ⇒ ty_bool) m₁ + tmsize σ₁ m₂ + tmsize σ₂0 x2))))).
@@ -359,7 +359,7 @@ Proof.
   generalize (Hind _ Hm₁ _ _ _ _ m₁ 
     (refl_equal _) (refl_equal _) (refl_equal _) H5).
   intros. destruct H11. destruct (H11 m₂).
-  elimtype False. eapply eval_no_redex.
+  exfalso. eapply eval_no_redex.
   apply H4. reflexivity. eauto. eauto. eauto.
   inv H11.
   assert (Hn₁ : tmsize _ n₁ <
@@ -369,7 +369,7 @@ Proof.
   generalize (Hind _ Hn₁ _ _ _ _ n₁
     (refl_equal _) (refl_equal _) (refl_equal _) H6).
   intros. destruct H13. destruct (H13 n₂).
-  elimtype False. eapply eval_no_redex.
+  exfalso. eapply eval_no_redex.
   apply H4. reflexivity. eauto. eauto. eauto.
   inv H13.
 
@@ -421,7 +421,7 @@ Proof.
   intros. inv H.
   destruct b; auto.
 
-  elimtype False.
+  exfalso.
   eapply eval_no_redex.
   apply H6. reflexivity. eauto. eauto. eauto.
   inv H0. clear H0.
@@ -552,7 +552,7 @@ Proof.
   apply strict_curry'_semvalue.  
   unfold Ysem. apply strict_curry'_semvalue.
 
-  elimtype False.
+  exfalso.
   eapply eval_no_redex.
   apply H8. reflexivity. eauto. eauto. eauto.
 
@@ -1081,7 +1081,7 @@ Proof.
   destruct (H2 tt) as [q ?].
   apply (PLT.compose_hom_rel _ _ _ _ hf ⊥ tt (Some q : (colift _))) in H3.
   destruct H3 as [?[??]].  
-  elimtype False. revert H4.
+  exfalso. revert H4.
   clear. simpl bottom.
   intros.
   unfold plt_hom_adj' in H4; simpl in H4.
@@ -1657,7 +1657,7 @@ Proof.
 
   split. 2: apply bottom_least.
   hnf. intros [u x] Hx. destruct x.
-  elimtype False.
+  exfalso.
   destruct (fundamental_lemma' τ m) as [z [??]].
   red; intros. destruct g. simpl.
   exists c. auto.
