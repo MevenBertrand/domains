@@ -5,3 +5,13 @@
 *.vok
 *.vos
 .lia.cache
+
+.Makefile.coq.d
+
+docs/dependency_graph.dot
+
+docs/dependency_graph.pre
+
+Makefile.coq
+
+Makefile.coq.conf
