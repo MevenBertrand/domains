@@ -1,8 +1,10 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
+Require Import Program Setoid.
 
 Require Import basics.
+
+#[local]Obligation Tactic := program_simpl.
 
 (** * Some elementary category theory.
     

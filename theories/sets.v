@@ -51,10 +51,10 @@ Section mixin_def.
   Program Definition set_preord (A:preord) : preord :=
     Preord.Pack (set A) (Preord.Mixin _ (@incl A) _ _).
   Next Obligation.
-    hnf; auto.
+    intros ; hnf; auto.
   Qed.
   Next Obligation.
-    hnf; intros. apply H0. apply H. auto.
+    intros ; hnf; intros. apply H0. apply H. auto.
   Qed.
 
   Variable union : forall A:preord, set (set_preord A) -> set A.
@@ -580,10 +580,7 @@ Next Obligation.
   destruct (H0 H) as [x ?]; auto.
   exists x. apply union_axiom; auto.
   eauto.
-Qed.  
-
-Obligation Tactic := idtac.
-
+Qed.
 
 (**  Given a base set theory [T], we can collect together all the sets
      of [T] that satisfy some coloring property: these colored sets
@@ -603,10 +600,7 @@ Section colored_sets.
 
   Program Definition forget_color (A:preord) : (set.set_preord cset cmember A → set_preord T A) :=
     Preord.Hom (set.set_preord cset cmember A) (set_preord T A) (fun X => proj1_sig X) _.
-  Next Obligation.
-    auto.
-  Qed.    
-
+  
   Section cunion.
     Variable A:preord.
     Variable XS:cset (set.set_preord cset cmember A).

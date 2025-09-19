@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
+Require Import Program Setoid.
 Require Import Morphisms.
 
 Require Import Coq.Program.Basics.
@@ -11,6 +11,8 @@ Require Import categories.
 Declare Scope preord_scope.
 Delimit Scope preord_scope with preord.
 Open Scope preord_scope.
+
+#[local]Obligation Tactic := program_simpl.
 
 (**  * Preordered types and monotone functions.
 

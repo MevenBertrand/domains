@@ -508,7 +508,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
         discriminate.
       - left. intro.
         generalize (o i). clear o.
-        destruct (x i); destruct (y i); intuition.
+        destruct (x i); destruct (y i); intuition auto.
         + hnf. auto.
         + elim n; auto.
         + elim n; auto.

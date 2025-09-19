@@ -1,7 +1,10 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
 Require Import Setoid.
+Require Import Program.
 Require Export notations.
+
+#[global]Obligation Tactic := idtac.
 
 (** * Setoids and equality.
 

@@ -89,8 +89,6 @@ Next Obligation.
   destruct x as [x y]. simpl.
   destruct H. simpl in *.
   destruct H; destruct H0; split; split; simpl; auto.
-  - apply H.
-  - apply H0.
   - apply H1.
   - apply H2.
 Qed.

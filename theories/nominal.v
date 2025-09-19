@@ -13,7 +13,7 @@ Require Import permutations.
 (** * The category of nominal types
   *)
 
-Obligation Tactic := intuition.
+#[local]Obligation Tactic := intuition auto.
 
 Require Import List.
 
