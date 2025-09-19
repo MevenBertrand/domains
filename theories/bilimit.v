@@ -16,6 +16,7 @@ Require Import embed.
 Require Import directed.
 Require Import cont_functors.
 Require Import cpo.
+Require Import Arith.
 
 
 (**  * Bilimits and fixpoints of continuous functors.
@@ -838,8 +839,6 @@ Section fixpoint.
 End fixpoint.
 
 
-Require Import Arith.
-
 (** We can also build fixpoints in the category of total
     Plotkin orders by requiring a little more data.
     This proof is a modification of Theorem 79 from
@@ -870,7 +869,8 @@ Section total_fixpoint.
     | S i' => fun j =>
         match j as j' return forall (Hij:S i' <= j'), iterF (S i') ⇀ iterF j' with
         | O => fun Hij => False_rect _ (HSle0 i' Hij) (* impossible case *)
-        | S j' => fun Hij => F·(iter_hom i' j' (gt_S_le i' j' Hij))
+        | S j' => fun Hij => F·(iter_hom i' j'
+          (Arith_prebase.gt_S_le_stt i' j' Hij))
         end
     end.
 
@@ -908,7 +908,7 @@ Section total_fixpoint.
       + destruct k.
         * elimtype False. inversion Hjk.
         * simpl.
-          rewrite <- (Functor.compose F _ _ _ (iter_hom j k (gt_S_le j k Hjk))).
+          erewrite <- (Functor.compose F _ _ _ (iter_hom j k _)).
           ** reflexivity.
           ** auto.
   Qed.
@@ -936,13 +936,13 @@ Section total_fixpoint.
     := Cocone kleene_chain_alt (F fixpoint_alt) 
            (fun i => 
               F·(cocone_spoke (bilimit_cocone false nat_dirord kleene_chain_alt) i) ∘
-              iter_hom i (S i) (le_S i i (le_refl i)))
+              iter_hom i (S i) (le_S i i (Nat.le_refl i)))
            _.
   Next Obligation.
     simpl. intros.
     assert (i <= S j) by auto with arith.
     rewrite <- (@cat_assoc (EMBED false)).
-    rewrite (kleene_chain_alt_obligation_2 i j (S j) Hij (le_S j j (le_refl j)) H).
+    rewrite (kleene_chain_alt_obligation_2 i j (S j) Hij (le_S j j (Nat.le_refl j)) H).
     destruct i.
 
     - simpl.
@@ -957,11 +957,11 @@ Section total_fixpoint.
     - simpl.
       etransitivity.
       + symmetry.
-        apply (Functor.compose F) with 
+        eapply (Functor.compose F) with 
           (f0:=limset_spoke false nat_dirord kleene_chain_alt (S i))
-          (g:=iter_hom i (S i) (gt_S_le i (S i) (le_S (S i) (S i) (le_refl (S i)))))
+          (g:=iter_hom i (S i) _)
           (h:=limset_spoke false nat_dirord kleene_chain_alt j ∘
-            iter_hom i j (gt_S_le i j H)).
+            iter_hom i j _).
         assert (i <= j) by auto with arith.
         rewrite <- (limset_spoke_commute false nat_dirord kleene_chain_alt i j).
         rewrite <- (limset_spoke_commute false nat_dirord kleene_chain_alt i (S i)).
@@ -985,8 +985,7 @@ Section total_fixpoint.
       rewrite <- (limord_univ_commute false nat_dirord kleene_chain_alt cocone_minus1 i).
       simpl.
       generalize (colim_commute BL cocone_plus1 i). simpl. intros.
-      transitivity (limset_spoke false nat_dirord kleene_chain_alt (S i)
-                                 ∘ iter_hom i (S i) (le_S i i (le_refl i))).
+      etransitivity.
       { apply (limset_spoke_commute false nat_dirord kleene_chain_alt i (S i)). }
       rewrite (@cat_assoc (EMBED false)).
       apply cat_respects; auto.

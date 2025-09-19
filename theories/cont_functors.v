@@ -1,5 +1,7 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
+Require Import Arith.
+
 Require Import basics.
 Require Import categories.
 Require Import preord.
@@ -101,7 +103,6 @@ Arguments continuous_functor [C] [D] F.
      fixpoint theorem for posets.
  *)
 
-Require Import Arith.
 Section fixpoint.
   Variable C:initialized.
   Variable F:functor C C.
@@ -136,7 +137,8 @@ Section fixpoint.
     | S i' => fun j =>
         match j as j' return forall (Hij:S i' <= j'), iterF (S i') → iterF j' with
         | O => fun Hij => False_rect _ (HSle0 i' Hij) (* impossible case *)
-        | S j' => fun Hij => F·(iter_hom i' j' (gt_S_le i' j' Hij))
+        | S j' => fun Hij => F·(iter_hom i' j'
+          (Arith_prebase.gt_S_le_stt i' j' Hij))
         end
     end.
 
@@ -166,7 +168,7 @@ Section fixpoint.
       + destruct k.
         * elimtype False. inversion Hjk.
         * simpl.
-          rewrite <- (Functor.compose F _ _ _ (iter_hom j k (gt_S_le j k Hjk))).
+          erewrite <- (Functor.compose F _ _ _ (iter_hom j k _)).
           ** reflexivity.
           ** auto.
   Qed.

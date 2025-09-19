@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Max.
+Require Import Arith Nat.
 
 Require Import basics.
 Require Import preord.
@@ -63,7 +63,7 @@ Proof.
   intros. destruct hf; simpl; eauto.
 Qed.
 
-Hint Resolve inh_sub elem_inh.
+#[global] Hint Resolve inh_sub elem_inh : core.
 
 (**  A subset of the image of a function is equal to the image
      of some subset of the set X.
@@ -289,7 +289,7 @@ Next Obligation.
     hnf; intros.
     apply cons_elem in H. destruct H.
     + rewrite H.
-      apply Max.le_max_l.
+      apply Nat.le_max_l.
     + transitivity k; [ apply u; auto |].
-      apply Max.le_max_r.
+      apply Nat.le_max_r.
 Qed.

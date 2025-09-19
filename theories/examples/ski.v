@@ -32,11 +32,13 @@ Inductive ty :=
   | ty_bool
   | ty_arrow : ty -> ty -> ty.
 
+Declare Scope ty_scope.
 Delimit Scope ty_scope with ty.
 Notation "2" := ty_bool : ty_scope.
 Notation "x ⇒ y" := (ty_arrow (x)%ty (y)%ty) : ty_scope.
 Bind Scope ty_scope with ty.
 
+Declare Scope ski_scope.
 Delimit Scope ski_scope with ski.
 Open Scope ski_scope.
 

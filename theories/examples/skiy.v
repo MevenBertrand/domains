@@ -36,11 +36,13 @@ Inductive ty :=
   | ty_bool
   | ty_arrow : ty -> ty -> ty.
 
+Declare Scope ty_scope.
 Delimit Scope ty_scope with ty.
 Notation "2" := ty_bool : ty_scope.
 Notation "x ⇒ y" := (ty_arrow (x)%ty (y)%ty) : ty_scope.
 Bind Scope ty_scope with ty.
 
+Declare Scope ski_scope.
 Delimit Scope ski_scope with ski.
 Open Scope ski_scope.
 
@@ -634,7 +636,7 @@ Proof.
   apply H3; auto.
 Qed.
 
-Hint Resolve value_semvalue.
+#[local] Hint Resolve value_semvalue : core.
 
 
 (**  Now we can show the soundness of redexes.
@@ -1086,7 +1088,7 @@ Proof.
   apply PLT.compose_hom_rel in H4.
   destruct H4 as [?[??]].
   simpl in H.
-  (* FIXME: In 8.6, Coq gets stuck in a reduction loop if we do not apply this
+  (* FIXME: Coq gets stuck in a reduction loop if we do not apply this
      generalized lemma *)
   assert (aurl : forall (X : PLT) (x : X) (x' : U (L X)),
              (x, x') ∈ adj_unit_rel X (PLT.effective X) <-> x' ≤ Some x).

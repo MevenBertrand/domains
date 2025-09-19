@@ -15,9 +15,11 @@ Require Import joinable.
 Require Import approx_rels.
 Require Import cpo.
 Require Import profinite.
+Require Import fixes.
 
 Close Scope plt_scope.
 
+Declare Scope cplt_scope.
 Delimit Scope cplt_scope with cplt.
 Open Scope cplt_scope.
 
@@ -919,9 +921,6 @@ Section cPLT.
     Next Obligation.
       intros.
       red; simpl.
-
-Require Import fixes.      
-
       transitivity ((∐
         (image (postcompose _ (cplt_retract B) ∘ precompose _ (cplt_retract A)) 
            (image hom_rel' X)))).

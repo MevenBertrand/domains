@@ -52,7 +52,7 @@ Proof.
   intros. destruct T. destruct mixin. eapply symm; eauto.
 Qed.
 
-Hint Resolve eq_refl eq_symm eq_trans.
+#[global] Hint Resolve eq_refl eq_symm eq_trans : core.
 
 Add Parametric Relation (T:Eq.type) : (Eq.carrier T) (@eq_op T)
   reflexivity proved by (@eq_refl T)

@@ -15,6 +15,7 @@ Require Import joinable.
 Require Import approx_rels.
 Require Import cpo.
 
+Declare Scope plt_scope.
 Delimit Scope plt_scope with plt.
 Open Scope plt_scope.
 

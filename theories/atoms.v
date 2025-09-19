@@ -358,10 +358,9 @@ Proof.
   apply nil_elem in H. elim H.
   apply cons_elem in H. destruct H.
   apply atom_strong_eq in H. subst x.
-  apply Max.le_max_l.
-  apply le_trans with (max_len xs); auto.
-  apply Max.le_max_r.
-Qed.  
+  1: lia.
+  apply IHxs in H ; lia.
+Qed.
 
 Section fresh.
   Variable atoms : finset atom.

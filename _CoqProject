@@ -1,4 +1,6 @@
 -R theories Domains
+-arg -w -arg -redundant-canonical-projection
+-arg -w -arg -projection-no-head-constant
 
 theories/notations.v
 theories/pairing.v
@@ -35,10 +37,11 @@ theories/fixes.v
 theories/discrete.v
 theories/flat.v
 theories/lam_models.v
-theories/ski.v
-theories/skiy.v
 theories/powerdom.v
 theories/strict_utils.v
 theories/finprod.v
-theories/st_lam.v
-theories/st_lam_fix.v
+
+theories/examples/ski.v
+theories/examples/skiy.v
+theories/examples/st_lam.v
+theories/examples/st_lam_fix.v

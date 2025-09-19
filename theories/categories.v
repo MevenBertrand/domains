@@ -15,8 +15,11 @@ Require Import basics.
       to respect hom-set equality.
   *)
 
+Declare Scope category_ob_scope.
 Delimit Scope category_ob_scope with cat_ob.
+Declare Scope category_hom_scope.
 Delimit Scope category_hom_scope with cat.
+Declare Scope category_ops_scope.
 Delimit Scope category_ops_scope with cat_ops.
 
 Open Scope category_ob_scope.
@@ -1319,8 +1322,8 @@ End functor.
 End Functor.
 Arguments Functor.ob_map [C] [D] f X : rename.
 Arguments Functor.hom_map [C] [D] f A B f0 : rename.
-Arguments Functor.Functor C D _ _ _ _ _.
-Arguments Functor.functor C D.
+Arguments Functor.Functor C D _ _ _ _ _ : assert.
+Arguments Functor.functor C D : assert.
 Arguments Functor.ident [C] [D] f A f0 _ : rename.
 Arguments Functor.compose [C] [D] f A B C0 f0 g h _ : rename.
 Arguments Functor.respects [C] [D] f A B f0 g _ : rename.

@@ -8,6 +8,7 @@ Require Import finsets.
 Require Import esets.
 Require Import directed.
 
+Declare Scope cpo_scope.
 Delimit Scope cpo_scope with cpo.
 Open Scope cpo_scope.
 
@@ -139,7 +140,7 @@ Module CPO.
   Arguments ord [CL] t.
   Arguments cpo_mixin [CL] t.
 
-  Hint Resolve cpo_mixin.
+  #[global] Hint Resolve cpo_mixin : core.
   Canonical Structure ord.
 
   Definition cpo_eq CL (T:type CL) : Eq.type :=
@@ -592,7 +593,7 @@ Class pointed (CL:color) (X:CPO.type CL) :=
 Notation "⊥" := (@bottom _ _ _) : cpo_scope.
 
 Arguments pointed [CL] X.
-Hint Resolve bottom_least.
+#[global] Hint Resolve bottom_least : core.
 
 (**  Every cppo has a least element, which arises as the supremum
      of the empty set.
@@ -621,7 +622,7 @@ Section bottom.
   Qed.
 End bottom.
 
-Instance cppo_pointed (X:cppo) : pointed X :=
+#[global] Instance cppo_pointed (X:cppo) : pointed X :=
   { bottom := cppo_bot X; bottom_least := cppo_bot_least X }.
 
 (**  Every Scott-continuous map between cppos preserves

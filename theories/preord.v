@@ -8,6 +8,7 @@ Require Import Coq.Program.Basics.
 Require Import basics.
 Require Import categories.
 
+Declare Scope preord_scope.
 Delimit Scope preord_scope with preord.
 Open Scope preord_scope.
 
@@ -271,7 +272,7 @@ Proof.
   intros. apply Preord.axiom. auto.
 Qed.  
 
-Hint Resolve ord_refl ord_trans ord_antisym preord_ord preord_eq eq_ord eq_ord'.
+#[global] Hint Resolve ord_refl ord_trans ord_antisym preord_ord preord_eq eq_ord eq_ord' : core.
 
 Add Parametric Morphism (X Y:preord) :
   (@hommap PREORD PREORD_concrete X Y)

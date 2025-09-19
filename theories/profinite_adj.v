@@ -885,7 +885,7 @@ Proof.
   apply bottom_least.
 Qed.
 
-Instance lift_plt_pointed (X:PLT) (Y:∂PLT) : 
+#[global] Instance lift_plt_pointed (X:PLT) (Y:∂PLT) : 
   pointed (PLT.homset_cpo _ X (liftPPLT Y)) :=
   { bottom := Ψ⁻¹ ⊥
   ; bottom_least := U_bottom_least X Y

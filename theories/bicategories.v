@@ -12,6 +12,7 @@ Require Import categories.
 Close Scope category_ob_scope.
 Close Scope category_ops_scope.
 
+Declare Scope bicategory_scope.
 Delimit Scope bicategory_scope with bicat.
 Open Scope bicategory_scope.
 

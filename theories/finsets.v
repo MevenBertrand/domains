@@ -613,14 +613,14 @@ Proof.
     + subst a0.
       destruct (Hdec q a).
       * destruct (Hdec a q).
-        ** apply Le.le_n_S. apply finset_remove_length1.
+        ** apply Nat.lt_succ_r. apply finset_remove_length1.
         ** elim n; destruct H0; auto.
       * elim n; destruct H0; auto.
     + destruct (Hdec a0 a).
       * destruct (Hdec a a0).
         ** transitivity (length X); auto.
-        ** simpl. apply Lt.lt_n_S. apply IHX; auto.
-      * simpl. apply Lt.lt_n_S. apply IHX; auto.
+        ** simpl. apply -> Nat.succ_lt_mono. apply IHX; auto.
+      * simpl. apply -> Nat.succ_lt_mono. apply IHX; auto.
 Qed.  
 
 (**  We can take the powerset of a finite set; that is, all finite

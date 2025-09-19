@@ -15,3 +15,5 @@ docs/dependency_graph.pre
 Makefile.coq
 
 Makefile.coq.conf
+
+notes.md
