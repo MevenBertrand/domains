@@ -293,17 +293,17 @@ Qed.
      [m↓] means that [m] evaluates to itself; i.e., [m] is a value.
   *)
 Reserved Notation "m ⇓ z" (at level 82, left associativity).
-Reserved Notation "m ↓" (at level 82, left associativity).
+Reserved Notation "m ↓" (at level 1, left associativity).
 
 Inductive eval (Γ:env) : forall τ, term Γ τ -> term Γ τ -> Prop :=
   | ebool : forall b,
-               tbool Γ b ↓
+               (tbool Γ b) ↓
   | eif : forall σ x y z b q,
                x ⇓ (tbool Γ b) ->
                (if b then y else z) ⇓ q ->
                (tif Γ σ x y z) ⇓ q
   | elam : forall x σ₁ σ₂ m,
-               tlam Γ x σ₁ σ₂ m ↓
+               (tlam Γ x σ₁ σ₂ m) ↓
   | efix : forall x σ m z,
                subst Γ σ σ x m (tfix Γ x σ m) ⇓ z ->
                tfix Γ x σ m ⇓ z

@@ -271,17 +271,17 @@ Qed.
      [m↓] means that [m] evaluates to itself; i.e., [m] is a value.
   *)
 Reserved Notation "m ⇓ z" (at level 82, left associativity).
-Reserved Notation "m ↓" (at level 82, left associativity).
+Reserved Notation "m ↓" (at level 1, left associativity).
 
 Inductive eval (Γ:env) : forall τ, term Γ τ -> term Γ τ -> Prop :=
   | ebool : forall b,
-               tbool Γ b ↓
+               (tbool Γ b) ↓
   | eif : forall σ x y z b q,
                x ⇓ (tbool Γ b) ->
                (if b then y else z) ⇓ q ->
                (tif Γ σ x y z) ⇓ q
   | elam : forall x σ₁ σ₂ m,
-               tlam Γ x σ₁ σ₂ m ↓
+               (tlam Γ x σ₁ σ₂ m) ↓
   | eapp : forall x σ₁ σ₂ m₁ m₂ n₁ n₂ z,
                m₁ ⇓ (tlam Γ x σ₁ σ₂ n₁) ->
                m₂ ⇓ n₂ ->
@@ -1362,7 +1362,7 @@ Qed.
   *)
 Lemma fundamental_lemma : forall Γ τ (m:term Γ τ) 
   (VAR:ENV.varmap term Γ nil) (VARh : cxt nil → cxt Γ),
-  (forall a σ H, VAR a σ H ↓ /\
+  (forall a σ H, (VAR a σ H) ↓ /\
        LR σ (VAR a σ H) (castty H ∘ proj Γ a ∘ VARh)) ->
   exists z1 z2,
     eval nil τ (term_subst Γ nil τ VAR m) z1 /\

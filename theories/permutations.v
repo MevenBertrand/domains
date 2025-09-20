@@ -42,9 +42,8 @@ Arguments Support.support : simpl never.
 
 Notation supported := Support.supported.
 Notation Supported := Support.Supported.
-Notation "‖ x ‖" := (Support.support _ x) (at level 20, format "‖ x ‖").
-Notation "a ♯ b" := (Support.disjoint _ _ a b) 
-   (at level 25, no associativity, format "a ♯ b").
+Notation "‖ x ‖" := (Support.support _ x).
+Notation "a ♯ b" := (Support.disjoint _ _ a b).
 
 Canonical Structure atom_supp :=
   Supported atom (fun x => x::nil).

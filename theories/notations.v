@@ -80,7 +80,7 @@ Reserved Notation "A ⊸ B" (at level 35, right associativity).
 Reserved Notation "F ▹ nt" (at level 36).
 Reserved Notation "nt ◃ F" (at level 36).
 
-Reserved Notation "‖ x ‖" (at level 20, format "‖ x ‖").
+Reserved Notation "‖ x ‖" (at level 25, format "‖ x ‖").
 Reserved Notation "a ♯ b" (at level 25, no associativity, format "a ♯ b").
 Reserved Notation "u ⇋ v" (at level 20, no associativity).
 Reserved Notation "p · x" (at level 35, right associativity, format "p · x").
