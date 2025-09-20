@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Arith.
+Require Import Arith Lia.
 
 Require Import basics.
 Require Import categories.
@@ -138,7 +138,7 @@ Section fixpoint.
         match j as j' return forall (Hij:S i' <= j'), iterF (S i') → iterF j' with
         | O => fun Hij => False_rect _ (HSle0 i' Hij) (* impossible case *)
         | S j' => fun Hij => F·(iter_hom i' j'
-          (Arith_prebase.gt_S_le_stt i' j' Hij))
+          ltac:(lia))
         end
     end.
 

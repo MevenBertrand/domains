@@ -2,6 +2,8 @@
 
 Require Import Setoid.
 Require Import List.
+Require Import Arith.
+Require Import Lia.
 
 Require Import basics.
 Require Import categories.
@@ -16,7 +18,6 @@ Require Import embed.
 Require Import directed.
 Require Import cont_functors.
 Require Import cpo.
-Require Import Arith.
 
 
 (**  * Bilimits and fixpoints of continuous functors.
@@ -869,8 +870,7 @@ Section total_fixpoint.
     | S i' => fun j =>
         match j as j' return forall (Hij:S i' <= j'), iterF (S i') ⇀ iterF j' with
         | O => fun Hij => False_rect _ (HSle0 i' Hij) (* impossible case *)
-        | S j' => fun Hij => F·(iter_hom i' j'
-          (Arith_prebase.gt_S_le_stt i' j' Hij))
+        | S j' => fun Hij => F·(iter_hom i' j' ltac:(lia))
         end
     end.
 

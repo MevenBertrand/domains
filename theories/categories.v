@@ -1457,8 +1457,8 @@ End nt.
 
 Arguments nt [C] [D] F G.
 Arguments NT [C] [D] F G transform axiom.
-Arguments transform [C] [D] [F] [G] (n)%cat (A)%cat_ob.
-Arguments axiom [C] [D] [F] [G] n [A] [B] (f)%cat.
+Arguments transform [C] [D] [F] [G] (n)%_cat (A)%_cat_ob.
+Arguments axiom [C] [D] [F] [G] n [A] [B] (f)%_cat.
 
 Section nt_compose.
   Variables C D E:category.

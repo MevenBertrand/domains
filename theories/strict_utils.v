@@ -476,7 +476,7 @@ Lemma strict_curry'_semvalue Γ A B f :
   semvalue (@strict_curry' Γ A B f).
 Proof.
   unfold strict_curry'.
-  apply eta_semvalue.  
+  apply eta_semvalue.
 Qed.
 
 Lemma strict_curry'_semvalue2 Γ A B C f (g:C → Γ) :
@@ -484,7 +484,7 @@ Lemma strict_curry'_semvalue2 Γ A B C f (g:C → Γ) :
 Proof.
   unfold strict_curry'.
   rewrite <- (cat_assoc PLT).
-  apply eta_semvalue.  
+  apply eta_semvalue.
 Qed.
 
 Lemma semvalue_strict_app_out1 A B C (f:C → U (A ⊸ B)) (x:C → U A) :
