@@ -1,9 +1,9 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Program Setoid.
-Require Import Morphisms.
+From Stdlib Require Import Program Setoid.
+From Stdlib Require Import Morphisms.
 
-Require Import Coq.Program.Basics.
+From Stdlib Require Import Program.
 
 Require Import basics.
 Require Import categories.

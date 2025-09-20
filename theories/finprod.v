@@ -1,8 +1,9 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
-Require Import List.
-Require Import NArith.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import List.
+From Stdlib Require Import NArith.
+From Stdlib Require Import String.
 
 Require Import basics.
 Require Import preord.
@@ -27,7 +28,7 @@ Require Import permutations.
 
 (**  First, a short development of cast morphisms.  These are
      useful for dealing with cases where we have types that
-     are provably equal, but not convertable.
+     are provably equal, but not convertible.
   *)
 Section cast.
   Variable hf:bool.

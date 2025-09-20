@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Program Setoid.
+From Stdlib Require Import Program Setoid.
 
 Require Import basics.
 

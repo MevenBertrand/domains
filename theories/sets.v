@@ -1,7 +1,9 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Relations.
-Require Import List.
+From Stdlib Require Import Relations.
+From Stdlib Require Import List.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import Program.
 
 Require Import basics.
 Require Import preord.
@@ -10,6 +12,8 @@ Require Import categories.
 Declare Scope set_scope.
 Delimit Scope set_scope with set.
 Open Scope set_scope.
+
+#[local]Obligation Tactic := program_simpl.
 
 (**  * Set theory.
 
@@ -178,8 +182,6 @@ Qed.
 (**  Next, we do all the muckety-muck necessary to 
      do setoid rewriting with set theories.
   *)
-Require Import Setoid.
-Require Import Coq.Program.Basics.
 
 Add Parametric Morphism (T:set.theory) (A:preord) :
   (@set.member T A)
@@ -524,6 +526,8 @@ Next Obligation.
 
 (**  The conjunction of two coloring properties is again a color.
   *)
+
+(** FIXME: auto should know about conjunction*)
 Program Definition color_and (C1 C2:color) : color :=
   Color (fun SL A X => color_prop C1 X /\ color_prop C2 X) _ _ _ _.
 Next Obligation.

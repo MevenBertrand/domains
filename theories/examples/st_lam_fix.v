@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import String.
+From Stdlib Require Import String.
 
 Require Import atoms.
 Require Import permutations.
@@ -24,7 +24,7 @@ Require Import profinite_adj.
 Require Import fixes.
 Require Import strict_utils.
 
-Require Import List.
+From Stdlib Require Import List.
 
 (** * The simply-typed λ-calculus with booleans and fixpoints
 

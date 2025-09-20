@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Arith Lia.
+From Stdlib Require Import Arith Lia.
 
 Require Import basics.
 Require Import categories.

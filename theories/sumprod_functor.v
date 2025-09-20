@@ -1,7 +1,7 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import List.
-Require Import NArith.
+From Stdlib Require Import List.
+From Stdlib Require Import NArith.
 
 Require Import basics.
 Require Import categories.

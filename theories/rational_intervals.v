@@ -1,7 +1,7 @@
-Require Import QArith.
-Require Import Qminmax.
-Require Import Setoid.
-Require Import Lia.
+From Stdlib Require Import QArith.
+From Stdlib Require Import Qminmax.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import Lia.
 
 Require Import basics.
 

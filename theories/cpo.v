@@ -651,7 +651,7 @@ Arguments strict_map [X Y] f.
      Every chain gives rise to a directed set and thus has a suprema.
      Suprema of chains have a nice induction principle.
   *)
-Require Import NArith.
+From Stdlib Require Import NArith.
 
 Lemma Niter_succ A f (a:A) : forall n,
   N.iter (N.succ n) f a = f (N.iter n f a).

@@ -1,7 +1,7 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import String.
-Require Import List.
+From Stdlib Require Import String.
+From Stdlib Require Import List.
 
 Require Import atoms.
 Require Import permutations.

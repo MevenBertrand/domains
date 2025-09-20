@@ -1,8 +1,8 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Relations.
-Require Import List.
-Require Import NArith.
+From Stdlib Require Import Relations.
+From Stdlib Require Import List.
+From Stdlib Require Import NArith.
 
 Require Import basics.
 Require Import preord.

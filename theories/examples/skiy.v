@@ -1,9 +1,9 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import String.
-Require Import List.
-Require Import Arith.
-Require Import Lia.
+From Stdlib Require Import String.
+From Stdlib Require Import List.
+From Stdlib Require Import Arith.
+From Stdlib Require Import Lia.
 
 Require Import basics.
 Require Import preord.

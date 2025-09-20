@@ -1,14 +1,14 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Ascii.
-Require Export String.
+From Stdlib Require Import Ascii.
+From Stdlib Require Import String.
 Open Scope string_scope.
 
-Require Import Setoid.
-Require Import NArith.
-Require Import Arith.
-Require Import List.
-Require Import Lia.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import NArith.
+From Stdlib Require Import Arith.
+From Stdlib Require Import List.
+From Stdlib Require Import Lia.
 
 Require Import basics.
 Require Import categories.

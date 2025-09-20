@@ -7,7 +7,7 @@ Require Import sets.
 Require Import finsets.
 Require Import esets.
 
-Require Import NArith.
+From Stdlib Require Import NArith.
 
 (**  * Effective preorders.
 

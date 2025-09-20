@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Arith Nat.
+From Stdlib Require Import Arith Nat.
 
 Require Import basics.
 Require Import preord.
@@ -266,8 +266,8 @@ Definition directed_cl := directed_hf_cl false.
 (**  The preorder of natural numbers with their arithmetic ordering
      is an effective, directed preorder.
   *)
-Require Import Arith.
-Require Import NArith.
+From Stdlib Require Import Arith.
+From Stdlib Require Import NArith.
 
 Program Definition nat_ord := Preord.Pack nat (Preord.Mixin nat le _ _).
 Solve Obligations with eauto with arith.

@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import NArith.
+From Stdlib Require Import NArith.
 
 Local Open Scope N_scope.
 

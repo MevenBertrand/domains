@@ -1,7 +1,7 @@
-Require Import QArith.
-Require Import Setoid.
-Require Import Coq.Program.Basics.
-Require Import Lia.
+From Stdlib Require Import QArith.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import Program.
+From Stdlib Require Import Lia.
 
 Require Import basics.
 Require Import preord.
@@ -19,7 +19,7 @@ Require Import cusl.
 
 Require Import rational_intervals.
 
-Require Import Qminmax.
+From Stdlib Require Import Qminmax.
 
 
 Program Definition rint_preord_mixin :

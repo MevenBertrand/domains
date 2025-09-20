@@ -1,6 +1,6 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
+From Stdlib Require Import Setoid.
 
 Require Import basics.
 Require Import preord.

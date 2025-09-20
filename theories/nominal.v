@@ -1,6 +1,7 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import String.
 
 Require Import basics.
 Require Import categories.
@@ -15,7 +16,7 @@ Require Import permutations.
 
 #[local]Obligation Tactic := intuition auto.
 
-Require Import List.
+From Stdlib Require Import List.
 
 Module Nominal.
 

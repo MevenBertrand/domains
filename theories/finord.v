@@ -1,8 +1,8 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
-Require Import NArith.
-Require Import List.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import NArith.
+From Stdlib Require Import List.
 
 Require Import basics.
 Require Import categories.

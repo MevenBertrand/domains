@@ -1,6 +1,7 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Setoid.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import String.
 
 Require Import basics.
 Require Import categories.
@@ -9,7 +10,7 @@ Require Import sets.
 Require Import finsets.
 Require Import atoms.
 
-Require Import List.
+From Stdlib Require Import List.
 
 (**  * Support and finite permutations
   *)
@@ -415,7 +416,7 @@ Qed.
      size of the support set of a permutation.  At each step
      we can reduce the support by applying a swap. 
   *)
-Require Import Arith.
+From Stdlib Require Import Arith.
 
 Lemma swap_induction (P:perm -> Prop) :
   (forall p p', p ≈ p' -> P p -> P p') ->

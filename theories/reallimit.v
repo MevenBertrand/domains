@@ -1,5 +1,5 @@
-Require Import QArith.
-Require Import Setoid.
+From Stdlib Require Import QArith.
+From Stdlib Require Import Setoid.
 
 Require Import basics.
 Require Import preord.
@@ -18,8 +18,8 @@ Require Import cusl.
 Require Import rational_intervals.
 Require Import realdom.
 
-Require Import Qabs.
-Require Import Qminmax.
+From Stdlib Require Import Qabs.
+From Stdlib Require Import Qminmax.
 
 
 Record convergence_rate :=

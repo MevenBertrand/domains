@@ -1,4 +1,4 @@
-Require Import Setoid.
+From Stdlib Require Import Setoid.
 
 Require Import basics.
 Require Import categories.

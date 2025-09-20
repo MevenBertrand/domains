@@ -1,9 +1,9 @@
 (* Copyright (c) 2014, Robert Dockins *)
 
-Require Import Relations.
-Require Import List.
-Require Import Setoid.
-Require Import Arith.
+From Stdlib Require Import Relations.
+From Stdlib Require Import List.
+From Stdlib Require Import Setoid.
+From Stdlib Require Import Arith.
 
 Require Import basics.
 Require Import preord.
