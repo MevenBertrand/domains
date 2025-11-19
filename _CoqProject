@@ -1,12 +1,14 @@
 -R theories Domains
--arg -w -arg -redundant-canonical-projection
--arg -w -arg -projection-no-head-constant
 
 theories/notations.v
-theories/pairing.v
+theories/axioms.v
 theories/basics.v
-theories/categories.v
-theories/bicategories.v
+theories/pairing.v
+theories/categories/categories.v
+theories/categories/morphisms.v
+theories/categories/functors.v
+theories/categories/universal.v
+# theories/categories/bicategories.v
 theories/preord.v
 theories/sets.v
 theories/finsets.v

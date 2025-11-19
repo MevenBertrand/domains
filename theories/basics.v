@@ -1,71 +1,62 @@
-(* Copyright (c) 2014, Robert Dockins *)
+(** * Domains.Basics: basic definitions and utilities (such as tactics) *)
+From Stdlib Require Import Morphisms CRelationClasses.
+From smpl Require Export Smpl.
+From HB Require Import structures.
+Require Import notations.
 
-From Stdlib Require Import Setoid.
-From Stdlib Require Import Program.
-Require Export notations.
+(** ** Equalities *)
+
+Definition transport {A : Type} (P : A -> Type) {x y : A} (p : x = y) (u : P x) : P y
+  := match p with eq_refl => u end.
+
+(** See above for the meaning of [simpl nomatch]. *)
+Arguments transport {A}%_type_scope P%_function_scope {x y} p u : simpl nomatch.
+
+Definition ap {A B : Type} (f : A -> B) {x y : A} (p : x = y) : f x = f y
+  := match p with eq_refl => eq_refl end.
+
+Global Arguments ap {A B}%_type_scope f%_function_scope {x y} p : simpl nomatch.
+
+(** Transport is very common so it is worth introducing a parsing notation for it.  However, we do not use the notation for output because it hides the fibration, and so makes it very hard to read involved transport expression. *)
+Notation "p # u" := (transport _ p u) (only parsing).
+
+(** ** Tactics *)
+
+#[global]Hint Unfold notT: core.
+#[global] Hint Resolve eq_refl eq_sym : core.
+
+(* To use in intro patterns, similar to SSReflects' /dup view *)
+Definition dup {A : Type} : A -> A * A := fun x => (x,x).
+
+Ltac tea := try eassumption.
+#[global] Ltac easy ::= solve [eauto 3 with core crelations].
 
 #[global]Obligation Tactic := idtac.
 #[global] Ltac Tauto.intuition_solver ::= auto.
 
+(*** A tactic to use extensionality of equality. *)
+
+(** A general refolding tactic to recover lost typeclasses
+  (due for instance to the cbn or constructor tactics).
+  Updated on the fly using the Smpl plugin. *)
+Smpl Create extensionality.
+
+Ltac ext := repeat (intros ; smpl extensionality).
+
 (** * Setoids and equality.
 
-      This module introduces setoids, which consist of a type packaged together with
-      an equivalence relation.  We roughly follow the techniques described in the paper
-      _Packaging Mathematical Structures_ by Garillot et al. (TPHOLS 2009).  The mainstay
-      of this technique is using canonoical structures to automatically infer structures
-      given the carrier type.
-
-      We use the symbol ≈ to indicate the equality relation on setoids.  For the vast
-      majority of this development, ≈ will be the notion of equivalence of interest.
+      We use the symbol ≈ to indicate the equality relation on setoids, which,
+      thanks to working with observational equality, coincides with the usual
+      equality type.
   *)
 
-Delimit Scope equiv_scope with eq.
-Open Scope equiv_scope.
-
-Module Eq.
-  Record mixin_of (T:Type) :=
-    Mixin
-    { eq : T -> T -> Prop
-    ; refl : forall x, eq x x
-    ; symm : forall x y, eq x y -> eq y x
-    ; trans : forall x y z,
-             eq x y -> eq y z -> eq x z
-    }.
-  Structure type : Type :=
-    Pack { carrier :> Type ; mixin : mixin_of carrier }.
-
-End Eq.
-Definition eq_op T := Eq.eq _ (Eq.mixin T).
-Notation "x ≈ y" := (@eq_op _ x y) : equiv_scope.
-Notation "x ≉ y" := (~(@eq_op _ x y)) : equiv_scope.
-Coercion Eq.carrier : Eq.type >-> Sortclass.
+(** We keep the notations around for now, but they should ultimately disappear. *)
+Notation "x ≈ y" := (x = y) (only parsing).
+Notation "x ≉ y" := (~(x = y)) (only parsing).
 
 
-Lemma eq_refl : forall (T:Eq.type) (x:T), x ≈ x.
-Proof.
-  intros. destruct T. destruct mixin. apply refl.
-Qed.
+(** *)
 
-Lemma eq_trans : forall (T:Eq.type) (x y z:T), x ≈ y -> y ≈ z -> x ≈ z.
-Proof.
-  intros. destruct T. destruct mixin. eapply trans; eauto.
-Qed.
+HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, {x = y} + {x <> y} }. 
 
-Lemma eq_symm : forall (T:Eq.type) (x y:T), x ≈ y -> y ≈ x.
-Proof.
-  intros. destruct T. destruct mixin. eapply symm; eauto.
-Qed.
-
-#[global] Hint Resolve eq_refl eq_symm eq_trans : core.
-
-Add Parametric Relation (T:Eq.type) : (Eq.carrier T) (@eq_op T)
-  reflexivity proved by (@eq_refl T)
-  symmetry proved by (@eq_symm T)
-  transitivity proved by (@eq_trans T)
-  as eq_op_rel.
-
-Record eq_dec (T:Eq.type) :=
-    EqDec
-    { eqdec :> forall x y:T, {x ≈ y}+{x ≉ y} }. 
-
-Arguments eqdec [T] [e] x y.
+HB.structure Definition EqTy := {T of HasEqDec T}.
