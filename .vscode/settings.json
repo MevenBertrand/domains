@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/*.aux": true,
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/*.synctex.gz": true
+  },
+  "ocaml.sandbox": {
+    "kind": "opam",
+    "switch": "rocq.9.0"
+  }
+}
