@@ -41,7 +41,7 @@ Ltac tea := try eassumption.
   Updated on the fly using the Smpl plugin. *)
 Smpl Create extensionality.
 
-Ltac ext := repeat (intros ; smpl extensionality).
+Ltac ext := repeat (intros ; smpl extensionality ; intros).
 
 (** * Setoids and equality.
 

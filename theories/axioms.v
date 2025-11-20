@@ -47,7 +47,7 @@ Smpl Add (apply proof_irrelevance) : extensionality.
 (** Corresponds to the definition of function setoids. *)
 From Stdlib Require Export FunctionalExtensionality.
 
-Smpl Add (apply functional_extensionality) : extensionality.
+Smpl Add (apply functional_extensionality_dep) : extensionality.
 
 Corollary pred_ext: forall {A} (P Q : A -> Prop), (forall x, P x <-> Q x) -> P = Q.
 Proof.

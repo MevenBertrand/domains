@@ -2,7 +2,7 @@
 From Stdlib Require Import Program Setoid ssreflect ssrfun.
 From HB Require Import structures.
 
-Require Import notations basics categories.
+Require Import notations axioms basics categories.
 
 #[local] Open Scope cat_scope.
 
@@ -15,21 +15,21 @@ Require Import notations basics categories.
 HB.structure Definition prefunctor (C D : Quiver) :=
   { F of IsPreFunctor C D F }.
 
-Notation "F <$> f" := (@Fhom _ _ F _ _ f) : cat_scope.
+Notation "F <$> f" := (Fhom (s := F) _ _ f) : cat_scope.
 
 Definition pack_prefunctor [C D: Quiver] (F: C -> D)
   (Fhom : forall (a b : C), (a → b) -> (F a → F b)): PreFunctor C D :=
   HB.pack F (IsPreFunctor.Build _ _ F Fhom).
 
 
-(** We follow Dokins and phrase the axioms in a "forded" fashion, if I understand
+(** We follow Dockins and phrase the axioms in a "forded" fashion, if I understand
   correctly this helps with making a number of things hold up to defeq, in particular
   associativity of composition, by exploiting the fact that composition of functions
   is definitionally associative. Maybe we'll want to go back on this later… *)
   
 #[primitive]HB.mixin Record PreFunctor_IsFunctor (C D : PreCat) F of @prefunctor C D F := {
-   #[canonical=no] F1 : forall {a : C} {f : a → a}, f = idmap -> F <$> f = idmap;
-   #[canonical=no] Fcomp : forall {a b c : C} {f : a → b} {g : b → c} {h : a → c},
+   #[canonical=no] F1_ford : forall {a : C} {f : a → a}, f = idmap -> F <$> f = idmap;
+   #[canonical=no] Fcomp_ford : forall {a b c : C} {f : a → b} {g : b → c} {h : a → c},
       h = g ∘ f -> F <$> h = F <$> f \; F <$> g;
 }.
 #[short(type="Functor"),primitive]
@@ -43,34 +43,45 @@ HB.structure Definition functor (C D : PreCat) :=
     Fhom _ _ (g ∘ f) = Fhom _ _ g ∘ Fhom _ _ f;
 }.
 
+Lemma F1 {C D : PreCat} {F : Functor C D} (a : C) : F <$> (idmap (a := a)) = idmap.
+Proof.
+  by apply F1_ford.
+Qed.
+
+Lemma Fcomp {C D : PreCat} {F : Functor C D} {a b c : C} {f : a → b} {g : b → c} :
+  F <$> (g ∘ f) = F <$> f \; F <$> g.
+Proof.
+  by apply Fcomp_ford.
+Qed.
+
 HB.builders Context (C D: PreCat) F of IsFunctor C D F.
 
 HB.instance Definition _ := IsPreFunctor.Build _ _ F Fhom.
 
-Lemma F1_ford (a : C) (f : a → a) : f = idmap -> F <$> f = idmap.
+Lemma _F1_ford (a : C) (f : a → a) : f = idmap -> F <$> f = idmap.
 Proof.
   move => ->.
   by apply F1.
 Qed.
 
-Lemma Fcomp_ford (a b c : C) (f : a → b) (g : b → c) (h : a → c) :
+Lemma _Fcomp_ford (a b c : C) (f : a → b) (g : b → c) (h : a → c) :
       h = g ∘ f -> F <$> h = F <$> f \; F <$> g.
 Proof.
   move => ->.
   by apply Fcomp.
 Qed.
 
-HB.instance Definition _ := PreFunctor_IsFunctor.Build _ _ F F1_ford Fcomp_ford.
+HB.instance Definition _ := PreFunctor_IsFunctor.Build _ _ F _F1_ford _Fcomp_ford.
 
 HB.end.
 
-Definition pack_functor [C D: PreCat] (F: C -> D)
+(* Definition pack_functor [C D: PreCat] (F: C -> D)
   (Fhom : forall (a b : C), (a → b) -> (F a → F b))
   (F1 : forall (a : C), Fhom _ _ idmap = idmap)
   (Fcomp : forall (a b c : C) (f : a → b) (g : b → c),
     Fhom _ _ (f \; g) = Fhom _ _ f \; Fhom _ _ g): Functor C D :=
   HB.pack F (IsFunctor.Build _ _ F Fhom F1 Fcomp).
-Arguments pack_functor [_ _] _ _.
+Arguments pack_functor [_ _] _ _. *)
 
 (** ** Identity and composition *)
 
@@ -85,7 +96,7 @@ Section comp_prefunctor.
 Context {C D E : Quiver} {F : PreFunctor C D} {G : PreFunctor D E}.
 
 HB.instance Definition CompPreFun := IsPreFunctor.Build C E (G \o F)%function
-   (fun a b f => G <$> (F <$> f)).
+   (fun a b => (Fhom (s := G) (F a) (F b)) \o (Fhom (s := F) a b)).
 
 Lemma comp_Fun (a b : C) (f : a → b) : (G \o F)%function <$> f = G <$> (F <$> f).
 Proof. reflexivity. Qed.
@@ -95,22 +106,29 @@ End comp_prefunctor.
 Section comp_functor.
 Context {C D E : PreCat} {F : Functor C D} {G : Functor D E}.
 
-Lemma comp_F1 (a : C) (f : a → a) : f = idmap -> (G \o F)%function <$> f = idmap.
-Proof. exact (fun e => F1 _ _ (F1 _ _ e)). Defined.
-Lemma comp_Fcomp  (a b c : C) (f : a → b) (g : b → c) (h : a → c) :
+Lemma comp_F1_ford (a : C) (f : a → a) : f = idmap -> (G \o F)%function <$> f = idmap.
+Proof. exact (fun e => F1_ford _ _ (F1_ford _ _ e)). Defined.
+Lemma comp_Fcomp_ford  (a b c : C) (f : a → b) (g : b → c) (h : a → c) :
   h = g ∘ f ->
   (G \o F)%function <$> h = ((G \o F)%function <$> g) ∘ ((G \o F)%function <$> f).
-Proof. exact (fun e => Fcomp _ _ _ _ _ _ (Fcomp _ _ _ _ _ _ e)). Defined.
+Proof. exact (fun e => Fcomp_ford _ _ _ _ _ _ (Fcomp_ford _ _ _ _ _ _ e)). Defined.
 
 HB.instance Definition CompFun := PreFunctor_IsFunctor.Build C E (G \o F)%function
-  comp_F1 comp_Fcomp.
+  comp_F1_ford comp_Fcomp_ford.
+
+Lemma comp_F1 (a : C) : (G \o F)%function <$> (idmap (a := a)) = idmap.
+Proof. by apply comp_F1_ford. Qed.
+Lemma comp_Fcomp  (a b c : C) (f : a → b) (g : b → c) (h : a → c) :
+  (G \o F)%function <$> (g ∘ f) = ((G \o F)%function <$> g) ∘ ((G \o F)%function <$> f).
+Proof. by apply comp_Fcomp_ford. Qed.
 
 End comp_functor.
 
-(** Sanity checking: if we unset universe checking, we indeed have a pre-category of quivers
-    TODO: clean *)
+(** Sanity checking: if we unset universe checking, we indeed have a pre-category of quivers. *)
+(** Once we have universe polymorphism, we can build this pre-category and the (large) category
+  of categories. *)
 
-Unset Universe Checking.
+(* Unset Universe Checking.
 
 Section Sanity.
   HB.instance Definition _ := IsQuiver.Build Quiver PreFunctor.
@@ -148,505 +166,121 @@ Section Sanity.
 
 End Sanity.
 
-Set Universe Checking.
+Set Universe Checking. *)
 
 (** ** Examples *)
 
 (** *** Constant functor *)
 
-Program Definition fconst (C D:category) (A:ob D) : functor C D :=
-  Functor C D (fun _ => A) (fun _ _ _ => id(A)) _ _ _.
-Next Obligation.
-  intros. apply eq_symm. apply cat_ident1.
-Defined.
+(** constant functor *)
+Definition cst (C D : Quiver) (c : C) := fun of D => c.
+Arguments cst {C} D c.
+HB.instance Definition _ {C D : PreCat} (c : C) :=
+  IsPreFunctor.Build D C (cst D c) (fun _ _ => const idmap).
+HB.instance Definition _ {C D : Cat} (c : C) :=
+  IsFunctor.Build D C (cst D c) (fun _ _ => const idmap) (fun=> eq_refl)
+    (fun _ _ _ _ _ => eq_sym (compo1 idmap)).
 
-(** *** Functors to/from a product category *)
+(** ** Natural transformations *)
 
-Section projF.
-  Variables C D:category.
-  
-  Program Definition fstF : functor (PROD C D) C :=
-    Functor (PROD C D) C
-      (fun X => obl X)
-      (fun X Y f => homl f)
-      _ _ _.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
+(** *** Transformations *)
+HB.instance Definition _  (C : Type) (D : Quiver) :=
+  IsQuiver.Build (C -> D) (fun f g => forall c, f c → g c).
 
-  Program Definition sndF : functor (PROD C D) D :=
-    Functor (PROD C D) D
-      (fun X => obr X)
-      (fun X Y f => homr f)
-      _ _ _.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
-  Next Obligation.
-    intros. destruct H; auto.
-  Qed.
-End projF.
+(** *** Naturality *)
+HB.mixin Record IsNatural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) (n : forall c, F c → G c) :=
+  { #[canonical=no] natural : forall (a b : C) (f : a → b), F <$> f \; n b = n a \; G <$> f }.
+HB.structure Definition Natural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) :=
+  { n of @IsNatural C D F G n }.
+Arguments Natural.type {_} {_} _ _.
 
-Section pairF.
-  Variables C D E:category.
-  Variable F:functor C D.
-  Variable G:functor C E.
-
-  Program Definition pairF : functor C (PROD D E) :=
-    Functor C (PROD D E)
-      (fun X => PROD.Ob D E (F X) (G X))
-      (fun X Y f => PROD.Hom _ _ _ _ (F<$>f) (G<$>f))
-      _ _ _.
-  Next Obligation.
-    simpl; intros. split; simpl.
-    apply Functor.ident; auto.
-    apply Functor.ident; auto.
-  Qed.
-  Next Obligation.
-    simpl; intros. split; simpl.
-    apply Functor.compose; auto.
-    apply Functor.compose; auto.
-  Qed.
-  Next Obligation.
-    simpl; intros. split; simpl.
-    apply Functor.respects; auto.
-    apply Functor.respects; auto.
-  Qed.
-End pairF.
-Arguments pairF [C D E] _ _.
-
-(** *** Categories *)
-
-(** We can define the category structure for the large
-     category of small categories.  However! we cannot complete
-     the construction due to a universe inconsistency.  If we
-     had universe polymorphism we could get the definition we want.
-  *)
-  
-Program Definition CAT_axioms :=
-   Category.Axioms
-      category
-      functor
-      (fun A B => lib_eq (functor A B))
-      (Comp.Mixin category functor
-        (fun X => FunctorIdent X)
-        (fun X Y Z => FunctorCompose X Y Z))
-      _ _ _ _.
-Next Obligation.
-  intros. hnf. destruct f; auto.
-Qed.
-Next Obligation.
-  intros. hnf. destruct f; auto.
-Qed.
-Next Obligation.
-  intros. hnf in *. subst. auto.
+(** characterising the equality of natural transformation, which is the (pointwise) equality
+  of the underlying transformations *)
+Lemma nat_ext {C : Quiver} {D : PreCat} (F G : PreFunctor C D) (m n : Natural.type F G) :
+  (forall x, m x = n x) -> m = n.
+Proof.
+  destruct m as [? [[]]], n as [? [[]]] ; cbn in *.
+  move => e.
+  apply functional_extensionality_dep in e as <-.
+  repeat f_equal.
+  ext.
 Qed.
 
-(** No can do, universe inconsistency:
-<<
-Definition CAT : category := Category category functor _ _ CAT_axioms.
->>
-*)
+Smpl Add 100 (apply nat_ext) : extensionality.
 
-(**  Natural transfomations, defined in the standard way.
-  *)
-Module NT.
-Section nt.
-  Variables C D:category.
-  Variable F G:functor C D.
+Definition pack_natural {C: Quiver} {D: PreCat} [F G: PreFunctor C D]
+  (n : forall c, F c → G c)
+  (natural : forall (a b : C) (f : a → b), F <$> f \; n b = n a \; G <$> f): Natural.type F G :=
+  HB.pack n (IsNatural.Build _ _ _ _ n natural).
+Arguments pack_natural {_ _} [_ _] _ _.
 
-  Structure nt := NT
-    { transform :> forall A, F A → G A
-    ; axiom : forall A B (f:A → B), transform B ∘ F<$>f ≈ G<$>f ∘ transform A
-    }.
-End nt.
+(** *** Category of functors and natural transformations *)
+HB.instance Definition _  (C : Quiver) (D : PreCat) :=
+  IsQuiver.Build (PreFunctor C D) (@Natural.type C D).
+HB.instance Definition _  (C D : PreCat) :=
+  IsQuiver.Build (Functor C D) (@Natural.type C D).
+Arguments natural {_ _ _ _} _ [_ _] _.
 
-Arguments nt [C] [D] F G.
-Arguments NT [C] [D] F G transform axiom.
-Arguments transform [C] [D] [F] [G] (n)%_cat (A)%_cat_ob.
-Arguments axiom [C] [D] [F] [G] n [A] [B] (f)%_cat.
+Definition natural_id {C D : PreCat} (F : PreFunctor C D) (a : C) := idmap (a := F a).
+Definition natural_id_natural (C D : Cat) (F : PreFunctor C D) :
+  IsNatural C D F F (natural_id F).
+Proof. by constructor=> a b f; rewrite /natural_id/= compo1 comp1o. Qed.
+HB.instance Definition _ C D F := @natural_id_natural C D F.
 
-Section nt_compose.
-  Variables C D E:category.
+Definition natural_comp {C D : PreCat} (F G H : PreFunctor C D)
+   (m : F → G) (n : G → H) (a : C) := m a \; n a.
+Definition natural_comp_natural (C D : Cat) (F G H : PreFunctor C D) m n :
+  IsNatural C D F H (@natural_comp C D F G H m n).
+Proof.
+constructor=> a b f; rewrite /natural_comp/=.
+by rewrite compoA natural -compoA natural compoA.
+Qed.
+HB.instance Definition _ C D F G H m n := @natural_comp_natural C D F G H m n.
 
-  Program Definition ident (F:functor C D) : nt F F :=
-    NT F F (fun A => id(F A)) _.
-  Next Obligation.
-    rewrite (cat_ident2 D).
-    rewrite (cat_ident1 D).
-    trivial.
-  Qed.
+HB.instance Definition _ {C D : Cat} :=
+  IsPreCat.Build (PreFunctor C D) natural_id natural_comp.
+HB.instance Definition _ {C D : Cat} :=
+  IsPreCat.Build (Functor C D) natural_id natural_comp.
 
-  Program Definition compose (F G H:functor C D) (s:nt G H) (t:nt F G) : nt F H :=
-    NT F H (fun A => s A ∘ t A) _.
-  Next Obligation.
-    rewrite <- (cat_assoc D _ _ _ _ (s B) (t B) (F<$>f)).
-    rewrite (axiom t).
-    rewrite (cat_assoc D _ _ _ _ (s B) (G<$>f) (t A)).
-    rewrite (axiom s).
-    rewrite <- (cat_assoc D).
-    trivial.
-  Qed.
+Lemma _prefunctor_cat (C D : Cat) : IsCat (PreFunctor C D).
+Proof.
+  constructor; ext.
+  - exact: comp1o.
+  - exact: compo1.
+  - exact: compoA.
+Qed.
+HB.instance Definition _ C D := _prefunctor_cat C D.
 
-  (**  There are two possible ways to combine a natural transformation
-       with the action of a functor to get another natural transformation,
-       depending on which side you wish to compose the functor.
-    *)
-  Program Definition stacknt
-    (F:functor D E) (G H:functor C D)
-    (n:nt G H) : nt (F ∘ G) (F ∘ H) :=
-    NT _ _ (fun A => F<$>(n A)) _.
-  Next Obligation.
-    rewrite <- (Functor.compose F). 2: reflexivity.
-    rewrite axiom.
-    rewrite (Functor.compose F). 2: reflexivity.
-    trivial.
-  Qed.
+Lemma _functor_cat (C D : Cat) : IsCat (Functor C D).
+Proof.
+  constructor; ext.
+  - exact: comp1o.
+  - exact: compo1.
+  - exact: compoA.
+Qed.
+HB.instance Definition _ C D := _functor_cat C D.
 
-  Program Definition pushnt
-    (G H:functor D E)
-    (n:nt G H) (F:functor C D)
-    : nt (G ∘ F) (H ∘ F) :=
-    NT _ _ (fun A => n (F A)) (fun A B f => NT.axiom n (F<$>f)).
-End nt_compose.
+(** *** Whiskering *)
+(** pre- and post-composing a natural transformation by a functor *)
 
-Section NT_mixins.
-  Variables C D:category.
+Definition whiskL {C D E : PreCat} (F : PreFunctor C D) {G G' : PreFunctor D E}
+  (n : G → G') (c : C) : (G \o F) c → (G' \o F) c := n (F c).
+Definition whiskR {C D E : PreCat} {F F' : PreFunctor C D} (m : F → F')
+  (G : PreFunctor D E) (c : C) : (G \o F) c → (G \o F') c := G <$> (m c).
 
-  Program Definition NTEQ_mixin
-    (G H:functor C D) :=
-      (Eq.Mixin _ (fun s t:nt G H => forall A, s A ≈ t A) _ _ _).
-  Next Obligation.
-    eauto.
-  Qed.
-
-  Definition NTComp_mixin :=
-    (Comp.Mixin (functor C D) (@nt C D)
-      (ident C D) (compose C D)).
-End NT_mixins.
-End NT.
-
-Coercion NT.transform : NT.nt >-> Funclass.
-Notation "F ▹ nt" := (NT.stacknt _ _ _ F _ _ nt)
-  : category_hom_scope.
-Notation "nt ◃ F" := (NT.pushnt _ _ _ _ _ nt F)
-  : category_hom_scope.
-Notation nt := NT.nt.
-Notation NT := NT.NT.
-
-Canonical Structure NTEQ (C D:category) G H :=
-  Eq.Pack (nt G H) (NT.NTEQ_mixin C D G H).
-
-Canonical Structure NTComp (C D:category) :=
-  Comp.Pack (functor C D) (@NT.nt C D) (NT.NTComp_mixin C D).
-
-
-(**  [FUNC C D] is the functor category from [C] to [D],
-     whose objects are the functors from [C] to [D] and whose
-     morphisms are natural transformations.
-  *)
-Program Definition FUNC
-  (C D:category) : category :=
-  Category (functor C D) (@NT.nt C D)
-           (NT.NTEQ_mixin C D)
-           (NT.NTComp_mixin C D) _.
-Next Obligation.
-  intros. constructor.
-  intros. hnf. intro. apply cat_ident1.
-  intros. hnf. intro. apply cat_ident2.
-  intros. hnf. intro. apply cat_assoc.
-  intros. hnf. intro. apply cat_respects.
-  apply H. apply H0.
+Definition whiskL_natural {C D E : Cat} (F : Functor C D) (G G' : Functor D E)
+  (n : G → G') : IsNatural C E (G \o F) (G' \o F) (whiskL F n).
+Proof.
+  constructor => ?? f.
+  rewrite /whiskL /= natural //.
 Qed.
 
-(* Would these do anything worthwhile ?
-Canonical Structure FUNC_COMP C D := CAT_COMP _ _ (FUNC C D).
-Canonical Structure FUNC_EQ C D := CAT_EQ _ _ (FUNC C D).
-*)
-
-
-(**  Here we define adjunction using the unit/counit definition.
-  *)
-Module Adjunction.
-Section adjunction.
-  Variable C D:category.
-  Variable L:functor D C.
-  Variable R:functor C D.
-
-  Record adjunction :=
-    Adjunction
-    { unit   : nt id(D) (R ∘ L)
-    ; counit : nt (L ∘ R) id(C)
-    ; adjoint_axiom1 : counit◃L ∘ L▹unit ≈ id
-    ; adjoint_axiom2 : R▹counit ∘ unit◃R ≈ id
-    }.
-End adjunction.
-
-Arguments adjunction [C] [D] L R.
-Arguments Adjunction [C] [D] L R _ _ _ _.
-Arguments unit [C] [D] [L] [R] a.
-Arguments counit [C] [D] [L] [R] a.
-Arguments adjoint_axiom1 [C] [D] [L] [R] a _.
-Arguments adjoint_axiom2 [C] [D] [L] [R] a _.
-End Adjunction.
-
-Notation Adjunction := Adjunction.Adjunction.
-Notation adjunction := Adjunction.adjunction.
-
-
-(**  Here we define the category of cones, the morphisms of which
-     are homs in the original category that commute with the
-     spokes of the cones.
-  *)
-Module Cone.
-Section cone.
-  Variable C:category.
-
-  Variable J:category.
-  Definition diagram := functor J C.
-  Variable F:diagram.
-
-  Record cone :=
-    Cone
-    { point : ob C
-    ; spoke : forall j, point → (F j) 
-    ; axiom : forall j j' (h:j → j'), spoke j' ≈ F<$>h ∘ spoke j 
-    }.
-  
-  Record cone_hom (M N:cone) :=
-    Cone_hom
-    { hom_map :> point M → point N
-    ; hom_axiom : forall j,
-         spoke M j ≈ spoke N j ∘ hom_map
-    }.
-  Global Arguments hom_map [M] [N] c.
-  Global Arguments hom_axiom [M] [N] c j.
-
-  Program Definition cone_ident (M:cone) :=
-    Cone_hom M M (id) _.
-  Next Obligation. 
-    rewrite (cat_ident1 C _ _ (spoke M j)). reflexivity.
-  Qed.
-
-  Program Definition cone_compose (M N O:cone)
-    (f:cone_hom N O) (g:cone_hom M N) : cone_hom M O :=
-    Cone_hom M O (hom_map f ∘ hom_map g) _.
-  Next Obligation.
-    intros.
-    rewrite (hom_axiom g).
-    rewrite (hom_axiom f).
-    symmetry; apply cat_assoc.
-  Qed.    
-
-  Program Definition CONE : category :=
-    Category cone cone_hom
-      (fun A B => Eq.Mixin _ (fun f g => hom_map f ≈ hom_map g) _ _ _)
-      (Comp.Mixin _ _ cone_ident cone_compose)
-      _.
-  Next Obligation.      
-    eauto.
-  Qed.
-  Next Obligation.
-    constructor.
-    intros. apply cat_ident1.
-    intros. apply cat_ident2.
-    intros. apply cat_assoc.
-    intros. apply cat_respects; auto.
-  Qed.
-End cone.
-End Cone.
-
-(**  Here we define algebras of an endofunctor, and we define
-     initial algebras directly.  We'll be interested in
-     initial algebras when it comes time to define recursive domains.
-  *)
-Module Alg.
-Section alg.
-  Variable C:category.
-  Variable F:functor C C.
-
-  Record alg :=
-  Alg
-  { carrier :> ob C
-  ; iota : (F carrier) → carrier
-  }.
-
-  Record alg_hom (M N:alg) :=
-  Alg_hom
-  { hom_map : carrier M → carrier N
-  ; hom_axiom : hom_map ∘ iota M ≈ iota N ∘ F<$>hom_map
-  }.
-
-  Program Definition ident (M:alg) : alg_hom M M :=
-    Alg_hom M M (id) _.
-  Next Obligation.
-    intros.
-    rewrite (cat_ident2 _ _ _ (iota M)).
-    rewrite (Functor.ident F); trivial.
-    rewrite (cat_ident1 _ _ _ (iota M)).
-    trivial.
-  Qed.
-
-  Program Definition compose (M N O:alg)
-    (f:alg_hom N O) (g:alg_hom M N) : alg_hom M O :=
-    Alg_hom M O (hom_map _ _ f ∘ hom_map _ _ g) _.
-  Next Obligation.
-    intros.
-    rewrite <- (cat_assoc _ _ _ _ _ (hom_map N O f)).
-    rewrite (hom_axiom _ _ g).
-    rewrite (cat_assoc _ _ _ _ _ (hom_map N O f)).
-    rewrite (hom_axiom _ _ f).
-    rewrite <- (cat_assoc _ _ _ _ _ (iota O)).
-    rewrite <- (Functor.compose F); reflexivity.
-  Qed.
-
-  Record initial_alg :=
-  Initial_alg
-  { init :> alg
-  ; cata : forall M:alg, alg_hom init M
-  ; cata_axiom : forall (M:alg) (h:alg_hom init M), 
-       hom_map _ _ h ≈ hom_map _ _ (cata M)
-  }.
-
-  Lemma cata_axiom' I :
-    forall (M:alg) (h:carrier (init I) → carrier M),
-      (h ∘ iota (init I) ≈ iota  M ∘ F<$>h) ->
-      h ≈ hom_map _ _ (cata I M).
-  Proof.
-    intros.
-    apply (cata_axiom I M (Alg_hom _ _ h H)).
-  Qed.
-
-  Definition lift_alg (A:alg) :=
-    Alg (F A) (F<$>iota A).
-
-  Definition out (I:initial_alg) :=
-    hom_map _ _ (cata I (lift_alg I)).
-
-  Lemma in_out : forall (I:initial_alg),
-    iota I ∘ out I ≈ id.
-  Proof.
-    intros.
-    transitivity (hom_map _ _ (cata I I)).
-    - apply cata_axiom'.
-      rewrite <- (cat_assoc _ _ _ _ _ (iota I)).
-      apply cat_respects; auto.
-      rewrite (hom_axiom _ _ (cata I (lift_alg I))).
-      simpl.
-      symmetry. apply Functor.compose. auto.
-
-    - symmetry. apply cata_axiom'.
-      rewrite (cat_ident2 _ _ _ (iota I)).
-      rewrite (Functor.ident F); auto.
-      rewrite (cat_ident1 _ _ _ (iota I)).
-      auto.
-  Qed.
-
-  Lemma out_in : forall (I:initial_alg),
-    out I ∘ iota I ≈ id.
-  Proof.
-    intros.
-    transitivity (F<$>(hom_map _ _ (cata I I))).
-    - unfold out.
-      rewrite (hom_axiom).
-      simpl.
-      symmetry.
-      apply Functor.compose.
-      rewrite in_out.
-      symmetry.
-      apply cata_axiom'.
-      rewrite (cat_ident2 _ _ _ (iota I)).
-      rewrite Functor.ident.
-      rewrite (cat_ident1 _ _ _ (iota I)).
-      reflexivity. reflexivity.
-    - apply Functor.ident.
-      symmetry.
-      apply cata_axiom'.
-      rewrite (cat_ident2 _ _ _ (iota I)).
-      rewrite Functor.ident.
-      rewrite (cat_ident1 _ _ _ (iota I)).
-      reflexivity. reflexivity.
-  Qed.    
-
-  Lemma initial_inj_epic : forall (I:initial_alg) B (g h: I → B),
-    g ∘ iota I ≈ h ∘ iota I ->
-    g ≈ h.
-  Proof.
-    intros.
-    cut (g ∘ id ≈ h ∘ id ).
-    { rewrite (cat_ident1 _ _ _ g).
-      rewrite (cat_ident1 _ _ _ h).
-      auto.
-    }
-    rewrite <- (in_out I).
-    rewrite (cat_assoc _ _ _ _ _ g).
-    rewrite H.
-    rewrite (cat_assoc _ _ _ _ _ h).
-    trivial.
-  Qed.
-
-End alg.
-Arguments carrier [C] [F] a.
-Arguments iota [C] [F] a.
-Arguments alg_hom [C] [F] M N.
-Arguments hom_map [C] [F] [M] [N] a.
-Arguments hom_axiom [C] [F] [M] [N] a.
-Arguments ident [C] [F] M.
-Arguments compose [C] [F] [M] [N] [O] f g.
-Arguments Alg [C] [F] carrier iota.
-Arguments Alg_hom [C] [F] [M] [N] hom_map hom_axiom.
-
-Arguments init [C] [F] i.
-Arguments cata [C] [F] i M.
-Arguments cata_axiom [C] [F] i M h.
-Arguments Initial_alg [C] [F] init cata cata_axiom.
-
-Program Definition ALG C (F:functor C C) : category :=
-    Category (alg C F) (@alg_hom C F)
-      (fun A B => Eq.Mixin _ (fun f g => Alg.hom_map f ≈ Alg.hom_map g) _ _ _)
-      (Comp.Mixin _ _ (@ident _ _) (@compose _ _)) 
-      _.
-Next Obligation.
-  eauto.
+Definition whiskR_natural {C D E : PreCat} {F F' : Functor C D} (m : F → F')
+  (G : Functor D E) : IsNatural C E (G \o F) (G \o F') (whiskR m G).
+Proof.
+  constructor => ?? f.
+  rewrite /whiskR /= !comp_Fun -!Fcomp natural //.
 Qed.
-Next Obligation.
-  constructor.
-  - intros. apply cat_ident1.
-  - intros. apply cat_ident2.
-  - intros. apply cat_assoc.
-  - intros. apply cat_respects; auto.
-Qed.
-Arguments ALG [C] F.
 
-Section forget.
-  Variable (C:category).
-  Variable (F:functor C C).
-
-  Program Definition forget : functor (ALG F) C :=
-    Functor (ALG F) C (@carrier C F) (@hom_map C F) _ _ _.
-End forget.
-Arguments forget [C] F.
-
-Definition free C (F:functor C C) (FREE:functor C (ALG F)) :=
-  adjunction FREE (Alg.forget F).
-Arguments free [C] F FREE.
-
-End Alg.
-
-Coercion Alg.carrier : Alg.alg >-> ob.
-Coercion Alg.init : Alg.initial_alg >-> Alg.alg.
-Coercion Alg.hom_map : Alg.alg_hom >-> hom.
-Notation ALG := Alg.ALG.
-Notation Alg := Alg.Alg.
-Notation alg := Alg.alg.
-
-Canonical Structure Alg.ALG.
+Notation "F ▹ n " := (whiskL F n) : cat_scope.
+Notation "m ◃ G" := (whiskR m G) : cat_scope.
