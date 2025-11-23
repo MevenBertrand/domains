@@ -206,7 +206,7 @@ Proof.
   ext.
 Qed.
 
-Smpl Add 100 (apply nat_ext) : extensionality.
+Smpl Add (apply nat_ext) : extensionality.
 
 Definition pack_natural {C: Quiver} {D: PreCat} [F G: PreFunctor C D]
   (n : forall c, F c → G c)
@@ -216,9 +216,9 @@ Arguments pack_natural {_ _} [_ _] _ _.
 
 (** *** Category of functors and natural transformations *)
 HB.instance Definition _  (C : Quiver) (D : PreCat) :=
-  IsQuiver.Build (PreFunctor C D) (@Natural.type C D).
+  IsQuiver.Build (PreFunctor C D) ( @Natural.type C D).
 HB.instance Definition _  (C D : PreCat) :=
-  IsQuiver.Build (Functor C D) (@Natural.type C D).
+  IsQuiver.Build (Functor C D) ( @Natural.type C D).
 Arguments natural {_ _ _ _} _ [_ _] _.
 
 Definition natural_id {C D : PreCat} (F : PreFunctor C D) (a : C) := idmap (a := F a).
@@ -230,7 +230,7 @@ HB.instance Definition _ C D F := @natural_id_natural C D F.
 Definition natural_comp {C D : PreCat} (F G H : PreFunctor C D)
    (m : F → G) (n : G → H) (a : C) := m a \; n a.
 Definition natural_comp_natural (C D : Cat) (F G H : PreFunctor C D) m n :
-  IsNatural C D F H (@natural_comp C D F G H m n).
+  IsNatural C D F H ( @natural_comp C D F G H m n).
 Proof.
 constructor=> a b f; rewrite /natural_comp/=.
 by rewrite compoA natural -compoA natural compoA.
@@ -244,7 +244,7 @@ HB.instance Definition _ {C D : Cat} :=
 
 Lemma _prefunctor_cat (C D : Cat) : IsCat (PreFunctor C D).
 Proof.
-  constructor; ext.
+  constructor ; ext.
   - exact: comp1o.
   - exact: compo1.
   - exact: compoA.

@@ -2,7 +2,7 @@
 From Stdlib Require Import Program ssreflect.
 From HB Require Import structures.
 
-Require Import notations basics categories.
+Require Import notations basics axioms categories.
 
 #[local] Open Scope cat_scope.
 
@@ -64,15 +64,15 @@ Arguments Epi {_}.
 
 (** duality with monos  *)
 HB.instance Definition _morphop_mono {C: PreCat} (x y: C) (f : x ↣ y)
-  := IsEpi.Build C^op y x (morphop f) (@mono_prop _ _ _ f).
+  := IsEpi.Build C^op y x (morphop f) ( @mono_prop _ _ _ f).
 HB.instance Definition _morphop_epi {C: PreCat} (x y: C) (f : x ↠ y)
-  := IsMono.Build C^op y x (morphop f) (@epi_prop _ _ _ f).
+  := IsMono.Build C^op y x (morphop f) ( @epi_prop _ _ _ f).
 
 Definition pack_epi {C: PreCat} [x y: C] (f : x → y)
   (epi_f: isEpi f): x ↠ y :=
   HB.pack f (IsEpi.Build _ _ _ f epi_f).
 
-Lemma IsEpi_id {C: Cat} (x: C): isEpi (@idmap _ x).
+Lemma IsEpi_id {C: Cat} (x: C): isEpi ( @idmap _ x).
 Proof. exact: (IsMono_id (C := C^op)). Qed.
 
 Lemma IsEpi_comp {C: Cat} [a b c : C] (f: a ↠ b) (g: b ↠ c):
@@ -82,16 +82,6 @@ Proof. exact: (IsMono_comp (C := C^op) (morphop g) (morphop f)). Qed.
 Lemma IsEpi_decomp {C: Cat} [a b c: C] (f: a → b) (e: b → c):
   isEpi (e ∘ f) -> isEpi e.
 Proof. exact (IsMono_decomp (C := C^op) e f). Qed.
-
-(** wide subcategory of epis *)
-
-HB.instance Definition _ (C: Cat) (A: C)  :=
-  IsEpi.Build _ _ _ idmap (IsEpi_id A).
-HB.instance Definition _ {C: Cat} [a b c: C] (f: a ↠ b) (g: b ↠ c) :=
-  IsEpi.Build _ _ _ (g ∘ f) (IsEpi_comp f g).
-
-Definition joint_epi {C: Cat} [a b c: C] (f: a → c) (g: b → c) :=
-  forall d (x y: c → d), x ∘ f = y ∘ f -> x ∘ g = y ∘ g -> x = y.
 
 (** ** Isomorphisms *)
 (** *** Definitions *)
@@ -110,7 +100,7 @@ HB.structure Definition iso {C: PreCat} (a b: C) :=
   { f of IsIso _ a b f }.
 Arguments Iso {_}.
 Arguments inverse {_ _ _}.
-Notation "a ↔[ C ] b" := (@iso.type C a b) (only parsing).
+Notation "a ↔[ C ] b" := ( @iso.type C a b) (only parsing).
 Notation "a ↔ b" := (Iso a b).
 Notation isIso i := (IsIso _ _ _ i).
 
@@ -138,3 +128,25 @@ Definition iso_op {C: Cat} {X Y: C} (i: X ↔ Y): Y ↔[C^op] X := morphop i.
 (* the variant below is not necessary, because [iso_op] works, thanks to precat_IsIso being in precat;
    we keep it in case we need to change this choice *)
 Definition iso_op' {C: Cat} {X Y: C} (i: X ↔[C^op] Y): Y ↔[C] X := iso_op i.
+
+Lemma iso_ext {C : Cat} (t t' : C) (f g : t ↔ t') : forward f = forward g -> f = g.
+Proof.
+  move => e.
+  destruct f as [f [[f' Hf Hf']]], g as [g [[g' Hg Hg']]] ; cbn in *.
+  move : g' Hg Hg'.
+  subst g.
+  move => g' Hg Hg'.
+  assert (e : g' = f').
+  {
+    transitivity (g' ∘ f ∘ f').
+    - rewrite compoA Hf comp1o //.
+    - rewrite Hg' compo1 //.
+  }
+  move: Hg Hg'.
+  subst g'.
+  move=> Hg Hg'.
+  repeat f_equal.
+  all: ext.
+Qed.
+
+Smpl Add (apply iso_ext) : extensionality.

@@ -41,7 +41,7 @@ Ltac tea := try eassumption.
   Updated on the fly using the Smpl plugin. *)
 Smpl Create extensionality.
 
-Ltac ext := repeat (intros ; smpl extensionality ; intros).
+Ltac ext := intros ; repeat (smpl extensionality ; intros).
 
 (** * Setoids and equality.
 
@@ -79,36 +79,27 @@ Proof. move=>[+ _]; auto. Qed.
 
 (** unique existence, in Prop *)
 Definition unique [A : Type] (P : A -> Prop) : A -> Prop :=
-  fun (x : A) => P x /\ (forall x' : A, P x' -> x = x').
+  fun (x : A) => P x /\ (forall x' : A, P x' -> x' = x).
 
-Notation "∃! x .. y , p" :=
-  (ex (unique (fun x => .. (ex (unique (fun y => p))) ..)))
+Notation "∃! x .. y , P" :=
+  (ex (unique (fun x => .. (ex (unique (fun y => P))) ..)))
   (at level 200, x binder, right associativity).
 
-(** unique existence, in Type *)
-Record Unique [T: Type] (P : T -> Type) := {
-    unique_elt: T;
-    unique_prop: P unique_elt;
-    uniqueness: forall x : T, P x -> unique_elt = x;
-  }.
-Arguments unique_elt {_ _}.
-Arguments unique_prop {_ _}.
-Arguments uniqueness {_ _}.
-
-Notation "Σ! x .. y , P" := (Unique (fun x => .. (Unique (fun y => P)) ..))
+Notation "Σ! x .. y , P" := (sig (unique (fun x => .. (sig (unique (fun y => P))) ..)))
   (at level 200, x binder, y binder, right associativity).
 
-Lemma unique_unique {T : Type} (P Q: T -> Type) :
+Definition unique_elt {A} {P : A -> Prop} (s : Σ! x : A, P x) : A := proj1_sig s.
+Definition unique_prop {A} {P : A -> Prop} (s : Σ! x : A, P x) : P (unique_elt s) :=
+  proj1 (proj2_sig s).
+Definition unique_unique {A} {P : A -> Prop} (s : Σ! x : A, P x) :
+  forall x : A, P x -> x = (unique_elt s) :=
+  proj2 (proj2_sig s).
+
+Lemma unique_unique_impl {T : Type} (P Q: T -> Prop) :
   (forall x, P x -> Q x) ->
   forall (p: Σ! x, (P x)), forall (q: Σ! x, (Q x)), unique_elt p = unique_elt q.
 Proof.
-  move=>PQ p q. symmetry. apply uniqueness, PQ, unique_prop.
-Qed.
-
-Lemma Unique_iff {T : Type} : CMorphisms.Proper (pointwise_crelation iffT ==> iffT) (@Unique T).
-Proof.
-  move=> P Q PQ. split; move=>[f Hf Uf]; exists f; (try by apply PQ);
-  move=>g Hg; apply Uf; by apply PQ.
+  move=>PQ p q. apply unique_unique, PQ, unique_prop.
 Qed.
 
 (** Decidable equality *)

@@ -1,150 +1,100 @@
 (** * Domains.universal: basic universal properties *)
-From Stdlib Require Import Program Setoid ssreflect.
+From Stdlib Require Import Program Setoid ssreflect ssrfun.
 From HB Require Import structures.
 
-Require Import notations basics categories.
+Require Import notations axioms basics categories morphisms functors.
 
+#[local] Open Scope cat_scope.
 
-(**  Categories with terminal objects, which we call terminated categories.
+(** ** Categories with terminal objects
 
      Such categories have a distinguished object [terminus] (notation [!])
      and a family of morphisms [terminate : A → !] for each object [A].
      Furthermore, [terminate] is universial, in that every for every
      [f : A → !], [f ≈ terminate].
   *)
-Module Terminated.
-Section terminated.
-  Variables (ob:Type) (hom:ob -> ob -> Type).
-  Variable eq:forall A B:ob, Eq.mixin_of (hom A B).
 
-  Definition eq' A B := Eq.Pack _ (eq A B).
-
-  Canonical Structure eq'.
-
-  Record mixin_of :=
-  Mixin
-  { terminus : ob
-  ; terminate : forall A:ob, hom A terminus
-  ; axiom : forall A (f:hom A terminus), f ≈ terminate A
+#[primitive] HB.mixin Record IsTerminal {C : Quiver} (t : C) := {
+    terminal_fun : forall x, x → t ;
+    term_unique : forall x (f : x → t), f = (terminal_fun x) ;
   }.
-End terminated.
-  
-Record terminated :=
-  Terminated
-  { ob : Type
-  ; hom : ob -> ob -> Type
-  ; eq_mixin : forall A B, Eq.mixin_of (hom A B)
-  ; comp_mixin : Comp.mixin_of ob hom
-  ; cat_axioms : Category.axioms ob hom eq_mixin comp_mixin
-  ; mixin : mixin_of ob hom eq_mixin
-  }.
+#[short(type="Terminal")]
+HB.structure Definition terminal {C : Quiver} := { t of IsTerminal C t}.
 
-Canonical Structure eq (X:terminated) (A B:ob X) :=
-  Eq.Pack (hom X A B) (eq_mixin X A B).
-Canonical Structure comp (X:terminated) :=
-  Comp.Pack (ob X) (hom X) (comp_mixin X).
-Canonical Structure category (X:terminated) :=
-  Category (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X).
+#[primitive] HB.mixin Record IsTerminated C of cat C := {
+  term : Terminal C
+}.
 
-Definition terminus_op (X:terminated) := terminus _ _ _ (mixin X).
-Definition terminate_op (X:terminated) := terminate _ _ _ (mixin X).
-End Terminated.
+#[short(type="Terminated")]
+HB.structure Definition terminated := { C of IsTerminated C & }.
 
-Notation terminated := Terminated.terminated.
-Notation Terminated := Terminated.Terminated.
+Notation "'!'" := (term) : cat_scope.
 
-Canonical Structure Terminated.eq.
-Canonical Structure Terminated.comp.
-Canonical Structure Terminated.category.
-Coercion Terminated.category : terminated >-> category.
-
-Notation "'!'" := (Terminated.terminus_op _) : category_ob_scope.
-Notation "'∗'" := (Terminated.terminate_op _ _) : category_ops_scope.
-
-Lemma terminate_univ (X:terminated) :
-  forall (A:X) (f:A → !), f ≈ ∗.
-Proof (Terminated.axiom _ _ _ (Terminated.mixin X)).
-
-(** TODO The category of Types is terminated *)
-
-Definition SET_terminus : ob SET := SET.Ob unit (lib_eq _).
-Program Definition SET_terminate (A:ob SET) : A → SET_terminus :=
-  SET.Hom A SET_terminus (fun x => tt) _.
-
-Program Definition SET_terminated : terminated :=
-  Terminated SET.ob SET.hom SET.set_hom_eq SET.set_hom_comp
-     SET_obligation_1
-     (Terminated.Mixin SET.ob SET.hom SET.set_hom_eq
-       SET_terminus SET_terminate _).
-Next Obligation.
-  hnf. simpl. intro.
-  destruct (f x). auto.
+Goal forall {C : Terminated} (x : C) (f : x → !), f = (terminal_fun _).
+Proof.
+  intros ; apply term_unique.
 Qed.
-Canonical Structure SET_terminated.
 
-Definition elem (X:ob SET) (x:X) : ! → X :=
-  SET.Hom !%cat_ob X (fun _ => x) (fun a b H => eq_refl _ _).
+Program Definition terminalI {C : Cat} (t t' : Terminal C) :
+  (Σ! h : (terminal.sort _ t) ↔ (terminal.sort _ t'), True).
+Proof.
+  unshelve econstructor.
+  - unshelve econstructor.
+    1: exact (terminal_fun _).
+    do 2 (unshelve econstructor).
+    1: exact (terminal_fun _).
+    all: etransitivity ; [|symmetry].
+    all: apply term_unique.
+  - split => //.
+    move => g _.
+    apply iso_ext => /=.
+    apply term_unique.
+Qed.
 
-(**  Categories with initial objects, called initilized categories.
+(* TODO The category of Types is terminated *)
+
+(* Definition elem (X:ob SET) (x:X) : ! → X :=
+  SET.Hom !%cat_ob X (fun _ => x) (fun a b H => eq_refl _ _). *)
+
+(** ** Categories with initial objects
 
      Such categories have a distinguished object [initium] (notation [¡])
      and a family of morphisms [initiate : ¡ → A] for each object [A].
-     Furthermore, [initiate] is universial, in that every for every
+     Furthermore, [initiate] is universal, in that every for every
      [f : ¡ → A], [f ≈ initiate].
   *)
-Module Initialized.
-Section initialized.
-  Variables (ob:Type) (hom:ob -> ob -> Type).
-  Variable eq:forall A B:ob, Eq.mixin_of (hom A B).
 
-  Definition eq' A B := Eq.Pack _ (eq A B).
-
-  Canonical Structure eq'.
-
-  Record mixin_of :=
-  Mixin
-  { initium : ob
-  ; initiate : forall A:ob, hom initium A
-  ; axiom : forall A (f:hom initium A), f ≈ initiate A
+#[primitive] HB.mixin Record IsInitial {C : Quiver} (t : C) := {
+    initial_fun : forall x, t → x ;
+    init_unique : forall x (f : t → x), f = (initial_fun x) ;
   }.
-End initialized.
-  
-Record initialized :=
-  Initialized
-  { ob : Type
-  ; hom : ob -> ob -> Type
-  ; eq_mixin : forall A B, Eq.mixin_of (hom A B)
-  ; comp_mixin : Comp.mixin_of ob hom
-  ; cat_axioms : Category.axioms ob hom eq_mixin comp_mixin
-  ; mixin : mixin_of ob hom eq_mixin
-  }.
+#[short(type="Initial")]
+HB.structure Definition initial {C : Quiver} := { t of IsInitial C t}.
 
-Canonical Structure eq (X:initialized) (A B:ob X) :=
-  Eq.Pack (hom X A B) (eq_mixin X A B).
-Canonical Structure comp (X:initialized) :=
-  Comp.Pack (ob X) (hom X) (comp_mixin X).
-Canonical Structure category (X:initialized) :=
-  Category (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X).
+#[primitive] HB.mixin Record IsInitialised C of cat C := {
+  init : Initial C
+}.
 
-Definition initium_op (X:initialized) := initium _ _ _ (mixin X).
-Definition initiate_op (X:initialized) := initiate _ _ _ (mixin X).
-End Initialized.
+#[short(type="Initialised")]
+HB.structure Definition initialised := { C of IsInitialised C & }.
 
-Notation initialized := Initialized.initialized.
-Notation Initialized := Initialized.Initialized.
+Notation "'¡'" := (init) : cat_scope.
 
-Canonical Structure Initialized.eq.
-Canonical Structure Initialized.comp.
-Canonical Structure Initialized.category.
-Coercion Initialized.category : initialized >-> category.
-
-Notation "'¡'" := (Initialized.initium_op _) : category_ob_scope.
-Notation initiate := (Initialized.initiate_op _ _).
-
-Lemma initiate_univ (X:initialized) :
-  forall (A:X) (f:¡ → A), f ≈ initiate.
-Proof (Initialized.axiom _ _ _ (Initialized.mixin X)).
-
+Program Definition initialI {C : Cat} (t t' : Initial C) :
+  (Σ! h : (initial.sort _ t) ↔ (initial.sort _ t'), True).
+Proof.
+  unshelve econstructor.
+  - unshelve econstructor.
+    1: exact (initial_fun _).
+    do 2 (unshelve econstructor).
+    1: exact (initial_fun _).
+    all: etransitivity ; [|symmetry].
+    all: apply init_unique.
+  - split => //.
+    move => g _.
+    apply iso_ext => /=.
+    apply init_unique.
+Qed.
 
 (**  Cocartesian categories have all finite coproducts.  In particular
      they are initialized and have a binary coproduct for every pair
