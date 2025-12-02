@@ -34,7 +34,7 @@ Definition pack_prefunctor [C D: Quiver] (F: C -> D)
 }.
 #[short(type="Functor"),primitive]
 HB.structure Definition functor (C D : PreCat) :=
-  { F of IsPreFunctor C D F & PreFunctor_IsFunctor C D F }.
+  { F of prefunctor C D F & PreFunctor_IsFunctor C D F }.
 
 #[primitive]HB.factory Record IsFunctor (C D: PreCat) (F: C -> D) := {
   #[canonical=no] Fhom : forall (a b : C), (a → b) -> (F a → F b);

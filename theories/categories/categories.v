@@ -33,7 +33,7 @@ Notation bare f := (f: hom _ _).
 }.
 
 #[short(type="PreCat")]
-HB.structure Definition precat := { T of IsPreCat T & }.
+HB.structure Definition precat := { T of quiver T & IsPreCat T}.
 
 Bind Scope cat_scope with precat.
 Arguments idmap {_ _}.
@@ -49,7 +49,7 @@ HB.mixin Record IsCat (T : Type) of precat T := {
   #[canonical=no] compoA : forall (a b c d : T) (f : a → b) (g : b → c) (h : c → d), f \; (g \; h) = (f \; g) \; h
 }.
 #[short(type="Cat")]
-HB.structure Definition cat := { C of IsCat C & }.
+HB.structure Definition cat := { C of precat C & IsCat C}.
 
 Bind Scope cat_scope with Cat.
 Arguments compo1 {_ _ _}.
