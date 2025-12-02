@@ -10,7 +10,7 @@ Require Import notations basics.
   https://gitlab.com/SamuelArsac/graph-rewriting *)
 
 Declare Scope cat_scope.
-Delimit Scope cat_scope with Cat.
+Delimit Scope cat_scope with cat.
 #[local] Open Scope cat_scope.
 
 #[primitive] HB.mixin Record IsQuiver C := {

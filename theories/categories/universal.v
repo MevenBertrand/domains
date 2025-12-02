@@ -1,8 +1,10 @@
 (** * Domains.universal: basic universal properties *)
-From Stdlib Require Import Program Setoid ssreflect ssrfun.
+From Stdlib Require Import ssreflect ssrfun.
 From HB Require Import structures.
 
 Require Import notations axioms basics categories morphisms functors.
+
+Set Primitive Projections.
 
 #[local] Open Scope cat_scope.
 
@@ -14,29 +16,38 @@ Require Import notations axioms basics categories morphisms functors.
      [f : A → !], [f = terminate].
   *)
 
-#[primitive] HB.mixin Record IsTerminal {C : Quiver} (t : C) := {
+(* #[primitive] HB.mixin Record IsTerminal {C : Quiver} (t : C) := {
     terminal_fun : forall x, x → t ;
     term_unique : forall x (f : x → t), f = (terminal_fun x) ;
   }.
-#[short(type="Terminal")]
-HB.structure Definition terminal {C : Quiver} := { t of IsTerminal C t}.
+#[short(type="Terminal"),primitive]
+HB.structure Definition terminal {C : Quiver} := { t of IsTerminal C t}. *)
 
-#[primitive] HB.mixin Record IsTerminated C of quiver C := {
-  term : Terminal C
+#[primitive] HB.mixin Record IsPreTerminated C of quiver C := {
+  terminus : C ;
 }.
 
-#[short(type="Terminated")]
-HB.structure Definition terminated := { C of quiver C & IsTerminated C }.
+#[short(type="PreTerminated")]
+HB.structure Definition preterm := { T of quiver T & IsPreTerminated T}.
 
-Notation "'!'" := (term) : cat_scope.
-Notation "'terminate'" := (terminal_fun _) : cat_scope.
+Notation "'!'" := (terminus) : cat_scope.
+
+#[primitive] HB.mixin Record IsTerminated (C : Type) of preterm C := {
+  terminate : forall (x : C), x → ! ;
+  termU : forall (x : C) (f : x → !), f = (terminate x)
+}.
+
+#[short(type="Terminated"),primitive]
+HB.structure Definition terminated := { C of preterm C & IsTerminated C}.
+
+Arguments terminate {_ _}.
 
 Goal forall {C : Terminated} (x : C) (f : x → !), f = terminate.
 Proof.
-  intros ; apply term_unique.
+  intros ; apply termU.
 Qed.
 
-Program Definition terminalI {C : Cat} (t t' : Terminal C) :
+(* Program Definition terminalI {C : Cat} (t t' : Terminal C) :
   (Σ! h : (terminal.sort _ t) ↔ (terminal.sort _ t'), True).
 Proof.
   unshelve econstructor.
@@ -50,7 +61,7 @@ Proof.
     move => g _.
     apply iso_ext => /=.
     apply term_unique.
-Qed.
+Qed. *)
 
 (* TODO The category of Types is terminated *)
 
@@ -65,24 +76,33 @@ Qed.
      [f : ¡ → A], [f = initiate].
   *)
 
-#[primitive] HB.mixin Record IsInitial {C : Quiver} (t : C) := {
+(* #[primitive] HB.mixin Record IsInitial {C : Quiver} (t : C) := {
     initial_fun : forall x, t → x ;
     initialU : forall x (f : t → x), f = (initial_fun x) ;
   }.
-#[short(type="Initial")]
-HB.structure Definition initial {C : Quiver} := { t of IsInitial C t}.
+#[short(type="Initial"),primitive]
+HB.structure Definition initial {C : Quiver} := { t of IsInitial C t}. *)
 
-#[primitive] HB.mixin Record IsInitialised C of quiver C := {
-  init : Initial C
+#[primitive] HB.mixin Record IsPreInitialised C of quiver C := {
+  initium : C ;
 }.
 
-#[short(type="Initialised")]
-HB.structure Definition initialised := { C of quiver C & IsInitialised C}.
+#[short(type="PreInitialised")]
+HB.structure Definition preinit := { T of quiver T & IsPreInitialised T}.
 
-Notation "'¡'" := (init) : cat_scope.
-Notation "'initiate'" := (initial_fun _) : cat_scope.
+Notation "'¡'" := (initium) : cat_scope.
 
-Program Definition initialI {C : Cat} (t t' : Initial C) :
+#[primitive] HB.mixin Record IsInitialised (C : Type) of preinit C := {
+  initiate : forall (x : C), ¡ → x ;
+  initU : forall (x : C) (f : ¡ → x), f = (initiate x)
+}.
+
+#[short(type="Initialised"),primitive]
+HB.structure Definition initialised := { C of preinit C & IsInitialised C}.
+
+Arguments initiate {_ _}.
+
+(* Program Definition initialI {C : Cat} (t t' : Initial C) :
   (Σ! h : (initial.sort _ t) ↔ (initial.sort _ t'), True).
 Proof.
   unshelve econstructor.
@@ -96,7 +116,7 @@ Proof.
     move => g _.
     apply iso_ext => /=.
     apply initialU.
-Qed.
+Qed. *)
 
 (** ** Finite coproducts
 
@@ -109,7 +129,7 @@ Qed.
     they are initialized and have all binary coproducts.
   *)
 
-#[primitive] HB.mixin Record IsSum {C : PreCat} (a b : C) (t : C) := {
+(* #[primitive] HB.mixin Record IsSum {C : PreCat} (a b : C) (t : C) := {
     sum_inlU : a → t ;
     sum_inrU : b → t ;
     eitherU : forall x, a → x -> b → x -> t → x ;
@@ -117,40 +137,57 @@ Qed.
     inrK : forall x f g, (eitherU x f g) ∘ sum_inrU = g ;
     sumU : forall x f g h, h ∘ sum_inlU = f -> h ∘ sum_inrU = g -> h = eitherU x f g
   }.
-#[short(type="Sum")]
-HB.structure Definition sum {C : PreCat} (a b : C) := { t of IsSum C a b t}.
+#[short(type="Sum"),primitive]
+HB.structure Definition sum {C : PreCat} (a b : C) := { t of IsSum C a b t}. *)
 
-#[primitive] HB.mixin Record HasSums C of precat C := {
-  cocart : forall a b, Sum C a b
+#[primitive] HB.mixin Record ObjHasSums C := {
+  cat_sum : C -> C -> C
 }.
 
-#[short(type="CoCartesian")]
-HB.structure Definition cocartesian := { C of cat C & HasSums C & IsTerminated C}.
+#[short(type="ObjSums"),primitive]
+HB.structure Definition obj_sums := { T of ObjHasSums T}.
 
-Notation "A + B" := (sum.sort _ _ _ (cocart A B)) : cat_scope.
-Definition sum_inl {C : CoCartesian} {a b : C} : a → a + b := sum_inlU.
-Definition sum_inr {C : CoCartesian} {a b : C} : b → a + b := sum_inrU.
-Definition either {C : CoCartesian} {a b x : C} (f : a → x) (g : b → x) : (a + b) → x :=
-  eitherU _ f g.
+Notation "A + B" := (cat_sum A B) : cat_scope.
 
-Notation "'ι₁'" := sum_inl : cat_scope.
-Notation "'ι₂'" := sum_inr : cat_scope.
+#[primitive] HB.mixin Record MorHasSums C of quiver C & obj_sums C := {
+  sum_inl : forall {a b : C}, a → a + b ;
+  sum_inr : forall {a b : C}, b → a + b ;
+  either : forall {a b x : C}, a → x -> b → x -> a + b → x
+}.
+
+#[short(type="MorSums"),primitive]
+HB.structure Definition mor_sums := { T of quiver T & obj_sums T & MorHasSums T}.
+
+Notation "'ι₁'" := (sum_inl _ _) : cat_scope.
+Notation "'ι₂'" := (sum_inr _ _) : cat_scope.
+Arguments either {_ _ _ _} _ _.
+
+#[primitive] HB.mixin Record HasSums C of precat C & mor_sums C := {
+  inlK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₁ = f ; 
+  inrK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₂ = g ;
+  sumU : forall {a b x : C} {f : a → x} {g : b → x} {h : a + b → x},
+    h ∘[C] ι₁ = f -> h ∘[C] ι₂ = g -> h = either f g
+}.
+
+#[short(type="CoCartesian"),primitive]
+HB.structure Definition cocartesian := {
+    C of cat C & terminated C & mor_sums C & HasSums C}.
 
 Definition sum_map {X:CoCartesian} {a b c d: X}
   (f:a → b) (g:c → d) : a+c → b+d := either (ι₁ ∘ f) (ι₂ ∘ g).
 
-  (** ** Finite products
+(** ** Finite products
 
-     The product of [A] and [B] is written [A × B].  The projection
-     functions are [π₁] and [π₂].  When we have [f:C → A]  and [g:C → B],
-     the pairing function [⟨ f, g ⟩ : C → A×B] is the mediating universal
-     morphism for the limit diagram.
+    The product of [A] and [B] is written [A × B].  The projection
+    functions are [π₁] and [π₂].  When we have [f:C → A]  and [g:C → B],
+    the pairing function [⟨ f, g ⟩ : C → A×B] is the mediating universal
+    morphism for the limit diagram.
 
-    Cartesian categories have all finite products:
-    they are finalized and have all binary products.
-  *)
+  Cartesian categories have all finite products:
+  they are finalized and have all binary products.
+*)
 
-#[primitive] HB.mixin Record IsProd {C : PreCat} (a b : C) (t : C) := {
+(* #[primitive] HB.mixin Record IsProd {C : PreCat} (a b : C) (t : C) := {
     prod_projlU : t → a ;
     prod_projrU : t → b ;
     pairingU : forall x, x → a -> x → b -> x → t ;
@@ -159,29 +196,44 @@ Definition sum_map {X:CoCartesian} {a b c d: X}
     prodU : forall x f g h, prod_projlU ∘ h = f -> prod_projrU ∘ h = g -> h = pairingU x f g
   }.
 
-#[short(type="Prod")]
-HB.structure Definition prod {C : PreCat} (a b : C) := { t of IsProd C a b t}.
+#[short(type="Prod"),primitive]
+HB.structure Definition prod {C : PreCat} (a b : C) := { t of IsProd C a b t}. *)
 
-#[primitive] HB.mixin Record HasProds C of precat C := {
-  cart : forall a b, Prod C a b
+#[primitive] HB.mixin Record ObjHasProds C := {
+  cat_prod : C -> C -> C
 }.
 
-#[short(type="Cartesian")]
-HB.structure Definition cartesian := { C of cat C & HasProds C & IsInitialised C}.
+#[short(type="ObjProds"),primitive]
+HB.structure Definition obj_prods := { T of ObjHasProds T}.
 
-Notation "A × B" := (prod.sort _ _ _ (cart A B)) : cat_scope.
-Definition prod_projl {C : Cartesian} {a b : C} : a × b → a := prod_projlU.
-Definition prod_projr {C : Cartesian} {a b : C} : a × b → b := prod_projrU.
-Definition pairing {C : Cartesian} {a b x : C} (f : x → a) (g : x → b) : x → (a × b) :=
-  pairingU _ f g.
+Notation "A × B" := (cat_prod A B) : cat_scope.
 
-Notation "'π₁'" := prod_projl : cat_scope.
-Notation "'π₂'" := prod_projr : cat_scope.
-Notation "⟨ f , g ⟩" := (pairing f g) : cat_scope.
+#[primitive] HB.mixin Record MorHasProds C of quiver C & obj_prods C := {
+  prod_projl : forall {a b : C}, a × b → a ;
+  prod_projr : forall {a b : C}, a × b → b ;
+  pairing : forall {a b x : C}, x → a -> x → b -> x → a × b
+}.
+
+#[short(type="MorProds"),primitive]
+HB.structure Definition mor_prods := { T of quiver T & obj_prods T & MorHasProds T}.
+
+Notation "'π₁'" := (prod_projl  _ _) : cat_scope.
+Notation "'π₂'" := (prod_projr _ _) : cat_scope.
+Notation "⟨ f , g ⟩" := (pairing _ _ _ f g) : cat_scope.
+
+#[primitive] HB.mixin Record HasProds C of precat C & mor_prods C := {
+  projlK : forall {a b x : C} {f : x → a} {g : x → b}, π₁ ∘[C] ⟨f,g⟩ = f ; 
+  projrK : forall {a b x : C} {f : x → a} {g : x → b}, π₂ ∘[C] ⟨f,g⟩ = g ; 
+  prodU : forall {a b x : C} {f : x → a} {g : x → b} {h : x → a × b},
+    π₁ ∘[C] h = f -> π₂ ∘[C] h = g -> h = ⟨f,g⟩
+}.
+
+#[short(type="Cartesian"),primitive]
+HB.structure Definition cartesian := {
+    C of cat C & initialised C & mor_prods C & HasProds C}.
 
 Definition prod_map {X:Cartesian} {a b c d: X}
   (f:a → b) (g:c → d) : a×c → b×d := ⟨ f ∘ π₁ , g ∘ π₂ ⟩.
-
 
 (**  ** Distributive category
 
@@ -193,8 +245,9 @@ Definition prod_map {X:Cartesian} {a b c d: X}
   distr : forall (a b c : C), a × (b + c) ↔ (a × b) + (a × c)
 }.
 
-#[short(type="Distributive")]
-  HB.structure Definition distributive := { C of cat C & cartesian C & cocartesian C & IsDistributive C}.
+#[short(type="Distributive"),primitive]
+  HB.structure Definition distributive :=
+    { C of cat C & cartesian C & cocartesian C & IsDistributive C}.
 
 (**  Cartesian closed categories
 
@@ -209,34 +262,64 @@ Definition prod_map {X:Cartesian} {a b c d: X}
     morphism [curry f : C → A⇒B] that commutes with the action of [apply].
   *)
 
-#[primitive] HB.mixin Record IsExp {C : Cartesian} (a b : C) (t : C) := {
+(* #[primitive] HB.mixin Record IsExp {C : Cartesian} (a b : C) (t : C) := {
     evalU : t × a → b ;
     curryU : forall x, ((x × a) → b) -> x → t ;
     evalK : forall x (f : (x × a) → b), evalU ∘ (prod_map (curryU _ f) idmap) = f ;
     expU : forall x (f : (x × a) → b) (h : x → t), evalU ∘ (prod_map h idmap) = f -> h = curryU _ f
   }.
 
-#[short(type="Exp")]
-HB.structure Definition exp {C : Cartesian} (a b : C) := { t of IsExp C a b t}.
+#[short(type="Exp"),primitive]
+HB.structure Definition exp {C : Cartesian} (a b : C) := { t of IsExp C a b t}. *)
 
-#[primitive] HB.mixin Record HasExps C of cartesian C := {
-  cartclosed : forall a b, Exp C a b
+#[primitive] HB.mixin Record ObjHasExps C := {
+  cat_exp : C -> C -> C
 }.
 
-#[short(type="CartesianClosed")]
-HB.structure Definition cartesian_closed := { C of cartesian C & HasExps C}.
+#[short(type="ObjExps"),primitive]
+HB.structure Definition obj_exps := { T of ObjHasProds T & ObjHasExps T}.
 
-Notation "a ⇒ b" := (exp.sort _ _ _ (cartclosed a b)) : cat_scope.
-Definition eval {C : CartesianClosed} {a b : C} : (a ⇒ b) × a → b := evalU.
-Definition curry {C : CartesianClosed} {a b x : C} (f : x × a → b) : x → (a ⇒ b) := curryU _ f.
+Notation "a ⇒ b" := (cat_exp a b) : cat_scope.
+
+#[primitive] HB.mixin Record MorHasExps C of quiver C & obj_exps C := {
+  eval : forall (a b : C), cat_prod (a ⇒ b) a →[C] b ;
+  curry : forall (a b x : C), (x × a → b) -> x → (a ⇒ b)
+}.
+
+#[short(type="MorExps"),primitive]
+HB.structure Definition mor_exps := {
+    T of quiver T & obj_exps T & MorHasProds T & MorHasExps T}.
+
+Arguments eval {_ _ _}.
+Arguments curry {_ _ _ _} _.
+
+#[primitive] HB.mixin Record HasExps C of cartesian C & mor_exps C := {
+  evalK : forall (a b x : C) (f : (x × a) → b),
+    eval ∘[C] (prod_map (curry f) idmap) = f ;
+  expU : forall (a b x : C) (f : (x × a) → b) (h : x → (a ⇒ b)),
+    eval ∘ (prod_map h idmap) = f -> h = curry f
+}.
+
+#[short(type="CartesianClosed"),primitive]
+HB.structure Definition cartesian_closed := { C of cartesian C & mor_exps C & HasExps C}.
+
+(* Disable Notation "'π₁'".
+Disable Notation "'π₂'".
+Disable Notation "⟨ f , g ⟩". *)
 
 Lemma curry_commute3 (X:CartesianClosed) : 
   forall (d c a b:X) (f:c×a → b) (g:d → c) (h:d → a),
     eval ∘ ⟨ curry f ∘ g, h ⟩ = f ∘ ⟨ g, h ⟩.
 Proof.
   intros.
-  transitivity (apply ∘ ⟨Λ f ∘ π₁, π₂⟩ ∘ ⟨g, h⟩).
-  - rewrite <- (cat_assoc X). apply (cat_respects X); auto.
+  (* transitivity (eval ∘ ⟨curry f ∘ π₁, π₂⟩ ∘ ⟨ g, h⟩). *)
+  transitivity (comp (⟨(curry f) ∘ π₁, π₂⟩ ∘ ⟨g,h⟩) eval).
+  - f_equal.
+    symmetry.
+    apply (prodU _ (curry f ∘ g) _).
+    apply prodU.
+  
+    rewrite <- (cat_assoc X). apply (cat_respects X); auto.
     symmetry. apply pairing_univ.
     + rewrite (cat_assoc X).
       transitivity (Λ(f) ∘ π₁ ∘ ⟨g,h⟩).
