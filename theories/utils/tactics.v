@@ -1,0 +1,50 @@
+(** * Domains.Tactics: utility tactics *)
+From Ltac2 Require Import Ltac2 Control Constr Constructor Ind Notations.
+From smpl Require Export Smpl.
+
+(** ** Hints *)
+
+#[global]Hint Unfold notT: core.
+#[global] Hint Resolve eq_refl eq_sym : core.
+
+(** To use in intro patterns, similar to SSReflects' /dup view *)
+Definition dup {A : Type} : A -> A * A := fun x => (x,x).
+
+(** ** Automation *)
+
+Ltac tea := try eassumption.
+#[global] Ltac easy ::= solve [eauto 3 with core crelations].
+
+#[global]Obligation Tactic := idtac.
+#[global] Ltac Tauto.intuition_solver ::= auto.
+
+(** ** Extensionality *)
+
+(** A tactic to use extensionality of equality, extended on the fly using the Smpl plugin. *)
+
+(** *** Testing whether a goal is of the form {| … |} = {| … |} to apply extensionality
+  of records. *)
+
+Ltac2 is_record_constr (c : constructor) : bool :=
+  match get_projections (data (inductive c)) with | Some _ => true | None => false end.
+
+Ltac2 test_constr (c : constr) : unit :=
+  match (Unsafe.kind c) with
+  | Unsafe.App c _ =>
+    match (Unsafe.kind c) with
+    | Unsafe.Constructor _ _ => ()
+    | _ => zero Assertion_failure
+    end
+  | _ => zero Assertion_failure
+  end.
+
+Ltac2 constr_ext () : unit :=
+  match! goal with
+  | [ |- ?t = _] => test_constr t ; f_equal
+  end.
+
+Smpl Create extensionality.
+
+Ltac ext := intros ; repeat (smpl extensionality ; intros).
+
+Smpl Add (ltac2:(constr_ext ())) : extensionality.

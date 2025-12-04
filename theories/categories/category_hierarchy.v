@@ -1,10 +1,9 @@
-(** * Domains.universal: basic universal properties *)
+(** * Domains.category_hierarchy: hierarchy of structures on the whole categories:
+  cartesian, cocartesian, closed. *)
 From Stdlib Require Import ssreflect ssrfun.
 From HB Require Import structures.
 
-Require Import notations axioms basics categories morphisms functors.
-
-Set Primitive Projections.
+Require Import utils.all categories morphisms functors.
 
 #[local] Open Scope cat_scope.
 
@@ -16,12 +15,7 @@ Set Primitive Projections.
      [f : A → !], [f = terminate].
   *)
 
-(* #[primitive] HB.mixin Record IsTerminal {C : Quiver} (t : C) := {
-    terminal_fun : forall x, x → t ;
-    term_unique : forall x (f : x → t), f = (terminal_fun x) ;
-  }.
-#[short(type="Terminal"),primitive]
-HB.structure Definition terminal {C : Quiver} := { t of IsTerminal C t}. *)
+Definition IsTerminal {C : Quiver} (t : C) (f : forall x, x → t) := forall x (g : x → t), g = (f x).
 
 #[primitive] HB.mixin Record IsPreTerminated (C : Type) of quiver C := {
   terminus : C ;
@@ -35,7 +29,7 @@ Notation "'!'" := (terminus) : cat_scope.
 Arguments terminate {_ _}.
 
 #[primitive] HB.mixin Record IsTerminated (C : Type) of pre_terminated C := {
-  termU : forall (x : C) (f : x → !), f = terminate
+  termU : IsTerminal (C := C) ! (@terminate _)
 }.
 
 #[short(type="Terminated"),primitive]
@@ -43,26 +37,33 @@ HB.structure Definition terminated := { C of pre_terminated C & IsTerminated C}.
 
 Arguments termU : clear implicits.
 
-Goal forall {C : Terminated} (x : C) (f : x → !), f = terminate.
+Lemma terminate_terminal {C : Terminated} : IsTerminal (C := C) ! (@terminate _).
 Proof.
-  intros ; apply termU.
-Qed.
+  red.
+  intros.
+  apply termU.
+Succeed Qed.
+Abort.
 
-(* Program Definition terminalI {C : Cat} (t t' : Terminal C) :
-  (Σ! h : (terminal.sort _ t) ↔ (terminal.sort _ t'), True).
+Definition terminalI {C : Cat} (t t' : C) (f : forall x, x → t) (f' : forall x, x → t') :
+  IsTerminal t f ->
+  IsTerminal t' f' ->
+  (Σ! h : t ↔ t', (forall x, h ∘ (f x) = f' x) /\ (forall x, h⁻¹ ∘ (f' x) = f x)).
 Proof.
+  intros Ht Ht'.
   unshelve econstructor.
   - unshelve econstructor.
-    1: exact terminate.
+    1: apply f'.
     do 2 (unshelve econstructor).
-    1: exact terminate.
+    1: apply f.
     all: etransitivity ; [|symmetry].
-    all: apply term_unique.
+    1-2: now apply Ht'.
+    1-2: now apply Ht.
   - split => //.
     move => g _.
     apply iso_ext => /=.
-    apply term_unique.
-Qed. *)
+    apply Ht'.
+Qed.
 
 (* TODO The category of Types is terminated *)
 
@@ -77,12 +78,7 @@ Qed. *)
      [f : ¡ → A], [f = initiate].
   *)
 
-(* #[primitive] HB.mixin Record IsInitial {C : Quiver} (t : C) := {
-    initial_fun : forall x, t → x ;
-    initialU : forall x (f : t → x), f = (initial_fun x) ;
-  }.
-#[short(type="Initial"),primitive]
-HB.structure Definition initial {C : Quiver} := { t of IsInitial C t}. *)
+Definition IsInitial {C : Quiver} (t : C) (f : forall x, t → x) := forall x (g : t → x), g = (f x).
 
 #[primitive] HB.mixin Record IsPreInitialised (C : Type) of quiver C := {
   initium : C ;
@@ -95,8 +91,8 @@ HB.structure Definition pre_initialised := { C of quiver C & IsPreInitialised C}
 Notation "'¡'" := (initium) : cat_scope.
 Arguments initiate {_ _}.
 
-#[primitive] HB.mixin Record IsInitialised (C : Type) of pre_initialised C := {
-  initU : forall (x : C) (f : ¡ →[C] x), f = initiate
+#[primitive] HB.mixin Record IsInitialised C of pre_initialised C := {
+  initU : IsInitial (C := C) ¡ (@initiate _)
 }.
 
 #[short(type="Initialised"),primitive]
@@ -104,21 +100,25 @@ HB.structure Definition initialised := { C of pre_initialised C & IsInitialised 
 
 Arguments initU : clear implicits.
 
-(* Program Definition initialI {C : Cat} (t t' : Initial C) :
-  (Σ! h : (initial.sort _ t) ↔ (initial.sort _ t'), True).
+Definition initialI {C : Cat} (t t' : C) (f : forall x, t → x) (f' : forall x, t' → x) :
+  IsInitial t f ->
+  IsInitial t' f' ->
+  (Σ! h : t ↔ t', (forall x, (f' x) ∘ h = f x) /\ (forall x, (f x) ∘ h⁻¹ = f' x)).
 Proof.
+  intros Ht Ht'.
   unshelve econstructor.
   - unshelve econstructor.
-    1: exact initiate.
+    1: apply f.
     do 2 (unshelve econstructor).
-    1: exact initiate.
+    1: apply f'.
     all: etransitivity ; [|symmetry].
-    all: apply initialU.
+    1-2: apply Ht'.
+    1-2: apply Ht.
   - split => //.
     move => g _.
     apply iso_ext => /=.
-    apply initialU.
-Qed. *)
+    apply Ht.
+Qed.
 
 (** ** Finite coproducts
 
@@ -318,232 +318,16 @@ Proof.
   + rewrite -compoA projrK projrK //.
 Qed.
 
-(**  Here I define "polynomial categories" as categories with finite sums,
-     finite products, and exponents where sums distribute over products.
+(**  Polynomial categories
 
-     As far as I know, this terminology is not already taken.
-  *)
-Module PolynomialCategory.
+    Categories with finite sums, finite products, and exponents where sums distribute over products.
+    That is, the categorification of Heyting algebras.
 
-Record polynomial_category :=
-  PolynomialCategory
-  { ob : Type
-  ; hom : ob -> ob -> Type
-  ; eq_mixin : forall A B:ob, Eq.mixin_of (hom A B)
-  ; comp_mixin : Comp.mixin_of ob hom
-  ; cat_axioms : Category.axioms ob hom eq_mixin comp_mixin
-  ; terminated_mixin : Terminated.mixin_of ob hom eq_mixin
-  ; cartesian_mixin : Cartesian.mixin_of ob hom eq_mixin comp_mixin
-  ; initialized_mixin : Initialized.mixin_of ob hom eq_mixin
-  ; cocartesian_mixin : Cocartesian.mixin_of ob hom eq_mixin comp_mixin
-  ; ccc_mixin : CartesianClosed.mixin_of ob hom eq_mixin comp_mixin 
-       cat_axioms terminated_mixin cartesian_mixin
-  ; distributive_mixin : Distributive.mixin_of ob hom eq_mixin comp_mixin
-       cat_axioms terminated_mixin cartesian_mixin
-                  initialized_mixin cocartesian_mixin
-  }.
-
-Definition eq (X:polynomial_category) (A B:ob X) :=
-  Eq.Pack (hom X A B) (eq_mixin X A B).
-Definition comp (X:polynomial_category) :=
-  Comp.Pack (ob X) (hom X) (comp_mixin X).
-Definition category (X:polynomial_category) : category :=
-  Category (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X).
-Definition terminated (X:polynomial_category) : terminated :=
-  Terminated (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X)
-     (terminated_mixin X).
-Definition cartesian (X:polynomial_category) : cartesian :=
-  Cartesian (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X) 
-     (terminated_mixin X) (cartesian_mixin X).
-Definition initialized (X:polynomial_category) : initialized :=
-  Initialized (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X)
-     (initialized_mixin X).
-Definition cocartesian (X:polynomial_category) : cocartesian :=
-  Cocartesian (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X) 
-     (initialized_mixin X) (cocartesian_mixin X).
-Definition cartesian_closed (X:polynomial_category) : cartesian_closed :=
-  CartesianClosed (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X) 
-      (cartesian_mixin X) (terminated_mixin X) (ccc_mixin X).
-Definition distributive (X:polynomial_category) : distributive :=
-  Distributive (ob X) (hom X) (eq_mixin X) (comp_mixin X) (cat_axioms X)
-      (terminated_mixin X) (cartesian_mixin X)
-      (initialized_mixin X) (cocartesian_mixin X)
-      (distributive_mixin X).
-End PolynomialCategory.
-
-Notation polynomial_category := PolynomialCategory.polynomial_category.
-Notation PolynomialCategory := PolynomialCategory.PolynomialCategory.
-
-Canonical Structure PolynomialCategory.eq.
-Canonical Structure PolynomialCategory.comp.
-Canonical Structure PolynomialCategory.category.
-Canonical Structure PolynomialCategory.terminated.
-Canonical Structure PolynomialCategory.cartesian.
-Canonical Structure PolynomialCategory.initialized.
-Canonical Structure PolynomialCategory.cocartesian.
-Canonical Structure PolynomialCategory.cartesian_closed.
-Canonical Structure PolynomialCategory.distributive.
-
-Coercion PolynomialCategory.category : polynomial_category >-> category.
-Coercion PolynomialCategory.terminated : polynomial_category >-> terminated.
-Coercion PolynomialCategory.cartesian : polynomial_category >-> cartesian.
-Coercion PolynomialCategory.initialized : polynomial_category >-> initialized.
-Coercion PolynomialCategory.cocartesian : polynomial_category >-> cocartesian.
-Coercion PolynomialCategory.cartesian_closed : polynomial_category >-> cartesian_closed.
-Coercion PolynomialCategory.distributive : polynomial_category >-> distributive.
-
-(**  Here we define pullbacks in the direct style.
-  *)
-Module Pullback.
-Section pullback.
-  Variable C:category.
-
-  Definition commuting_square (X Y Z W:ob C) 
-    (f:X → Z) (g:Y → Z)
-    (f':W → Y) (g': W → X) :=
-      g ∘ f' ≈ f ∘ g'.
-
-  Record square  (X Y Z W:ob C) 
-    (f:X → Z) (g:Y → Z)
-    (f':W → Y) (g': W → X) :=
-    Square
-    { commute : commuting_square X Y Z W f g f' g'
-    ; map : forall Q p q,
-           commuting_square X Y Z Q f g p q ->
-           Q → W
-    ; axiom1 : forall Q p q H,
-           g' ∘ map Q p q H ≈ q
-    ; axiom2 : forall Q p q H,
-           f' ∘ map Q p q H ≈ p
-    ; uniq : forall Q p q H k,
-           f ∘ g' ∘ k ≈ f ∘ q -> k ≈ map Q p q H
-    }.
-
-  Record pullback (X Y Z:ob C) (f:X → Z) (g:Y → Z) :=
-    Pullback
-    { pb_ob : ob C
-    ; pb_f : pb_ob → Y
-    ; pb_g : pb_ob → X
-    ; is_pullback : square X Y Z pb_ob f g pb_f pb_g
-    }.
-End pullback.
-
-Arguments commuting_square [C] [X] [Y] [Z] [W] f g f' g'.
-Arguments square [C] [X] [Y] [Z] [W] f g f' g'.
-Arguments Square [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _ _ _ _ _.
-Arguments pullback [C] [X] [Y] [Z] f g.
-Arguments Pullback [C] [X] [Y] [Z] [f] [g] _ _ _ _.
-Arguments commute [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _.
-Arguments map [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _ [Q] _ _ _.
-Arguments axiom1 [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _ _ _ _ _.
-Arguments axiom2 [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _ _ _ _ _.
-Arguments uniq [C] [X] [Y] [Z] [W] [f] [g] [f'] [g'] _ _ _ _ _ _ _.
-Arguments pb_ob [C] [X] [Y] [Z] [f] [g] _.
-Arguments pb_f [C] [X] [Y] [Z] [f] [g] _.
-Arguments pb_g [C] [X] [Y] [Z] [f] [g] _.
-Arguments is_pullback [C] [X] [Y] [Z] [f] [g] _.
-
-Section pullback_lemma.
-  Variable C:category.
-
-  (**  The pullback lemma proved here is that, given objects and
-       morphisms as in the below diagram; if both of the inner
-       diagrams are pullbacks then the outer diagram is a pullback.
-
-<<
-        f1 
-     R ----> S
-     |       |
-  g1 |       | h1
-     v  f2   v
-     W ----> Y
-     |       |
-  g2 |       | h2
-     V  f3   v
-     X ----> Z
->>
   *)
 
-  Variables X Y Z W R S:ob C.
-  Variable f1:R → S.
-  Variable f2:W → Y.
-  Variable f3:X → Z.
-  Variable g1:R → W.
-  Variable g2:W → X.
-  Variable h1:S → Y.
-  Variable h2:Y → Z.
+#[short(type="PolynomialCat"),primitive]
+HB.structure Definition poly_cat := { C of cartesian_closed C & distributive C}.
 
-  Section pullback_lemma1.
-    Variable PB1: Pullback.square f2 h1 f1 g1.
-    Variable PB2: Pullback.square f3 h2 f2 g2.
-
-    Section pb_map.
-    Variable Q:ob C.
-    Variable p:Q → S.
-    Variable q:Q → X.
-    Variable H:commuting_square f3 (h2 ∘ h1) p q.
-
-    Lemma pb_lemma1_comm : commuting_square f3 h2 (h1 ∘ p) q.
-    Proof.
-      red. red in H.
-      rewrite <- H.
-      apply cat_assoc.
-    Qed.
-
-    Definition pullback_lemma1_map1 : Q → W :=
-      Pullback.map PB2 (h1 ∘ p) q pb_lemma1_comm.
-
-    Program Definition pullback_lemma_map2 : Q → R :=
-      Pullback.map PB1 p pullback_lemma1_map1 _.
-    Next Obligation.
-      red. red in H.
-      generalize (axiom2 PB2 _ _ _ pb_lemma1_comm).  intro.
-      auto.
-    Qed.      
-    End pb_map.
-
-    Program Definition pullback_lemma1 : square f3 (h2 ∘ h1) f1 (g2 ∘ g1) :=
-      Square _ (fun Q p q H => pullback_lemma_map2 Q p q H) _ _ _ .
-    Next Obligation.
-      red.
-      generalize (commute PB1). generalize (commute PB2).
-      simpl; intros.
-      red in H; red in H0.
-      etransitivity.
-      - symmetry. apply cat_assoc.
-      - rewrite H0.
-        etransitivity. apply cat_assoc.
-        rewrite H.
-        symmetry. apply cat_assoc.
-    Qed.      
-    Next Obligation.
-      unfold pullback_lemma_map2.
-      etransitivity.
-      - symmetry. apply cat_assoc.
-      - generalize (axiom1 PB1 _ p _ (pullback_lemma_map2_obligation_1 Q p q H)).
-        intros. rewrite H0.
-        apply (axiom1 PB2).
-    Qed.
-    Next Obligation.
-      apply (axiom2 PB1 _ p _ (pullback_lemma_map2_obligation_1 Q p q H)).
-    Qed.
-    Next Obligation.
-      assert (g1 ∘ k ≈ pullback_lemma1_map1 Q p q H).
-      { apply (uniq PB2).
-        rewrite <- H0.
-        rewrite <- (cat_assoc _ _ _ _ _ f3 g2 _).
-        rewrite <- (cat_assoc _ _ _ _ _ f3 (g2 ∘ g1) _).
-        apply cat_respects; auto.
-        apply cat_assoc.
-      }
-      apply (uniq PB1).
-      rewrite <- (cat_assoc _ _ _ _ _ f2 g1 _).
-      rewrite H1. auto.
-    Qed.      
-  End pullback_lemma1.
-End pullback_lemma.
-
-End Pullback.
-
-Notation pullback := Pullback.pullback.
-Notation Pullback := Pullback.Pullback.
+(** Note: any categoy that is cartesian closed + cocartesian is automatically distributive, because
+  [A × -], being a left adjoint, preserves colimits. So we could have a simpler factory to construct
+  polynomial categories, which we have not defined here. *)

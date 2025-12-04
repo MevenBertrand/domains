@@ -2,7 +2,7 @@
 From Stdlib Require Import Program Setoid ssreflect ssrfun.
 From HB Require Import structures.
 
-Require Import notations axioms basics categories.
+Require Import utils.all categories.
 
 #[local] Open Scope cat_scope.
 
@@ -173,13 +173,14 @@ Set Universe Checking. *)
 (** *** Constant functor *)
 
 (** constant functor *)
+
 Definition cst (C D : Quiver) (c : C) := fun of D => c.
-Arguments cst {C} D c.
+Arguments cst {C} D c/.
 HB.instance Definition _ {C D : PreCat} (c : C) :=
   IsPreFunctor.Build D C (cst D c) (fun _ _ => const idmap).
-HB.instance Definition _ {C D : Cat} (c : C) :=
-  IsFunctor.Build D C (cst D c) (fun _ _ => const idmap) (fun=> eq_refl)
-    (fun _ _ _ _ _ => eq_sym (compo1 idmap)).
+Program Definition foo {C D : Cat} (c : C) :=
+  IsFunctor.Build D C (cst D c) (fun _ _ => const (idmap (s := C)))
+    (fun=> eq_refl) (fun _ _ _ _ _ => eq_sym (compo1 (idmap (s := C)))).
 
 (** ** Natural transformations *)
 
@@ -188,9 +189,9 @@ HB.instance Definition _  (C : Type) (D : Quiver) :=
   IsQuiver.Build (C -> D) (fun f g => forall c, f c → g c).
 
 (** *** Naturality *)
-HB.mixin Record IsNatural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) (n : forall c, F c → G c) :=
+#[primitive]HB.mixin Record IsNatural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) (n : forall c, F c → G c) :=
   { #[canonical=no] natural : forall (a b : C) (f : a → b), F <$> f \; n b = n a \; G <$> f }.
-HB.structure Definition Natural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) :=
+#[primitive]HB.structure Definition Natural {C : Quiver} {D : PreCat} (F G : PreFunctor C D) :=
   { n of @IsNatural C D F G n }.
 Arguments Natural.type {_} {_} _ _.
 
@@ -202,8 +203,7 @@ Proof.
   destruct m as [? [[]]], n as [? [[]]] ; cbn in *.
   move => e.
   apply functional_extensionality_dep in e as <-.
-  repeat f_equal.
-  ext.
+  now ext.
 Qed.
 
 Smpl Add (apply nat_ext) : extensionality.

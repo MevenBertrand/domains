@@ -1,8 +1,8 @@
-(** * Domains.categories: basic definitions of categories *)
-From Stdlib Require Import Program ssreflect ssrfun.
+(** * Domains.categories.categories: basic definitions of categories *)
+From Stdlib Require Import ssreflect ssrfun.
 From HB Require Import structures.
 
-Require Import notations basics.
+Require Import utils.all.
 
 (** ** Definitions *)
 
@@ -16,7 +16,7 @@ Delimit Scope cat_scope with cat.
 #[primitive] HB.mixin Record IsQuiver C := {
     #[canonical=no] hom : C -> C -> Type
   }.
-#[short(type="Quiver")]
+#[short(type="Quiver"),primitive]
 HB.structure Definition quiver := { C of IsQuiver C }.
 
 Bind Scope cat_scope with Quiver.
@@ -32,7 +32,7 @@ Notation bare f := (f: hom _ _).
   #[canonical=no] comp : forall (a b c : T), (a → b) -> (b → c) -> (a → c);
 }.
 
-#[short(type="PreCat")]
+#[short(type="PreCat"),primitive]
 HB.structure Definition precat := { T of quiver T & IsPreCat T}.
 
 Bind Scope cat_scope with precat.
@@ -43,12 +43,12 @@ Notation "f ∘[ C ] g" := (@comp C _ _ _ g f) (only parsing): cat_scope.
 Notation "f \; g" := (comp f g) (only parsing): cat_scope.
 
 (** categories: precategories + laws *)
-HB.mixin Record IsCat (T : Type) of precat T := {
+#[primitive]HB.mixin Record IsCat (T : Type) of precat T := {
   #[canonical=no] comp1o : forall (a b : T) (f : a → b), idmap \; f = f;
   #[canonical=no] compo1 : forall (a b : T) (f : a → b), f \; idmap = f;
   #[canonical=no] compoA : forall (a b c d : T) (f : a → b) (g : b → c) (h : c → d), f \; (g \; h) = (f \; g) \; h
 }.
-#[short(type="Cat")]
+#[short(type="Cat"),primitive]
 HB.structure Definition cat := { C of precat C & IsCat C}.
 
 Bind Scope cat_scope with Cat.
@@ -75,7 +75,7 @@ Arguments compoA {_ _ _ _ _}.
     hommap (g ∘ f) = fun x => (hommap g (hommap f x))
 }.
 
-#[short(type="Concrete")]
+#[short(type="Concrete"),primitive]
 HB.structure Definition concretecat := { T of IsConcrete T & }.
 
 Arguments hommap {_ _ _} _ _.

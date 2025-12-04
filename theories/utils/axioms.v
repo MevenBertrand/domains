@@ -1,6 +1,6 @@
 (** * Domains.Axioms: Axioms for the development *)
 
-Require Import basics.
+Require Import basics tactics.
 
 (** R. Donkins' original development was all done using explicit setoids, incurring a
   high complexity overhead. We take a different approach to setoids, which is to use them
@@ -9,7 +9,7 @@ Require Import basics.
   axioms below. *)
 
 (** ** Propositional extensionality *)
-From Stdlib Require Import PropExtensionalityFacts.
+From Stdlib Require Export PropExtensionalityFacts.
 
 Axiom prop_ext : forall {P Q : Prop}, P <-> Q -> P = Q.
 
@@ -39,7 +39,7 @@ Module PropExtProofIrr : ProofIrrelevance.
 
 End PropExtProofIrr.
 
-Import PropExtProofIrr.
+Export PropExtProofIrr.
 
 Smpl Add (apply proof_irrelevance) : extensionality.
 

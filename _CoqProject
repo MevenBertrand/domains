@@ -1,14 +1,19 @@
 -R theories Domains
 
-theories/notations.v
-theories/axioms.v
-theories/basics.v
+theories/utils/notations.v
+theories/utils/tactics.v
+theories/utils/basics.v
+theories/utils/axioms.v
+theories/utils/all.v
+
 theories/pairing.v
 theories/categories/categories.v
 theories/categories/morphisms.v
 theories/categories/functors.v
-theories/categories/universal.v
+theories/categories/category_hierarchy.v
 # theories/categories/bicategories.v
+theories/categories/all.v
+
 theories/preord.v
 theories/sets.v
 theories/finsets.v

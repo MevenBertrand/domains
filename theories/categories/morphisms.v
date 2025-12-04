@@ -2,7 +2,7 @@
 From Stdlib Require Import Program ssreflect.
 From HB Require Import structures.
 
-Require Import notations basics axioms categories.
+Require Import utils.all categories.
 
 #[local] Open Scope cat_scope.
 
@@ -14,7 +14,7 @@ Definition isMono {C: PreCat} [x y: C] (f : x → y) :=
 
 #[primitive] HB.mixin Record IsMono {C: PreCat} (x y: C) (f : x → y) :=
   { #[canonical=no] mono_prop: isMono f}.
-#[short(type="Mono")]
+#[short(type="Mono"),primitive]
 HB.structure Definition mono {C: PreCat} (x y: C)
   := { f of IsMono _ x y f }.
 Notation "a ↣ b" := (Mono _ a b) : cat_scope.
@@ -55,7 +55,7 @@ Definition isEpi {C: PreCat} [x y: C] (f : x → y) :=
 
 #[primitive] HB.mixin Record IsEpi {C: PreCat} (x y: C) (f : x → y) :=
   { #[canonical=no] epi_prop: isEpi f}.
-#[short(type="Epi")]
+#[short(type="Epi"),primitive]
 HB.structure Definition epi {C: PreCat} [x y: C]
   := { f of IsEpi C x y f }.
 Notation "a ↠ b" := (Epi _ a b) : cat_scope.
@@ -95,7 +95,7 @@ Proof. exact (IsMono_decomp (C := C^op) e f). Qed.
     #[canonical=no] _isoK: i ∘ inverse = idmap;
     #[canonical=no] _isoK': inverse ∘ i = idmap }.
 
-#[short(type="Iso")]
+#[short(type="Iso"),primitive]
 HB.structure Definition iso {C: PreCat} (a b: C) :=
   { f of IsIso _ a b f }.
 Arguments Iso {_}.
@@ -145,7 +145,6 @@ Proof.
   move: Hg Hg'.
   subst g'.
   move=> Hg Hg'.
-  repeat f_equal.
   all: ext.
 Qed.
 
