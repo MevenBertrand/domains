@@ -1,235 +1,133 @@
-(* Copyright (c) 2014, Robert Dockins *)
+(** * Domains.categories.all: definitions of preorders *)
 
-From Stdlib Require Import Program Setoid.
-From Stdlib Require Import Morphisms.
+From Stdlib Require Import Morphisms ssreflect ssrfun.
+From HB Require Import structures.
 
-From Stdlib Require Import Program.
+Require Import utils.all categories.all.
 
-Require Import basics.
-Require Import categories.
+Open Scope type_scope.
 
 Declare Scope preord_scope.
 Delimit Scope preord_scope with preord.
-Open Scope preord_scope.
+#[global]Open Scope preord_scope.
 
-#[local]Obligation Tactic := program_simpl.
-
-(**  * Preordered types and monotone functions.
+(**  ** Ordered types and monotone functions.
 
      A preorder is a type equipped with a transitive,
      reflexive relation.  Unlike standard domain theory,
      we will be concentrating on preorders rather than
      partial orders as the basis of order theory.
-
-     As compared to partial orders, preorders lack the
-     axiom of antisymmetry.  Instead, we work (almost) always
-     up to the equivalence relation induced by the preorder.
-     On a preorder, we automatically define a setoid
-     by setting [x ≈ y] iff [x ≤ y /\ y ≤ x].  Thus, we
-     "recover" antisymmetry by convention.
   *)
-Module Preord.
-  Record mixin_of (T:Type) :=
-    Mixin
-    { ord : T -> T -> Prop
-    ; refl : forall x, ord x x
-    ; trans : forall {x y z},
-             ord x y -> ord y z -> ord x z
-    }.
-  Structure type : Type :=
-    Pack { carrier :> Type ; mixin : mixin_of carrier }.
 
-  Definition ord_op T := ord _ (mixin T).
+#[primitive] HB.mixin Record IsPrePreOrder C := {
+    #[canonical=no] ord : C -> C -> Prop
+  }.
+#[short(type="PrePreOrder")]
+HB.structure Definition pre_pre_ord := { C of IsPrePreOrder C }.
 
-  Record hom (X Y:type) := Hom
-    { map :> carrier X -> carrier Y
-    ; axiom : forall (a b:carrier X), ord_op X a b -> ord_op Y (map a) (map b)
-    }.
+Bind Scope preord_scope with PrePreOrder.
+Arguments ord {_} : simpl never.
+Notation "x ≤ y" := (ord x y) : preord_scope.
+Notation "y ≥ x" := (ord y x) (only parsing) : preord_scope.
 
-  Program Definition ident (X:type) : hom X X := Hom X X (fun x => x) _.
-  Program Definition compose (X Y Z:type) (g:hom Y Z) (f:hom X Y)
-    := Hom X Z (fun x => g (f x)) _.
-  Next Obligation.
-    apply axiom. apply axiom. auto.
-  Qed.
+#[primitive] HB.mixin Record IsPreOrder (T : Type) of pre_pre_ord T := {
+  ord_refl : forall (a : T), a ≤ a;
+  ord_trans : forall (a b c : T), a ≤ b -> b ≤ c -> a ≤ c;
+}.
 
-  Definition comp_mixin := Comp.Mixin type hom ident compose.
+#[short(type="PreOrder")]
+HB.structure Definition pre_order := { T of pre_pre_ord T & IsPreOrder T}.
 
-  Definition eq (X:type) (a b:X) := ord_op X a b /\ ord_op X b a.
+#[primitive] HB.mixin Record IsPoset (T : Type) of pre_order T := {
+  ord_antisym : forall (a b : T), a ≤ b -> b ≤ a -> a = b;
+}.
 
-  Definition hom_ord (X Y:type) (f g:hom X Y) := forall x, ord_op Y (f x) (g x).
-  Definition hom_eq (X Y:type) (f g:hom X Y) := forall x, eq Y (f x) (g x).
+#[short(type="Poset")]
+HB.structure Definition poset := { T of pre_order T & IsPoset T}.
 
-  Program Definition ord_mixin X Y := Mixin (hom X Y) (hom_ord X Y) _ _.
-  Next Obligation.
-    red; intro. apply refl.
-  Qed.
-  Next Obligation.
-    red; intro. eapply trans; eauto.
-    apply (H x0). apply (H0 x0).
-  Qed.
+(** *** Every poset is a category *)
 
-  Program Definition eq_mixin X Y := Eq.Mixin (hom X Y) (hom_eq X Y) _ _ _.
-  Next Obligation.
-    red; intros. red. split; apply refl.
-  Qed.
-  Next Obligation.
-    red; intros. red. split.
-    - destruct (H x0); auto.
-    - destruct (H x0); auto.
-  Qed.
-  Next Obligation.
-    intro.
-    destruct (H x0). destruct (H0 x0).
-    split; eapply trans; eauto.
-  Qed.
+Definition CatPos (C : Type) : Type := C.
+HB.instance Definition _ (C : PrePreOrder) :=
+  IsQuiver.Build (CatPos C) (fun a b => a ≤ b).
+HB.instance Definition _ (C : PreOrder) :=
+  IsPreCat.Build (CatPos C) ord_refl ord_trans.
+HB.instance Definition _ (C : Poset) := IsCat.Build (CatPos C)
+  (fun a b _ => proof_irrelevance (a ≤ b) _ _) (fun a b _ => proof_irrelevance (a ≤ b) _ _)
+  (fun a b c d _ _ _ => proof_irrelevance (a ≤ d) _ _).
 
-  Lemma cat_axioms : Category.axioms type hom eq_mixin comp_mixin.
-    constructor.
-    
-    - repeat intro. split; apply refl.
-    - repeat intro. split; apply refl.
-    - repeat intro. split; apply refl.
-    - repeat intro. split; simpl; red.
-      + apply trans with (f (g' x)).
-        * apply axiom; destruct (H0 x); auto.
-        * destruct (H (g' x)); auto.
-      + apply trans with (f (g' x)).
-        * destruct (H (g' x)); auto.
-        * apply axiom; destruct (H0 x); auto.
-  Qed.
 
-  Program Definition ord_eq (T:type) : Eq.mixin_of T :=
-    Eq.Mixin T (eq T) _ _ _.
-  Next Obligation.
-    split; apply refl.
-  Qed.
-  Next Obligation.
-    destruct H; split; auto.
-  Qed.
-  Next Obligation.
-    destruct H; destruct H0.
-    split; eapply trans; eauto.
-  Qed.
-End Preord.
-Notation preord := Preord.type.
+(** *** Monotone maps and the categories of preorders and posets *)
 
-Notation "x ≤ y" := (@Preord.ord_op _ x y) : preord_scope.
-Notation "y ≥ x" := (@Preord.ord_op _ x y) (only parsing) : preord_scope.
-Notation "x ≰ y" := (~ (@Preord.ord_op _ x y)) : preord_scope.
-Notation "y ≱ x" := (~ (@Preord.ord_op _ x y)) (only parsing) : preord_scope.
+Definition IsMonotone {C D : PrePreOrder} (f : C -> D) :=
+  forall x y, x ≤ y -> f x ≤ f y.
 
-(**  Here we set up the category PREORD of preorders with montone functions
-     and the canonical structure magic that makes notation work.
-  *) 
-Coercion Preord.carrier : Preord.type >-> Sortclass.
-Coercion Preord.map : Preord.hom >-> Funclass.
+Record Monotone {C D : PrePreOrder} :=
+  {
+    mon_map :> C -> D ;
+    mon_mon : IsMonotone mon_map
+  }.
 
-Canonical Structure hom_order X Y := Preord.Pack (Preord.hom X Y) (Preord.ord_mixin X Y).
-Canonical Structure Preord_Eq (X:preord) : Eq.type :=
-  Eq.Pack (Preord.carrier X) (Preord.ord_eq X).
+Arguments Monotone : clear implicits.
 
-Canonical Structure PREORD :=
-  Category preord Preord.hom _ _ Preord.cat_axioms.
+HB.instance Definition _ := IsQuiver.Build PrePreOrder Monotone.
+HB.instance Definition _ := IsQuiver.Build PreOrder Monotone.
+HB.instance Definition _ := IsQuiver.Build Poset Monotone.
 
-Canonical Structure preord_hom_eq (A B:preord):=
-  Eq.Pack (Preord.hom A B) (Preord.eq_mixin A B).
-Canonical Structure preord_comp :=
-  Comp.Pack preord Preord.hom Preord.comp_mixin.
 
-(**  The preorder axioms and their relation to equality.
-  *)
-Lemma ord_refl : forall (T:preord) (x:T), x ≤ x.
+Lemma mon_ext_ppo (C D : PrePreOrder) (f g : Monotone C D) :
+  mon_map f = mon_map g -> f = g.
 Proof.
-  intros. destruct T. destruct mixin. apply refl.
+  destruct f,g ; cbn in *.
+  intros ->.
+  ext.
 Qed.
 
-Lemma ord_trans : forall (T:preord) (x y z:T), x ≤ y -> y ≤ z -> x ≤ z.
-Proof.
-  intros. destruct T. destruct mixin. eapply trans; eauto.
-Qed.
+Smpl Add (apply: mon_ext_ppo ; cbn) : extensionality.
+(* Smpl Add (apply: mon_ext_po ; cbn) : extensionality.
+Smpl Add (apply: mon_ext_pos ; cbn) : extensionality. *)
 
-Lemma ord_antisym : forall (T:preord) (x y:T), x ≤ y -> y ≤ x -> x ≈ y.
-Proof.
-  intros. split; auto.
-Qed.
+Section Monotone.
+  Context {C D E : PrePreOrder}.
 
-Lemma eq_ord : forall (T:preord) (x y:T), x ≈ y -> x ≤ y.
-Proof.
-  intros; destruct H; auto.
-Qed.
+  Definition mon_id : Monotone C C := {| mon_map := ssrfun.id ; mon_mon := fun _ _ h => h |}.
 
-Lemma eq_ord' : forall (T:preord) (x y:T), x ≈ y -> y ≤ x.
-Proof.
-  intros; destruct H; auto.
-Qed.
+  Program Definition mon_comp (g : Monotone D E) (f : Monotone C D) : Monotone C E :=
+    {| mon_map := ssrfun.comp g f ; mon_mon := _ |}.
+  Next Obligation.
+    intros [? Hg] [? Hf] x y ? ; cbn.
+    now apply Hg, Hf.
+  Qed.
+
+End Monotone.
+
+HB.instance Definition _ := IsPreCat.Build PrePreOrder
+  (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+Definition _PrePreOrd_Cat : IsCat PrePreOrder :=
+  IsCat.Build PrePreOrder ltac:(by ext) ltac:(by ext) ltac:(by ext).
+HB.instance Definition _ := _PrePreOrd_Cat.
+
+HB.instance Definition _ := IsPreCat.Build PreOrder
+  (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+Definition _PreOrd_Cat : IsCat PreOrder :=
+  IsCat.Build PreOrder ltac:(by ext) ltac:(by ext) ltac:(by ext).
+HB.instance Definition _ := _PreOrd_Cat.
+
+HB.instance Definition _ := IsPreCat.Build Poset (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+Definition _Poset_Cat : IsCat Poset := IsCat.Build Poset ltac:(by ext) ltac:(by ext) ltac:(by ext).
+HB.instance Definition _ := _Poset_Cat.
 
 
-(**  Set up setoid rewriting
-  *)
-Add Parametric Relation (A:preord) : (Preord.carrier A) (@Preord.ord_op A)
-  reflexivity proved by (ord_refl A)
-  transitivity proved by (ord_trans A)
+(* To get transitivity to work *)
+Add Parametric Relation (A:PreOrder) : A (@ord A)
+  reflexivity proved by (@ord_refl A)
+  transitivity proved by (@ord_trans A)
     as ord_rel.
-
-Add Parametric Morphism (A:preord) :
-  (@Preord.ord_op A)
-    with signature (Preord.ord_op A) -->
-                   (Preord.ord_op A) ++>
-                   impl
-     as ord_morphism.
-Proof.
-  repeat intro.
-  transitivity x; auto.
-  transitivity x0; auto.
-Qed.
-
-Add Parametric Morphism (A:preord) :
-  (@Preord.ord_op A)
-    with signature (eq_op (Preord_Eq A)) ==>
-                   (eq_op (Preord_Eq A)) ==>
-                   iff
-     as ord_eq_morphism.
-Proof.
-  intros. 
-  destruct H; destruct H0.
-  split; intros.
-  - transitivity x; auto.
-    transitivity x0; auto.
-  - transitivity y; auto.
-    transitivity y0; auto.
-Qed.
-
-Add Parametric Morphism (A B:preord) :
-  (@Preord.map A B)
-   with signature (Preord.ord_op (hom_order A B)) ++>
-                  (Preord.ord_op A) ++>
-                  (Preord.ord_op B)
-    as preord_map_morphism.
-Proof.
-  intros.
-  transitivity (x y0).
-  apply Preord.axiom. auto.
-  apply H.
-Qed.
-  
-Add Parametric Morphism (A B:preord) :
-  (@Preord.map A B)
-   with signature (eq_op (Preord_Eq (hom_order A B))) ==>
-                  (eq_op (Preord_Eq A)) ==>
-                  (eq_op (Preord_Eq B))
-    as preord_map_eq_morphism.
-Proof.
-  intros.
-  transitivity (x y0).
-  - destruct H0; split; apply Preord.axiom; auto.
-  - destruct H; split; auto.
-Qed.
 
 (**  This lemma is handy for using an equality in the context to prove a goal
      by transitivity on both sides.
   *)
-Lemma use_ord (A:preord) (a b c d:A) :
+Lemma use_ord (A:PreOrder) (a b c d:A) :
   b ≤ c -> a ≤ b -> c ≤ d -> a ≤ d.
 Proof.
   intros.
@@ -238,274 +136,262 @@ Proof.
 Qed.
 Arguments use_ord [A] [a] [b] [c] [d] _ _ _.
 
+(** ** Poset is terminated. *)
 
-(**  PREORD is a concrete category.
-  *)
-Program Definition PREORD_concrete : concrete PREORD :=
-  Concrete PREORD
-  Preord.carrier
-  (fun X => Eq.mixin (Preord_Eq X))
-  Preord.map _ _.
+HB.instance Definition _ := IsPrePreOrder.Build unit (fun _ _ => True).
+HB.instance Definition _ := IsPreOrder.Build unit (fun _ => I) (fun _ _ _ _ _ => I).
+
+Lemma unit_ext (x y : unit) : x = y.
+Proof (match x, y with | tt, tt => eq_refl end).
+
+Smpl Add (apply unit_ext) : extensionality.
+
+HB.instance Definition _ := IsPoset.Build unit (fun _ _ _ _ => unit_ext _ _).
+
+Program Definition _PreTermPoset := IsPreTerminated.Build Poset unit
+  (fun P => {| mon_map := fun x => tt ; mon_mon := _ |} ).
 Next Obligation.
-  split. 
-  - apply ord_trans with (Preord.map A B f y).
-    + apply Preord.axiom. destruct H0; auto. 
-    + destruct (H y); auto.
-  - apply ord_trans with (Preord.map A B f y).
-    + destruct (H y); auto.
-    + apply Preord.axiom. destruct H0; auto. 
+  intros x.
+  red.
+  reflexivity.
 Qed.
+
+HB.instance Definition _ := _PreTermPoset.
+
+Program Definition _TermPoset := IsTerminated.Build Poset _.
 Next Obligation.
-  split; apply Preord.refl.
+  red ; ext.
 Qed.
 
-Canonical Structure PREORD_concrete.
+HB.instance Definition _ := _TermPoset.
 
+(** ** Poset is initialised. *)
 
-(**  Monotone functions respect equality and order.
-  *)
-Lemma preord_eq : forall (X Y:preord) (f:X → Y) (x y:X), x ≈ y -> f x ≈ f y.
-Proof.
-  intros. apply preord_map_eq_morphism; auto.
-Qed.
+HB.instance Definition _ := IsPrePreOrder.Build False (fun _ _ => False).
+HB.instance Definition _ := IsPreOrder.Build False (fun x => except x) (fun x _ _ _ _ => except x).
 
-Lemma preord_ord : forall (X Y:preord) (f:X → Y) (x y:X), x ≤ y -> f x ≤ f y.
-Proof.
-  intros. apply Preord.axiom. auto.
-Qed.  
+Lemma empty_ext (x y : False) : x = y.
+Proof (except x).
 
-#[global] Hint Resolve ord_refl ord_trans ord_antisym preord_ord preord_eq eq_ord eq_ord' : core.
+Smpl Add (apply empty_ext) : extensionality.
 
-Add Parametric Morphism (X Y:preord) :
-  (@hommap PREORD PREORD_concrete X Y)
-  with signature (eq_op (CAT_EQ PREORD X Y)) ==> 
-                 (eq_op (Preord_Eq X)) ==>
-                 (eq_op (Preord_Eq Y))
-  as preord_apply_eq_morphism.
-Proof.
-  intros.
-  transitivity (x#y0).
-  - apply preord_eq; auto.
-  - apply H.
-Qed.
+HB.instance Definition _ := IsPoset.Build False (fun _ _ _ _ => empty_ext _ _).
 
-Add Parametric Morphism (X Y:preord) :
-  (@hommap PREORD PREORD_concrete X Y)
-  with signature (eq_op (CAT_EQ PREORD X Y)) ++> 
-                 (eq_op (Preord_Eq X)) ++>
-                 (Preord.ord_op Y)
-  as preord_apply_eqord_morphism.
-Proof.
-  intros.
-  transitivity (x#y0).
-  - apply preord_eq; auto.
-  - apply H.
-Qed.
-
-Add Parametric Morphism (X Y:preord) :
-  (@hommap PREORD PREORD_concrete X Y)
-  with signature (fun (x y:hom PREORD X Y) => Preord.ord_op (hom_order X Y) x y) ==> 
-                 (Preord.ord_op X) ==>
-                 (Preord.ord_op Y)
-  as preord_apply_ord_morphism.
-Proof.
-  intros. 
-  transitivity (x#y0).
-  - apply preord_ord. auto.
-  - apply H.
-Qed.
-
-(** PREORD is termianted. *)
-
-Program Definition unitpo := Preord.Pack unit (Preord.Mixin _ (fun _ _ => True) _ _).
-Canonical Structure unitpo.
-
-Program Definition preord_terminate (A:preord) : A → unitpo :=
-  Preord.Hom A unitpo (fun x => tt) _.
-
-Program Definition preord_terminated_mixin :=
-  Terminated.Mixin 
-     preord Preord.hom 
-     Preord.eq_mixin
-     unitpo preord_terminate
-     _.
+Program Definition _PreInitPoset := IsPreInitialised.Build Poset False
+  (fun P => {| mon_map := fun x => False_rect _ x ; mon_mon := _ |} ).
 Next Obligation.
-  split; simpl; hnf; auto.
+  by intros ? ?.
 Qed.
-     
-Canonical Structure preord_terminated :=
-  Terminated 
-     preord Preord.hom 
-     Preord.eq_mixin
-     Preord.comp_mixin
-     Preord.cat_axioms
-     preord_terminated_mixin.
 
-(** PREORD is initialized. *)
-Program Definition emptypo :=
-  Preord.Pack False (Preord.Mixin _ (fun _ _ => False) _ _).
-Canonical Structure emptypo.
+HB.instance Definition _ := _PreInitPoset.
 
-Program Definition preord_initiate (A:preord) : emptypo → A :=
-  Preord.Hom emptypo A (fun x => False_rect _ x) _.
-Next Obligation. elim a. Qed.
-
-Program Definition preord_initialized_mixin :=
-  Initialized.Mixin
-     preord Preord.hom 
-     Preord.eq_mixin
-     emptypo preord_initiate
-     _.
+Program Definition _InitPoset := IsInitialised.Build Poset _.
 Next Obligation.
-  split; simpl; elim x.
+  red ; ext.
+  by cbn in *.
 Qed.
 
-Canonical Structure preord_initialized :=
-  Initialized
-     preord Preord.hom 
-     Preord.eq_mixin
-     Preord.comp_mixin
-     Preord.cat_axioms
-     preord_initialized_mixin.
+HB.instance Definition _ := _InitPoset.
 
-(**  The preorder on products, defined pointwise. *)
-Definition prod_ord (A B:preord) (x y:A*B):=
+(**  ** Poset is cartesian *)
+
+Definition prod_ord (A B:PrePreOrder) (x y:A*B):=
   (fst x) ≤ (fst y) /\ (snd x) ≤ (snd y).
 
-Program Definition prod_preord (A B:preord) : preord :=
-  Preord.Pack (A*B) (Preord.Mixin _ (prod_ord A B) _ _).
+Arguments prod_ord _ _ _ _/.
+
+HB.instance Definition _ (A B:PrePreOrder) := IsPrePreOrder.Build (A*B) (prod_ord A B).
+
+Program Definition _ProdPreOrd (A B : PreOrder) := IsPreOrder.Build (A*B) _ _.
 Next Obligation.
-  hnf. simpl; auto.
+  intros ? ? [] ; cbn ; red ; cbn.
+  split ; reflexivity.
 Qed.
 Next Obligation.
-  destruct H; destruct H0; split; simpl in *.
-  eapply ord_trans; eauto.
-  eapply ord_trans; eauto.
+  intros ? ? [] [] [] [] [] ; cbn in * ; red ; cbn.
+  split ; now etransitivity.
 Qed.
 
-Canonical Structure prod_preord.
+HB.instance Definition _ (A B : PreOrder) := _ProdPreOrd A B.
 
-
-(** PREORD is a cartesian category. *)
-Program Definition pi1 {A B:preord} : prod_preord A B → A :=
-  Preord.Hom (prod_preord A B) A (fun x => fst x) _.
+Program Definition _ProdPoset (A B : Poset) := IsPoset.Build (A*B) _.
 Next Obligation.
-  destruct H; simpl; auto.
+  intros ?? [] [] [] [] ; cbn in *.
+  ext ; now apply ord_antisym.
 Qed.
 
-Program Definition pi2 {A B:preord} : prod_preord A B → B :=
-  Preord.Hom (prod_preord A B) B (fun x => snd x) _.
+HB.instance Definition _ (A B : Poset) := _ProdPoset A B.
+
+Program Definition _PreHasProdsPoset := PreHasProds.Build Poset
+  (fun A B => HB.pack (A*B))
+  (fun p q => {| mon_map := fst ; mon_mon := _|})
+  (fun p q => {| mon_map := snd ; mon_mon := _|})
+  (fun p q x f g => {| mon_map := fun x => (f x,g x) ; mon_mon := _|}).
 Next Obligation.
-  destruct H; simpl; auto.
-Qed.
-
-Program Definition mk_pair {C A B:preord} (f:C → A) (g:C → B) : C → prod_preord A B :=
-  Preord.Hom C (prod_preord A B) (fun c => (f c, g c)) _.
-Next Obligation.
-  intros. split; simpl; apply Preord.axiom; auto.
-Qed.  
-
-Program Definition preord_cartesian_mixin
-  := Cartesian.Mixin
-      Preord.type Preord.hom
-      Preord.eq_mixin
-      Preord.comp_mixin
-      prod_preord (@pi1) (@pi2) (@mk_pair) _.
-Next Obligation.      
-  constructor.
-
-  - intros. split; simpl; auto.
-  - intros. split; simpl; auto.
-  - intros. intro. split; simpl.
-    + split; simpl.
-      * destruct (H x); auto.
-      * destruct (H0 x); auto.
-    + split; simpl.
-      * destruct (H x); auto.
-      * destruct (H0 x); auto.
-Qed.
-    
-Canonical Structure preord_cartesian : cartesian :=
-  Cartesian Preord.type Preord.hom
-      Preord.eq_mixin
-      Preord.comp_mixin
-      Preord.cat_axioms
-      preord_terminated_mixin
-      preord_cartesian_mixin.
-
-(** Further, PREORD is a cartesian closed category. *)
-Program Definition preord_curry (C A B:preord) (f:C×A → B) : C → hom_order A B :=
-  Preord.Hom C (hom_order A B) (fun c => Preord.Hom A B (fun a => f (c,a)) _) _.
-Next Obligation.
-  apply preord_ord. split; auto.
+  now intros ?? [] [] [].
 Qed.
 Next Obligation.
-  intro x. simpl.
-  apply preord_ord. split; auto.
+  now intros ?? [] [] [].
 Qed.
-
-Program Definition preord_apply (A B:preord) : (hom_order A B × A) → B :=
-  Preord.Hom (hom_order A B × A) B (fun fx => fst fx (snd fx)) _.
 Next Obligation.
-  simpl. destruct H; simpl in *.
-  apply preord_map_morphism; auto.
+  intros * ?? ?.
+  split ; cbn.
+  all: now apply: mon_mon.
 Qed.
 
-Program Definition preord_ccc_mixin 
-   := CartesianClosed.Mixin
-       Preord.type Preord.hom
-       Preord.eq_mixin
-       Preord.comp_mixin
-       Preord.cat_axioms
-       preord_terminated_mixin
-       preord_cartesian_mixin
-       hom_order preord_curry preord_apply
-       _.
+HB.instance Definition _ := _PreHasProdsPoset.
+
+Program Definition _HasProdsPoset := HasProds.Build Poset _ _ _.
 Next Obligation.
-  constructor.
-
-  - simpl. intros.
-    split; simpl; destruct x; simpl; auto.
-  
-  - simpl. intros.
-    split; intro z; simpl.
-    + rewrite <- H. simpl; auto.
-    + rewrite <- H. simpl; auto.
+  now ext.
+Qed.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  intros ; subst.
+  ext ; cbn.
+  apply surjective_pairing.
 Qed.
 
-Canonical Structure preord_ccc : cartesian_closed :=
-  CartesianClosed 
-       Preord.type Preord.hom
-       Preord.eq_mixin
-       Preord.comp_mixin
-       Preord.cat_axioms
-       preord_cartesian_mixin
-       preord_terminated_mixin
-       preord_ccc_mixin.
+HB.instance Definition _ := _HasProdsPoset.
 
+(**  ** Poset is cartesian closed *)
+
+Definition exp_ord (A B:PrePreOrder) (f g : Monotone A B):=
+  forall x x', x ≤ x' -> f x ≤ g x'.
+
+Arguments exp_ord _ _ _ _/.
+
+HB.instance Definition _ (A B:PrePreOrder) :=
+  IsPrePreOrder.Build (Monotone A B) (exp_ord A B).
+
+Program Definition _ExpPreOrd (A B : PreOrder) := IsPreOrder.Build (Monotone A B) _ _.
+Next Obligation.
+  intros * ; cbn ; red ; cbn ; intros.
+  now apply: mon_mon.
+Qed.
+Next Obligation.
+  move => * ; rewrite /ord /= => *.
+  now etransitivity.
+Qed.
+
+HB.instance Definition _ (A B : PreOrder) := _ExpPreOrd A B.
+
+Program Definition _ExpPoset (A B : Poset) := IsPoset.Build (Monotone A B) _.
+Next Obligation.
+  rewrite /ord /= => *.
+  ext.
+  now apply ord_antisym.
+Qed.
+
+HB.instance Definition _ (A B : Poset) := _ExpPoset A B.
+
+Program Definition _HasExpsPoset := PreHasExps.Build Poset
+  (fun A B => HB.pack (Monotone A B))
+  (fun A B => {| mon_map := fun x => (fst x) (snd x) ; mon_mon := _|})
+  (fun A B X => {| 
+    mon_map := fun (f : Monotone (X*A) B) =>
+      {|
+        mon_map := fun (x : X) => {| mon_map := fun a => f (x,a) ; mon_mon := _ |} ;
+        mon_mon := _
+      |} ;
+    mon_mon := _|} ).
+Next Obligation.
+  cbn.
+  intros ?? ??.
+  rewrite {1}/ord /=.
+  intros [Hf Ha] ; cbn in *.
+  now apply: Hf.
+Qed.
+Next Obligation.
+  cbn.
+  intros ** ???.
+  apply mon_mon.
+  now split ; cbn.
+Qed.
+Next Obligation.
+  intros ** ?????? ; cbn.
+  apply: mon_mon.
+  now split ; cbn.
+Qed.
+Next Obligation.
+  intros ** ?? P ? ** ? **; cbn in *.
+  apply: P.
+  now split.
+Qed.
 
 (** The preorder on sums, defined in the standard way.
   *)
-Definition sum_ord (A B:preord) (x y:A+B):=
+Definition sum_ord (A B:PrePreOrder) (x y:A+B):=
   match x, y with
   | inl x', inl y' => x' ≤ y'
   | inr x', inr y' => x' ≤ y'
   | _, _ => False
   end.
 
-Program Definition sum_preord (A B:preord) : preord :=
-  Preord.Pack (A+B) (Preord.Mixin _ (sum_ord A B) _ _).
+Arguments sum_ord _ _ !_ !_/.
+
+HB.instance Definition _ (A B:PrePreOrder) := IsPrePreOrder.Build (A+B)%type (sum_ord A B).
+
+Program Definition _SumPreOrd (A B : PreOrder) := IsPreOrder.Build (A+B)%type _ _.
 Next Obligation.
-  hnf. destruct x; auto.
+  intros ? ? [] ; red ; cbn.
+  all: reflexivity.
 Qed.
 Next Obligation.
-  hnf. destruct x; destruct y; destruct z; simpl in *; intuition.
-  - eapply ord_trans; eauto.
-  - eapply ord_trans; eauto.
+  intros ? ? [] [] [] H H'; cbn in * ; red in H, H' |- * ; cbn in *.
+  all: try done.
+  all: now etransitivity.
 Qed.
 
-Canonical Structure sum_preord.
+HB.instance Definition _ (A B : PreOrder) := _SumPreOrd A B.
 
+Program Definition _SumPoset (A B : Poset) := IsPoset.Build (A+B)%type _.
+Next Obligation.
+  intros ?? [] [] H H' ; red in H, H' ; cbn in *.
+  all: try done.
+  all: ext ; now apply ord_antisym.
+Qed.
+
+HB.instance Definition _ (A B : Poset) := _SumPoset A B.
+
+Program Definition _PreHasSumsPoset := PreHasSums.Build Poset
+  (fun A B => HB.pack (A+B)%type)
+  (fun p q => {| mon_map := inl ; mon_mon := _|})
+  (fun p q => {| mon_map := inr ; mon_mon := _|})
+  (fun p q x f g => {|
+      mon_map := fun x => match x with | inl x => f x | inr x => g x end ;
+      mon_mon := _|}).
+Next Obligation.
+  now intros ?? ? ** ; cbn ; red ; cbn.
+Qed.
+Next Obligation.
+  now intros ?? ? ** ; cbn ; red ; cbn.
+Qed.
+Next Obligation.
+  intros * [] [] H ; red in H ; cbn in * => //.
+  all: now apply mon_mon.
+Qed.
+
+HB.instance Definition _ := _PreHasSumsPoset.
+
+Program Definition _HasSumsPoset := HasSums.Build Poset _ _ _.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  intros; subst.
+  ext.
+  now destruct x0.
+Qed.
+
+HB.instance Definition _ := _HasSumsPoset.
+
+(*
 (**  Preorders with an [ord_dec] structure have a decidable order relation.
   *)
 Record ord_dec (A:preord) :=
@@ -527,63 +413,153 @@ Canonical Structure PREORD_EQ_DEC (A:preord) (OD:ord_dec A) :=
       | right H => right (fun HEQ => H (proj1 HEQ))
       end).
 
+*)
+
+(** ** Concreteness *)
+
+Program Definition _PrePreOrder_Concrete := 
+  IsConcrete.Build PrePreOrder pre_pre_ord.sort (@mon_map) ltac:(by ext) ltac:(by ext).
+
+HB.instance Definition _ := _PrePreOrder_Concrete.
+
+Program Definition _PreOrder_Concrete := 
+  IsConcrete.Build PreOrder pre_order.sort (@mon_map) ltac:(by ext) ltac:(by ext).
+
+HB.instance Definition _ := _PreOrder_Concrete.
+
+Program Definition _Poset_Concrete := 
+  IsConcrete.Build Poset poset.sort (@mon_map) ltac:(by ext) ltac:(by ext).
+
+HB.instance Definition _ := _Poset_Concrete.
+
+(** ** Lift *)
 (** The "lift" preorder, which adjoins a new bottom element.
     The lift construction gives rise to an endofunctor on PREORD.
   *)
-Definition lift_ord (A:preord) (x:option A) (y:option A) : Prop :=
-   match x with None => True | Some x' =>
-     match y with None => False | Some y' => x' ≤ y' end end.
 
-Program Definition lift_mixin (A:preord) : Preord.mixin_of (option A) :=
-  Preord.Mixin (option A) (lift_ord A) _ _.
-Next Obligation.
-  destruct x; simpl; auto.
-Qed.
-Next Obligation.
-  destruct x; destruct y; destruct z; simpl in *; intuition. eauto.
-Qed.
+Definition lift A := {p : Prop & p -> A}.
+Definition defined {A} (x : lift A) : Prop := projT1 x.
+Definition value {A} (x : lift A) : defined x -> A :=
+  projT2 x.
 
-Canonical Structure lift (A:preord) : preord :=
-  Preord.Pack (option A) (lift_mixin A).
+Definition on_lift {A} (P : A -> Prop) (x : lift A) : Prop :=
+  {p : defined x & P (value x p)}.
 
-Program Definition liftup (A:preord) : A → lift A :=
-  Preord.Hom A (lift A) (@Some A) _.
-
-Program Definition lift_map {A B:preord} (f:A → B) : lift A → lift B :=
-  Preord.Hom (lift A) (lift B) (option_map (Preord.map A B f)) _.
-Next Obligation.
-  red; intros. destruct a; destruct b; simpl in *; auto.
-Qed.
-
-Lemma lift_map_id (A:preord) : lift_map id(A) ≈ id(lift A).
+Lemma lift_ext {A} (x y : lift A) :
+  forall (f : defined x <-> defined y),
+  (forall p : defined x, value x p = value y (fst f p)) ->
+  x = y.
 Proof.
-  split; hnf; destruct x; simpl; auto.
+  intros f e.
+  destruct x, y ; cbn in *.
+  pose proof (prop_ext f) ; subst.
+  ext.
+  rewrite e.
+  f_equal.
+  ext.
 Qed.
 
-Lemma lift_map_compose (A B C:preord) (g:B → C) (f:A → B) :
-  lift_map (g ∘ f) ≈ lift_map g ∘ lift_map f.
-Proof.
-  split; hnf; destruct x; simpl; auto.
-Qed.
+Definition lift_ord (A:PrePreOrder) (x:lift A) (y: lift A) : Prop :=
+  {f : defined x -> defined y & forall p : defined x, value x p = value y (f p)}.
 
-Lemma lift_map_eq (A B:preord) (f f':A → B) : f ≈ f' -> lift_map f ≈ lift_map f'.
-Proof.
+HB.instance Definition _ (A:PrePreOrder) :=
+  IsPrePreOrder.Build (lift A) (lift_ord A).
+
+Definition PrePreOrder_lift (A : PrePreOrder) : PrePreOrder := HB.pack (lift A).
+
+Program Definition _LiftPreOrd (A : PreOrder) := IsPreOrder.Build (lift A) _ _.
+Next Obligation.
+  intros ?? ; red ; cbn.
+  unshelve eexists.
+  1: exact ssrfun.id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros ? ??? [f Hf] [g Hg] ; red ; cbn.
+  unshelve eexists.
+  1: exact (ssrfun.comp g f).
   intros.
-  split; hnf; destruct x; simpl; auto; apply H.
+  rewrite Hf Hg => //=.
 Qed.
 
-Program Definition liftF : functor PREORD PREORD :=
-  (Functor PREORD PREORD lift (@lift_map) _ _ _).
+HB.instance Definition _ (A : PreOrder) := _LiftPreOrd A.
+
+Definition PreOrder_lift (A : PreOrder) : PreOrder := HB.pack (lift A).
+
+Program Definition _LiftPoset (A : Poset) := IsPoset.Build (lift A) _.
 Next Obligation.
-  transitivity (lift_map id(A)).
-  - apply lift_map_eq; auto.
-  - apply lift_map_id.
+  intros ? ?? [] [].
+  unshelve eapply lift_ext.
+  1: split ; assumption.
+  intros.
+  rewrite e.
+  f_equal.
+  ext.
+Qed.
+
+HB.instance Definition _ (A : Poset) := _LiftPoset A.
+
+
+Definition Poset_lift (A : Poset) : Poset := HB.pack (lift A).
+
+(* HB.instance Definition _ := _LiftPreFunctor. *)
+
+Definition liftF_map {A B : PrePreOrder} (f : A -> B) : lift A -> lift B :=
+  fun x => existT _ (defined x) (fun p => f (value x p)).
+
+Program Definition liftF (A B : PrePreOrder) (f : A -> B) : Monotone (lift A) (lift B) :=
+  {|
+      mon_map := liftF_map f ;
+      mon_mon := _
+  |}.
+Next Obligation.
+  intros ** ?? [fd fv].
+  red ; cbn ; red ; cbn.
+  exists fd.
+  intros ; by rewrite fv.
+Qed.
+ 
+Program Definition _LiftFunctor_PrePreOrder := IsFunctor.Build PrePreOrder PrePreOrder PrePreOrder_lift
+  liftF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  transitivity (lift_map (f ∘ g)).
-  - apply lift_map_eq; auto.
-  - apply lift_map_compose.
+  cbn ; intros ??? f g.
+  by ext.
+Qed.
+
+HB.instance Definition _ := _LiftFunctor_PrePreOrder.
+ 
+Program Definition _LiftFunctor_PreOrder := IsFunctor.Build PreOrder PreOrder PreOrder_lift
+  liftF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  apply lift_map_eq. auto.
+  cbn ; intros ??? f g.
+  by ext.
 Qed.
+
+HB.instance Definition _ := _LiftFunctor_PreOrder.
+ 
+Program Definition _LiftFunctor_Poset := IsFunctor.Build Poset Poset Poset_lift
+  liftF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
+Qed.
+Next Obligation.
+  cbn ; intros ??? f g.
+  by ext.
+Qed.
+
+HB.instance Definition _ := _LiftFunctor_Poset.

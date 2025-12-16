@@ -85,9 +85,9 @@ Reserved Notation "'ι₂'".
 Reserved Notation "'π₁'".
 Reserved Notation "'π₂'".
 
-Reserved Notation "A × B" (at level 54, left associativity).
-Reserved Notation "A ×[ C ] B" (at level 54, left associativity).
-Reserved Notation "A +[ C ] B" (at level 50, left associativity).
+Reserved Notation "A × B" (at level 50, left associativity).
+Reserved Notation "A ×[ C ] B" (at level 50, left associativity).
+Reserved Notation "A +[ C ] B" (at level 54, left associativity).
 Reserved Notation "A ⊗ B" (at level 54, left associativity).
 Reserved Notation "A ⊕ B" (at level 50, left associativity).
 

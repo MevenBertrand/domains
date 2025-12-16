@@ -84,3 +84,13 @@ Qed.
 HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, {x = y} + {x <> y} }. 
 
 HB.structure Definition EqTy := {T of HasEqDec T}.
+
+(** Option *)
+
+Definition onSome {A} (P : A -> Prop) (x : option A) : Prop :=
+  match x with
+  | None => False
+  | Some x => P x
+  end.
+
+Arguments onSome {_}_ !_/.

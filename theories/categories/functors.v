@@ -178,7 +178,7 @@ Definition cst (C D : Quiver) (c : C) := fun of D => c.
 Arguments cst {C} D c/.
 HB.instance Definition _ {C D : PreCat} (c : C) :=
   IsPreFunctor.Build D C (cst D c) (fun _ _ => const idmap).
-Program Definition foo {C D : Cat} (c : C) :=
+HB.instance Definition _ {C D : Cat} (c : C) :=
   IsFunctor.Build D C (cst D c) (fun _ _ => const (idmap (s := C)))
     (fun=> eq_refl) (fun _ _ _ _ _ => eq_sym (compo1 (idmap (s := C)))).
 

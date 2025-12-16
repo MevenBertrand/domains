@@ -6,6 +6,12 @@ From smpl Require Export Smpl.
 
 #[global]Hint Unfold notT: core.
 #[global] Hint Resolve eq_refl eq_sym : core.
+#[global] Hint Constructors and : core. 
+#[global]Hint Extern 10 =>
+  match goal with
+    | H : _ /\ _ |- _ => destruct H
+    | H : ~ _ |- False => apply H
+  end : core.
 
 (** To use in intro patterns, similar to SSReflects' /dup view *)
 Definition dup {A : Type} : A -> A * A := fun x => (x,x).
@@ -40,7 +46,7 @@ Ltac2 test_constr (c : constr) : unit :=
 
 Ltac2 constr_ext () : unit :=
   match! goal with
-  | [ |- ?t = _] => test_constr t ; f_equal
+  | [ |- ?t = ?u] => test_constr t ; test_constr u ; progress f_equal
   end.
 
 Smpl Create extensionality.

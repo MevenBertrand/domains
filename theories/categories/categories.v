@@ -68,19 +68,19 @@ Arguments compoA {_ _ _ _ _}.
 (** Is this simply a category with a functor into Type?? *)
 
 #[primitive] HB.mixin Record IsConcrete (T : Type) of precat T := {
-  #[canonical=no] obmap : T -> Type ;
-  #[canonical=no] hommap : forall {a b : T}, (a → b) -> obmap a -> obmap b ;
-  #[canonical=no] hommap1: forall (a : T), hommap (idmap (a := a)) = idfun ;
-  #[canonical=no] hommapo: forall (a b c : T) (f : a → b) (g : b → c),
-    hommap (g ∘ f) = fun x => (hommap g (hommap f x))
+  #[canonical=no] carrier :> T -> Type ;
+  #[canonical=no] carrierF : forall {a b : T}, (a → b) -> carrier a -> carrier b ;
+  #[canonical=no] carrier1: forall (a : T), carrierF (idmap (a := a)) = idfun ;
+  #[canonical=no] carriero: forall (a b c : T) (f : a → b) (g : b → c),
+    carrierF (g ∘ f) = fun x => (carrierF g (carrierF f x))
 }.
 
 #[short(type="Concrete"),primitive]
-HB.structure Definition concretecat := { T of IsConcrete T & }.
+HB.structure Definition concretecat := { T of precat T & IsConcrete T}.
 
-Arguments hommap {_ _ _} _ _.
+Arguments carrierF {_ _ _} _ _.
 
-Notation "f # x" := (hommap f x) 
+Notation "f # x" := (carrierF f x) 
   : cat_scope.
 
 (** ** Examples *)

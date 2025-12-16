@@ -154,7 +154,7 @@ HB.structure Definition pre_has_sums := {
     C of precat C & PreHasSums C}.
 
 Notation "A + B" := (cat_sum A B) : cat_scope.
-Notation "A +[ X ] B" := (@cat_sum X A B) : cat_scope.
+Notation "A +[ X ] B" := (@cat_sum X A B) (only parsing) : cat_scope.
 Notation "'ι₁'" := (sum_inl _ _) : cat_scope.
 Notation "'ι₂'" := (sum_inr _ _) : cat_scope.
 Arguments either {_ _ _ _} _ _.
@@ -212,7 +212,7 @@ HB.structure Definition pre_has_prods := {
     C of precat C & PreHasProds C}.
 
 Notation "A × B" := (cat_prod A B) : cat_scope.
-Notation "A ×[ X ] B" := (@cat_prod X A B) : cat_scope.
+Notation "A ×[ X ] B" := (@cat_prod X A B) (only parsing): cat_scope.
 Notation "'π₁'" := (prod_projl  _ _) : cat_scope.
 Notation "'π₂'" := (prod_projr _ _) : cat_scope.
 Notation "⟨ f , g ⟩" := (pairing _ _ _ f g) : cat_scope.
@@ -279,7 +279,7 @@ HB.structure Definition exp {C : Cartesian} (a b : C) := { t of IsExp C a b t}. 
 #[primitive] HB.mixin Record PreHasExps C of cartesian C := {
   cat_exp : C -> C -> C ;
   eval : forall {a b : C}, (cat_exp a b) × a →[C] b ;
-  curry : forall {a b x : C}, (x × a → b) -> x → cat_exp a b
+  curry : forall {a b x : C}, ((x × a) → b) -> x → cat_exp a b
 }.
 
 #[short(type="PreCartesianClosed"),primitive]
@@ -331,3 +331,15 @@ HB.structure Definition poly_cat := { C of cartesian_closed C & distributive C}.
 (** Note: any categoy that is cartesian closed + cocartesian is automatically distributive, because
   [A × -], being a left adjoint, preserves colimits. So we could have a simpler factory to construct
   polynomial categories, which we have not defined here. *)
+
+HB.factory Record IsPolynomial C
+  of cartesian_closed C & cocartesian C := {}.
+
+HB.builders Context C of IsPolynomial C.
+
+Lemma exp_distr (a b c : C) : a × (b + c) ↔ (a × b) + (a × c).
+Proof.
+Admitted.
+
+HB.instance Definition _ := IsDistributive.Build C exp_distr.
+HB.end.

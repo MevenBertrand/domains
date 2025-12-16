@@ -11,6 +11,7 @@ theories/categories/categories.v
 theories/categories/morphisms.v
 theories/categories/functors.v
 theories/categories/category_hierarchy.v
+theories/categories/monads.v
 # theories/categories/bicategories.v
 theories/categories/all.v
 
