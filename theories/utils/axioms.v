@@ -1,6 +1,6 @@
 (** * Domains.Axioms: Axioms for the development *)
 
-Require Import basics tactics.
+Require Import basics tactics ssreflect ssrfun.
 
 (** R. Donkins' original development was all done using explicit setoids, incurring a
   high complexity overhead. We take a different approach to setoids, which is to use them
@@ -60,7 +60,7 @@ Qed.
 
 (** ** Quotients *)
 
-From Stdlib Require Import Relations.Relation_Definitions Classes.RelationClasses.
+From Stdlib Require Import Relations.Relation_Definitions Classes.RelationClasses Classes.Morphisms.
 
 (** The quotient type *)
 Axiom quot : forall {T : Type} (R : relation T) `{! Equivalence R}, Type.
@@ -77,16 +77,131 @@ Axiom quot_eq : forall {T : Type} {R : relation T} `{! Equivalence R} (t t' : T)
   to_quot t = to_quot t' -> R t t'.
 
 (** Induction for quotients *)
-Axiom quot_ind : forall {T : Type} {R : relation T} `{! Equivalence R},
+Axiom quot_rect : forall {T : Type} {R : relation T} `{! Equivalence R},
   forall (P : quot R -> Type)
   (f : forall (t : T), P (to_quot t)),
   (forall (x y :T) (e : R x y), (quot_ext _ _ e) # (f x) = f y :> P (to_quot y)) ->
   forall u : quot R, P u.
 
 (** Propositional computation rule *)
-Axiom quot_ind_eq : forall {T : Type} {R : relation T} `{! Equivalence R},
+Axiom quot_rect_eq : forall {T : Type} {R : relation T} `{! Equivalence R},
   forall (P : quot R -> Type)
   (f : forall (t : T), P (to_quot t))
   (r : forall (x y :T) (e : R x y), (quot_ext _ _ e) # (f x) = f y :> P (to_quot y))
   (x : T),
-  quot_ind P f r (to_quot x) = f x.
+  quot_rect P f r (to_quot x) = f x.
+
+(** *** Quotient derived functions *)
+
+Program Definition quot_rec {T : Type} {R : relation T} `{! Equivalence R} {P : Type}
+  (f : T -> P)
+  `{p : Proper _ (R ==> eq)%signature f} :
+  quot R -> P :=
+  quot_rect (fun _ => P) f _.
+Next Obligation.
+  intros.
+  now rewrite transport_const.
+Qed.
+
+Lemma quot_rec_eq {T : Type} {R : relation T} `{! Equivalence R} {P : Type}
+  (f : T -> P)
+  `{! Proper (R ==> eq) f}
+  (t : T) : quot_rec f (to_quot t) = f t.
+Proof.
+  by rewrite /quot_rec quot_rect_eq.
+Qed.
+
+Lemma quot_ind : forall {T : Type} {R : relation T} `{! Equivalence R},
+  forall (P : quot R -> Prop)
+  (f : forall (t : T), P (to_quot t)),
+  forall u : quot R, P u.
+Proof.
+  intros.
+  unshelve eapply quot_rect.
+  1: assumption.
+  intros.
+  ext.
+Qed.
+
+Instance to_quot_proper
+  {A : Type} {RA : relation A} `{! Equivalence RA}
+  {B : Type} {RB : relation B} `{! Equivalence RB}
+  (f : A -> B)
+  `{e : Proper _ (RA ==> RB) f} :
+  Proper (RA ==> eq) (to_quot \o f).
+Proof.
+  intros x y h.
+  by apply quot_ext, e.
+Qed.
+
+Definition quot_map
+  {A : Type} {RA : relation A} `{! Equivalence RA}
+  {B : Type} {RB : relation B} `{! Equivalence RB}
+  (f : A -> B)
+  `{e : Proper _ (RA ==> RB) f}
+  : quot RA -> quot RB :=
+  quot_rec (to_quot \o f).
+
+Lemma quot_map_eq
+  {A : Type} {RA : relation A} `{! Equivalence RA}
+  {B : Type} {RB : relation B} `{! Equivalence RB}
+  (f : A -> B)
+  `{e : Proper _ (RA ==> RB) f}
+  (a : A)
+  : quot_map f (to_quot a) = to_quot (f a).
+Proof.
+  by rewrite /quot_map quot_rec_eq.
+Qed.
+
+From Stdlib Require Import RelationPairs Morphisms.
+
+Instance PER_Equivalence {A} {RA : relation A} `{! PER RA} :
+  @Equivalence {a : A | Proper RA a} (RA @@ sval).
+Proof.
+  rewrite /RelCompFun /Proper.
+  split ; red.
+  - apply proj2_sig.
+  - intros.
+    now symmetry.
+  - intros.
+    now etransitivity.
+Qed.
+
+Existing Instance respectful_per.
+
+Program Definition quot_map2
+  {A : Type} {RA : relation A} `{! Equivalence RA}
+  {B : Type} {RB : relation B} `{! Equivalence RB}
+  {C : Type} {RC : relation C} `{! Equivalence RC}
+  (f : A -> B -> C)
+  `{e : Proper _ (RA ==> RB ==> RC) f}
+  (a : quot RA) (b : quot RB) : quot RC :=
+  quot_rec (fun a' => quot_rec (fun b' => to_quot (f a' b')) (p := _) b)
+    (p := _) a.
+Next Obligation.
+  intros.
+  rewrite /Proper /respectful.
+  intros.
+  now apply quot_ext, e.
+Qed.
+Next Obligation.
+  intros.
+  rewrite /Proper /respectful.
+  intros.
+  pattern b ; apply quot_ind ; intros b'.
+  rewrite !quot_rec_eq.
+  now apply quot_ext, e.
+Qed.
+
+Lemma quot_map2_eq
+  {A : Type} {RA : relation A} `{! Equivalence RA}
+  {B : Type} {RB : relation B} `{! Equivalence RB}
+  {C : Type} {RC : relation C} `{! Equivalence RC}
+  (f : A -> B -> C)
+  `{e : Proper _ (RA ==> RB ==> RC) f}
+  : forall a b, quot_map2 f (to_quot a) (to_quot b) = to_quot (f a b).
+Proof.
+  intros.
+  unfold quot_map2.
+  now rewrite !quot_rec_eq.
+Qed.
