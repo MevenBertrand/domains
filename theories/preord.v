@@ -1,6 +1,6 @@
 (** * Domains.categories.all: definitions of preorders *)
 
-From Stdlib Require Import Morphisms ssreflect ssrfun.
+From Stdlib Require Import Morphisms ssreflect ssrfun Arith.
 From HB Require Import structures.
 
 Require Import utils.all categories.all.
@@ -135,6 +135,12 @@ Proof.
   transitivity c; auto.
 Qed.
 Arguments use_ord [A] [a] [b] [c] [d] _ _ _.
+
+(** *** An example : natural numbers *)
+
+HB.instance Definition _ := IsPrePreOrder.Build nat le.
+HB.instance Definition _ := IsPreOrder.Build nat Nat.le_refl Nat.le_trans.
+HB.instance Definition _ := IsPoset.Build nat Nat.le_antisymm.
 
 (** ** Poset is terminated. *)
 
@@ -391,29 +397,43 @@ Qed.
 
 HB.instance Definition _ := _HasSumsPoset.
 
-(*
-(**  Preorders with an [ord_dec] structure have a decidable order relation.
-  *)
-Record ord_dec (A:preord) :=
-  OrdDec
-  { orddec :> forall x y:A, {x ≤ y}+{x ≰ y} }.
+(**  Preorders with decidable ordering *)
 
-Arguments orddec [A] [o] x y.
+#[primitive]HB.mixin Record HasOrdDec T of poset T := {
+  orddec : forall x y:T, Decision (x ≤ y) }.
 
-(**  Preorders with decidable ordering also have decidable equality.
-  *)
-Canonical Structure PREORD_EQ_DEC (A:preord) (OD:ord_dec A) :=
-  EqDec (Preord_Eq A) (fun (x y:A) =>
-      match @orddec A OD x y with
-      | left H1 => 
-          match @orddec A OD y x with
-          | left H2 => left _ (conj H1 H2)
-          | right H => right _ (fun HEQ => H (proj2 HEQ))
-          end
-      | right H => right (fun HEQ => H (proj1 HEQ))
-      end).
+#[short(type="DecPoset")]
+HB.structure Definition dec_poset := { T of poset T & HasOrdDec T & HasEqDec T}.
 
-*)
+(**  Preorders with decidable ordering also have decidable equality. *)
+
+HB.builders Context P of HasOrdDec P.
+
+Fact ord_dec_eq_dec (x y : P) : Decision (x = y).
+Proof.
+  case: (orddec x y) => [hle | hnle].
+  2:{
+    right.
+    intros ->.
+    apply hnle.
+    apply: ord_refl.
+  }
+  case: (orddec y x) => [hle' | hnle'].
+  2:{
+    right.
+    intros ->.
+    apply hnle'.
+    apply: ord_refl.
+  }
+  left.
+  now apply ord_antisym.
+Qed.
+
+HB.instance Definition _ := HasEqDec.Build P ord_dec_eq_dec.
+
+HB.end.
+
+HB.instance Definition _ := HasOrdDec.Build nat le_dec.
 
 (** ** Concreteness *)
 
@@ -498,7 +518,6 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ (A : Poset) := _LiftPoset A.
-
 
 Definition Poset_lift (A : Poset) : Poset := HB.pack (lift A).
 

@@ -9,7 +9,6 @@ Require Import notations tactics.
 Definition transport {A : Type} (P : A -> Type) {x y : A} (p : x = y) (u : P x) : P y
   := match p with eq_refl => u end.
 
-(** See above for the meaning of [simpl nomatch]. *)
 Arguments transport {A}%_type_scope P%_function_scope {x y} p u : simpl nomatch.
 
 Definition ap {A B : Type} (f : A -> B) {x y : A} (p : x = y) : f x = f y
@@ -20,7 +19,13 @@ Global Arguments ap {A B}%_type_scope f%_function_scope {x y} p : simpl nomatch.
 (** Transport is very common so it is worth introducing a parsing notation for it.  However, we do not use the notation for output because it hides the fibration, and so makes it very hard to read involved transport expression. *)
 Notation "p # u" := (transport _ p u) (only parsing).
 
-(** * Setoids and equality.
+Lemma transport_const {A B} {x y : A} {e : x = y} (b : B) :
+  transport (fun _ => B) e b = b.
+Proof.
+  destruct e ; reflexivity.
+Qed.
+
+(** ** Setoids and equality.
 
       We use the symbol ≈ to indicate the equality relation on setoids, which,
       thanks to working with observational equality, coincides with the usual
@@ -79,9 +84,15 @@ Proof.
   move=>PQ p q. apply unique_unique, PQ, unique_prop.
 Qed.
 
+(** ** Decidable predicates *)
+
+Class Decision (P : Prop) := decide : {P} + {~P}.
+Global Hint Mode Decision ! : typeclass_instances.
+Global Arguments decide _ {_} : simpl never, assert.
+
 (** Decidable equality *)
 
-HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, {x = y} + {x <> y} }. 
+HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, Decision (x = y) }. 
 
 HB.structure Definition EqTy := {T of HasEqDec T}.
 

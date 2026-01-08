@@ -9,6 +9,7 @@ From smpl Require Export Smpl.
 #[global] Hint Constructors and : core. 
 #[global]Hint Extern 10 =>
   match goal with
+    | H : False |- _ => destruct H
     | H : _ /\ _ |- _ => destruct H
     | H : ~ _ |- False => apply H
   end : core.

@@ -1,14 +1,12 @@
 (** * domains.sets: An abstract notion of "set theory" *)
-From Stdlib Require Import Relations List Program ssreflect ssrfun Relations Setoid.
+From Stdlib Require Import Relations List Program ssreflect ssrfun.
 From HB Require Import structures.
 
 Require Import utils.all categories.all preord.
 
-#[local] Open Scope cat_scope.
-
 Declare Scope set_scope.
 Delimit Scope set_scope with set.
-Open Scope set_scope.
+#[global]Open Scope set_scope.
 
 (**  ** Set theory.
 
@@ -58,40 +56,40 @@ Notation "x ∈ X" := (member x (X)%set) : set_scope.
 Notation "x ∉ X"  := (not (member x (X)%set)) : set_scope.
 Notation "∪ XS" := (union (XS)%set) : set_scope.
 
-#[primitive] HB.mixin Record IsSetTheory(set : PreSetTheory) :=
+#[primitive] HB.mixin Record IsSetTheory set of presettheory set :=
   {
     set_ext T (X Y : set T) : (forall t, t ∈ X <-> t ∈ Y) -> X = Y ;
-    single_axiom T (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
-    union_axiom T (xs : (set (set T))) (a : T) :
+    singleP T (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
+    unionP T (xs : (set (set T))) (a : T) :
       a ∈ (∪ xs) <-> exists x : (set T), x ∈ xs /\ a ∈ x ;
-    image_axiom (A B : Type) (f : A -> B) (P : (set A)) (y : B) :
+    imageP (A B : Type) (f : A -> B) (P : (set A)) (y : B) :
       y ∈ (image f P) <-> exists x, member x P /\ y = f x
   }.
 
 #[short(type="SetTheory"),primitive]
-HB.structure Definition settheory := { set & IsSetTheory set }.
+HB.structure Definition settheory := { set of presettheory set & IsSetTheory set }.
 
 Smpl Add (apply @set_ext) : extensionality.
 
 Lemma image_compose (set : SetTheory) A B C (f:A -> B) (g:B -> C) (X: set A) (c:C) :
   c ∈ (image (ssrfun.comp g f) X) <-> c ∈ (image g (image f X)).
 Proof.
-  rewrite !image_axiom.
+  rewrite !imageP.
   split.
   - intros (x&[Hx ->]).
     exists (f x).
     split => //.
-    rewrite image_axiom.
+    rewrite imageP.
     exists x.
     now split.
-  - intros (?&[(x&[? ->])%image_axiom ->]).
+  - intros (?&[(x&[? ->])%imageP ->]).
     now exists x ; split.
 Qed.
 
 Lemma image_fun (set : SetTheory) A B (f:A -> B) (X: set A) (x : A) :
   x ∈ X -> f x ∈ image f X.
 Proof.
-  now rewrite !image_axiom.
+  now rewrite !imageP.
 Qed.
 
 Definition incl {set set' : PreSetTheory} {A : Type} (X : set A) (Y : set' A) :=
@@ -102,7 +100,7 @@ Notation "X ⊆ Y" := (incl (X)%set (Y)%set) : set_scope.
 HB.instance Definition _ (set : PreSetTheory) (A : Type) :=
   IsPrePreOrder.Build (set A) (@incl set set A).
   
-Program Definition _SetPreOrder (set : SetTheory) (A : Type) :=
+Program Definition _SetPreOrder (set : PreSetTheory) (A : Type) :=
   IsPreOrder.Build (set A) _ _.
 Next Obligation.
   now cbv.
@@ -111,10 +109,10 @@ Next Obligation.
   now rewrite /ord /= /incl /=.
 Qed.
 
-HB.instance Definition _ (set : SetTheory) (A : Type) := _SetPreOrder set A.
+HB.instance Definition _ (set : PreSetTheory) (A : Type) := _SetPreOrder set A.
 
 Program Definition _SetPoset (set : SetTheory) (A : Type) :=
-  IsPoset.Build (set A) _.
+  IsPoset.Build ((set :> PreSetTheory) A) _.
 Next Obligation.
   rewrite /ord /= /incl /=.
   ext.
@@ -221,7 +219,7 @@ Program Definition inhabited (set : SetTheory) : color set :=
 Next Obligation.
   cbn.
   eexists.
-  now apply single_axiom.
+  now apply singleP.
 Qed.
 Next Obligation.
   cbn ; intros * [].
@@ -231,7 +229,7 @@ Qed.
 Next Obligation.
   cbn ; eintros * [] [] ; eauto.
   eexists.
-  now apply union_axiom.
+  now apply unionP.
 Qed.
 
 (**  Given a base set theory [T], we can collect together all the sets
@@ -259,7 +257,7 @@ Section ColoredSets.
     apply color_union.
     - apply color_image, proj2_sig.
     - intros ? Hin.
-      apply image_axiom in Hin as [? [? ->]].
+      apply imageP in Hin as [? [? ->]].
       apply proj2_sig.
   Qed.
 
@@ -283,26 +281,26 @@ Next Obligation.
 Qed.
 Next Obligation.
   intros.
-  apply single_axiom.
+  apply singleP.
 Qed.
 Next Obligation.
   intros.
   rewrite /member /=.
-  rewrite union_axiom.
+  rewrite unionP.
   intuition.
   - destruct H as [X [??]].
-    apply image_axiom in H.
+    apply imageP in H.
     destruct H as [Y [??]].
     exists Y. split; auto.
     now subst.
   - destruct H as [X [??]].
     exists (proj1_sig X).
     split; auto.
-    now apply image_axiom.
+    now apply imageP.
 Qed.
 Next Obligation.
   intros.
-  apply image_axiom.
+  apply imageP.
 Qed.
 
 HB.instance Definition _ (set : SetTheory) (c : color set) := _ColoredSets set c.
