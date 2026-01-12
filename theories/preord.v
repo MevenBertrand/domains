@@ -409,24 +409,12 @@ HB.structure Definition dec_poset := { T of poset T & HasOrdDec T & HasEqDec T}.
 
 HB.builders Context P of HasOrdDec P.
 
-Fact ord_dec_eq_dec (x y : P) : Decision (x = y).
+Fact ord_dec_eq_dec x y : Decision (x = y :> P).
 Proof.
   case: (orddec x y) => [hle | hnle].
-  2:{
-    right.
-    intros ->.
-    apply hnle.
-    apply: ord_refl.
-  }
-  case: (orddec y x) => [hle' | hnle'].
-  2:{
-    right.
-    intros ->.
-    apply hnle'.
-    apply: ord_refl.
-  }
-  left.
-  now apply ord_antisym.
+  1: case: (orddec y x) => [hle' | hnle].
+  2-3: right => ? ; subst ; apply: hnle ; apply: ord_refl.
+  1: by left ; apply: ord_antisym.
 Qed.
 
 HB.instance Definition _ := HasEqDec.Build P ord_dec_eq_dec.

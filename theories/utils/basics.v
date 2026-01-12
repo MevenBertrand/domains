@@ -1,5 +1,5 @@
 (** * Domains.Basics: basic definitions *)
-From Stdlib Require Import Morphisms CRelationClasses CMorphisms ssreflect.
+From Stdlib Require Import Morphisms Relations CRelationClasses CMorphisms ssreflect.
 From smpl Require Export Smpl.
 From HB Require Import structures.
 Require Import notations tactics.
@@ -90,11 +90,22 @@ Class Decision (P : Prop) := decide : {P} + {~P}.
 Global Hint Mode Decision ! : typeclass_instances.
 Global Arguments decide _ {_} : simpl never, assert.
 
+Instance Decision_neg P `{h : Decision P} : Decision (~ P).
+Proof.
+  now destruct h ; [right|left].
+Qed.
+
 (** Decidable equality *)
 
-HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, Decision (x = y) }. 
+HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, Decision (x = y)}.
 
-HB.structure Definition EqTy := {T of HasEqDec T}.
+#[short(type="EqTy"),primitive]
+HB.structure Definition eqTy := {T of HasEqDec T}.
+
+Instance EqTyDec (A : EqTy) x y : Decision (x = y :> A).
+Proof.
+  apply eqdec.
+Qed.
 
 (** Option *)
 

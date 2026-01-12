@@ -1,516 +1,521 @@
-(* Copyright (c) 2014, Robert Dockins *)
+(** * domains.finsets: the set theory of finite sets *)
+From Stdlib Require Import List Program ssreflect ssrfun
+  Relations Classes.RelationClasses Classes.Morphisms Decidable Lia.
+From HB Require Import structures.
 
-From Stdlib Require Import Relations.
-From Stdlib Require Import List.
-From Stdlib Require Import Setoid.
-From Stdlib Require Import Arith.
+Require Import utils.all categories.all preord sets.
 
-Require Import basics.
-Require Import preord.
-Require Import categories.
-Require Import sets.
+Open Scope general_if_scope.
 
-(** * The theory of finite sets.
-
-      Here we define the theory of finite sets.  Concretely,
-      finite sets are represetned by the standard list type,
-      with list membership.  Singleton sets are given
-      by one-element lists, union is defined by list
-      concatination and image is the stadard list map function.
+(** Here we define the theory of finite sets.  Concretely,
+    finite sets are represented by the extensional
+    quotient of the list type. Singleton sets are given
+    by one-element lists, union is defined by list
+    concatenation and image is the stadard list map function.
   *)
 
-Definition concat (A:Type) (l:list (list A)) : list A :=
-  List.fold_right (@app A) (@nil A) l.
+(** ** Finite sets form a set theory *)
 
-Module finset.
-Section finset.
-  Definition fset (A:preord) := list A.
-  Definition fsingle (A:preord) (a:A) := a::nil.
-  Definition fmember (A:preord) (a:A) (P:fset A) := exists a', In a' P /\ a ≈ a'.
-  Definition fimage (A B:preord) (f:A → B) (P:fset A) : fset B :=
-    List.map (Preord.map A B f) P.
-  Definition funion (A:preord) (XS:fset (set.set_preord fset fmember A)) : fset A :=
-    fold_right (@app A) (@nil A) XS.
+Definition list_ext A : relation (list A) := fun l l' => forall x, In x l <-> In x l'.
 
-  Program Definition mixin : set.mixin_of fset fmember fsingle fimage funion :=
-    set.Mixin fset fmember fsingle fimage funion _ _ _ _ _ _.
-  Next Obligation.
-    unfold fmember.
-    intros. induction X; simpl in *; intuition.
-    - destruct H0 as [a' [??]]. elim H0.
-    - destruct H0 as [a' [??]]. destruct H0; subst.
-      + exists a'. split; eauto.
-      + destruct IHX as [q [??]]; eauto.
-  Qed.
-  Next Obligation.
-    unfold fmember, fsingle; intros.
-    firstorder; subst; auto.
-  Qed.
-  Next Obligation.
-    unfold fmember. simpl; intros.
-    induction XS; simpl; intuition.
-    - destruct H as [?[??]]. elim H.
-    - destruct H as [?[??]]. 
-      destruct H as [?[??]].
-      elim H.
-    
-    - destruct H1 as [a' [??]].
-      apply in_app_or in H1.
-      destruct H1.
-      + exists a0. split; eauto.
-      + destruct H as [X [??]]; eauto.
-        exists X; split; eauto.
-        destruct H as [q [??]].
-        exists q; split; auto.
-    - destruct H1 as [X [??]].
-      destruct H1 as [Y [??]].
-      destruct H1; subst.
-      + destruct H2 as [a' [??]].
-        destruct H3.
-        destruct (H3 a') as [a'' [??]]; simpl; eauto.
-        exists a''. split; auto.
-        * apply in_or_app. auto.
-        * eauto.
-      + destruct H0 as [q [??]]; eauto.
-        destruct H2 as [a' [??]].
-        exists q; split; auto.
-        apply in_or_app; auto.
-  Qed.
-  Next Obligation.
-    unfold fmember, fimage. simpl; intros.
-    intuition.
-    - destruct H as [a' [??]].
-      exists a'; split; auto.
-      rewrite map_map. auto.
-    - destruct H as [a' [??]].
-      exists a'; split; auto.
-      rewrite map_map in H; auto.
-  Qed.
-  Next Obligation.
-    unfold fmember, fimage; simpl; intros.
-    destruct H as [a' [??]].
-    induction P; simpl in *; intuition; subst.
-    - exists (Preord.map A B f a').
-      split; auto.
-    - destruct H as [b [??]].
-      exists b. split; auto.
-  Qed.
-  Next Obligation.
-    unfold fmember, fimage; simpl; intros.
-    destruct H as [a' [??]].
-    induction P; simpl in *; intuition; subst.
-    - exists a. split; auto. exists a; split; auto.
-    - destruct H as [y [??]].
-      exists y. split; auto.
-      destruct H as [b [??]].
-      exists b; split; auto.
-  Qed.
-End finset.
-End finset.
-
-Canonical Structure finset_theory : set.theory :=
-  set.Theory
-    finset.fset
-    finset.fmember
-    finset.fsingle
-    finset.fimage
-    finset.funion
-    finset.mixin.
-
-Notation finset := (set_preord finset_theory).
-
-Definition cl_finset_theory (CL:color) : set.theory 
-  := cset_theory finset_theory CL.
-Notation cl_finset CL := (set_preord (cl_finset_theory CL)).
-
-
-
-Program Definition finset_dec (A:preord) (Adec : ord_dec A) : set_dec finset_theory A
-  := Setdec finset_theory A _.
-Next Obligation.
-  intros A Adec x X.
-  induction X.
-  - right. red; simpl; intros. 
-    destruct H as [x' [??]]. apply H.
-  - destruct IHX.
-    + left.
-      destruct m as [x' [??]].
-      exists x'. split; simpl; auto.
-    + destruct (PREORD_EQ_DEC A Adec x a).
-      * left.
-        exists a. split; simpl; auto.
-      * right.
-        intros [x' [??]].
-        simpl in H; intuition; subst; auto.
-        apply n.
-        exists x'. split; auto.
-Qed.
-
-Canonical Structure finset_dec.
-
-
-(**  Some useful lemmas relating list formation operations to
-     finite set membership.
-  *)
-Lemma nil_elem : forall (A:preord) (x:A),
-  x ∈ (nil : finset A) -> False.
+Instance list_ext_equiv {A} : Equivalence (list_ext A).
 Proof.
-  intros. destruct H as [?[??]]. elim H.
+  split.
+  all: red ; unfold list_ext.
+  1: easy.
+  - intros * H **.
+    split ; now apply H.
+  - intros * H H' **.
+    split ; intros ; first [apply H | apply H'].
+    all: first [now apply H | now apply H'].
 Qed.
 
-Lemma cons_elem : forall (A:preord) (a:A) (P:finset A) (x:A),
-  x ∈ (a::P : finset A) <-> x ≈ a \/ x ∈ P.
+Definition finset (A : Type) : Type := quot (list_ext A).
+
+Definition finlist {A : Type} (l : list A) : finset A := to_quot l.
+
+Instance Proper_In {A} (a : A) : Proper (list_ext A ==> eq) (In a).
 Proof.
-  intros; split; intros.
-  - destruct H as [q [??]].
-    destruct H.
-    + subst. auto.
-    + right. exists q; split; auto.
-  - destruct H.
-    exists a; split; simpl; auto.
-    destruct H as [q [??]]. exists q; split; simpl; auto.
+  cbv -[In iff].
+  intros ; now ext.
 Qed.
 
-Lemma app_elem :  forall (A:preord) (P Q:finset A) (x:A),
-  x ∈ (P++Q : finset A) <-> x ∈ P \/ x ∈ Q.
+Definition fmember {A : Type} (a : A) : (finset A) -> Prop := quot_rec (In a).
+
+Lemma ffinsetP {A : Type} (a : A) (l : list A) :
+  fmember a (finlist l) <-> In a l.
 Proof.
-  intro A. induction P; split; intros; auto.
-  - destruct H; auto.
-    apply nil_elem in H. elim H.
-  - simpl in H.
-    apply cons_elem in H.
-    destruct H.
-    + left. apply cons_elem; auto.
-    + apply IHP in H. destruct H.
-      * left. apply cons_elem; auto.
-      * auto.
-  - simpl. apply cons_elem.
-    destruct H.
-    * apply cons_elem in H.
-      destruct H; auto.
-      right. apply IHP; auto.
-    * right. apply IHP; auto.
+  by rewrite /fmember quot_rec_eq.
 Qed.
 
-Lemma nil_subset X (Q:finset X) :
-  (nil : finset X) ⊆ Q.
+Lemma finset_ext {A : Type} (f f' : finset A) :
+  (forall x, fmember x f <-> fmember x f') ->
+  f = f'.
 Proof.
-  repeat intro. apply nil_elem in H. elim H.
+  pattern f.
+  apply quot_ind.
+  intros l.
+  pattern f'.
+  apply quot_ind.
+  intros l'.
+  intros H.
+  apply quot_ext.
+  intros x.
+  by rewrite <- !ffinsetP.
 Qed.
 
-Lemma ub_nil : forall (X:preord) (a:X),
-  upper_bound a (nil : finset X).
+Definition fsingle {A : Type} (a : A) : finset A := finlist (a :: nil).
+
+Lemma fsingleP {A : Type} (a a' : A) :
+  fmember a (fsingle a') <-> a = a'.
 Proof.
-  repeat intro. apply nil_elem in H. elim H.
+  rewrite /fsingle ffinsetP /=.
+  intuition.
 Qed.
 
-Lemma ub_cons (X:preord) (x:X) (xs:finset X) (a:X) :
-  x ≤ a ->
-  upper_bound a xs ->
-  upper_bound a (x::xs : finset X).
+Instance map_In {A B : Type} (f : A -> B) :
+  Proper (list_ext A ==> list_ext B) (map f).
 Proof.
-  repeat intro.
-  apply cons_elem in H1. destruct H1.
-  - rewrite H1. auto.
-  - apply H0; auto.
+  rewrite /Proper /respectful /list_ext /=.
+  intros l l' H b.
+  rewrite !in_map_iff.
+  split.
+  all: intros [a [<- Hin]].
+  all: eexists ; split ; [reflexivity|].
+  all: now apply H.
 Qed.
 
-Lemma cons_subset (X:preord) (x:X) (xs ys:finset X) :
-  x ∈ ys -> xs ⊆ ys -> (x::xs : finset X) ⊆ ys.
+Definition fimage {A B : Type} (f : A -> B) (X : finset A) : finset B :=
+  quot_map (map f) X.
+
+Lemma fimageP {A B : Type} (f : A -> B) (X : finset A) (y : B) :
+  fmember y (fimage f X) <-> exists x, fmember x X /\ y = f x.
 Proof.
-  repeat intro.
-  apply cons_elem in H1. destruct H1.
-  - rewrite H1; auto.
-  - apply H0; auto.
+  pattern X.
+  apply quot_ind.
+  intros l.
+  rewrite /fmember /fimage quot_map_eq quot_rec_eq in_map_iff.
+  split.
+  all: move => [x []].
+  all: rewrite ?quot_rec_eq.
+  all: exists x.
+  all: rewrite ?quot_rec_eq ; now subst.
 Qed.
 
-Lemma cons_morphism (X:preord) (x x':X) (xs xs':finset X) :
-  x ≈ x' -> xs ≈ xs' -> (x :: xs:finset X) ≈ x' :: xs'.
+Instance Proper_app {A} :
+  Proper (list_ext A ==> list_ext A ==> list_ext A) (app (A:=A)).
 Proof.
   intros.
-  split.
-  - apply cons_subset. apply cons_elem. auto.
-    red; intros. apply cons_elem; auto.
-    right. rewrite <- H0; auto.
-  - apply cons_subset. apply cons_elem. auto.
-    red; intros. apply cons_elem; auto.
-    right. rewrite H0; auto.
+  rewrite /Proper /respectful /list_ext /=.
+  intros l1 l1' H1 l2 l2' H2 a.
+  rewrite !in_app_iff !H1 !H2.
+  reflexivity.
 Qed.
 
-Lemma dec_conj (P Q : Prop) :
-  {P}+{~P} -> {Q}+{~Q} -> {P/\Q}+{~(P/\Q)}.
-Proof.
-  intros. destruct H. destruct H0.
-  - left; auto.
-  - right; intros [??]; contradiction.
-  - right; intros [??]; contradiction.
-Qed.
+Program Definition funion2 {A : Type} (X Y : finset A) : finset A :=
+  quot_map2 (@app A) X Y.
 
-(**  The cartesian product of finite sets.
-  *)
-Fixpoint finprod {A B:preord} (P:finset A) (Q:finset B) : finset (A×B) :=
-  match P with
-  | nil => nil
-  | x::P' => map (fun y => (x,y)) Q ++ finprod P' Q
+
+Fixpoint fconcat {A : Type} (XS : list (finset A)) : finset A :=
+  match XS with
+  | nil => to_quot nil
+  | x :: XS => funion2 (fconcat XS) x
   end.
 
-Lemma finprod_elem : forall A B (P:finset A) (Q:finset B) a b, 
+Lemma ffunion2P {A} (f f' : finset A) (x : A) :
+  fmember x (funion2 f f') <-> fmember x f \/ fmember x f'.
+Proof.
+  pattern f.
+  apply quot_ind.
+  intros l.
+  pattern f'.
+  apply quot_ind.
+  intros l'.
+  now rewrite /funion2 quot_map2_eq !ffinsetP in_app_iff.
+Qed.
+
+Lemma ffconcatP {A} (XS : list (finset A)) (a : A) :
+  fmember a (fconcat XS) <-> (exists X, In X XS /\ fmember a X).
+Proof.
+  induction XS ; cbn.
+  - rewrite /fmember quot_rec_eq.
+    transitivity False.
+    1: by split ; eauto using in_nil.
+    split ; [done|..].
+    now intros [].
+  - rewrite ffunion2P IHXS.
+    split.
+    + intros [[X []]|].
+      all: now eexists.
+    + intros [X [[|] ?]] ; subst.
+      1: easy.
+      left ; now eexists.
+Qed.
+
+Instance Proper_fconcat {A} : Proper (list_ext (finset A) ==> eq) fconcat.
+Proof.
+  rewrite /Proper /respectful.
+  intros l l' H.
+  apply finset_ext.
+  intros x.
+  rewrite !ffconcatP.
+  unfold list_ext in H.
+  split ; intros [? []] ; eexists.
+  all: now split ; [apply H|..].
+Qed.
+
+Definition funion {A : Type} (XS : finset (finset A)) : finset A :=
+  quot_rec fconcat XS.
+
+Lemma funionP {A : Type} (XS : finset (finset A)) a :
+  fmember a (funion XS) <-> (exists X, fmember X XS /\ fmember a X).
+Proof.
+  pattern XS.
+  apply quot_ind.
+  intros l.
+  rewrite /funion quot_rec_eq ffconcatP.
+  split ; intros [? []] ; eexists.
+  all: now split ; [apply ffinsetP|..].
+Qed.
+
+HB.instance Definition _ :=
+  IsPreSetTheory.Build finset (@fmember) (@fsingle) (@fimage) (@funion).
+
+HB.instance Definition _ :=
+  IsSetTheory.Build finset
+    (@finset_ext) (@fsingleP) (@funionP) (@fimageP).
+
+Lemma finsetP {A} (X : list A) (x : A) : x ∈ (finlist X) <-> In x X.
+Proof.
+  apply ffinsetP.
+Qed.
+
+Lemma funion2P {A} (f f' : finset A) (x : A) :
+  x ∈ (funion2 f f') <-> x ∈ f \/ x ∈ f'.
+Proof.
+  apply ffunion2P.
+Qed.
+
+Lemma fconcatP {A} (XS : list (finset A)) (a : A) :
+  a ∈ (fconcat XS) <-> (exists X, In X XS /\ a ∈ X).
+Proof.
+  apply ffconcatP.
+Qed.
+
+(** ** Properties of finite sets *)
+
+(** *** Decidability *)
+
+Program Definition finset_dec (A:Type) (e : (forall x y : A, {x = y} + {x <> y})) :
+  set_dec finset A.
+Proof.
+  constructor.
+  intros x X.
+  pattern X.
+  unshelve eapply quot_rect.
+  - intros l.
+    rewrite /member /= /fmember quot_rec_eq.
+    now apply In_dec.
+  - cbn.
+    intros l l' ext.
+    destruct (in_dec e x l') ; cbn in *.
+    all: destruct (in_dec e x l) ; cbn in *.
+    all: try solve [exfalso ; now edestruct ext].
+    all: repeat match goal with | |- context[(eq_rec_r _ _ ?e)] => destruct e end ; cbn.
+    all: destruct (quot_ext _ _ _) ; cbn.
+    all: f_equal ; ext.
+Qed.
+
+(** ** Interesting finite sets *)
+
+(** *** Empty set *)
+
+Definition fempty {A : Type} : finset A := finlist nil.
+
+Lemma femptyP {A : Type} {x : A} : x ∈ fempty <-> False.
+Proof.
+  split ; [..|easy].
+  rewrite /fempty finsetP.
+  apply in_nil.
+Qed.
+
+Lemma fempty_incl X (Q:finset X) :
+  fempty ⊆ Q.
+Proof.
+  now intros ? ?%femptyP.
+Qed.
+
+Lemma incl_fempty {A} (X : finset A) : X ⊆ fempty -> X = fempty.
+Proof.
+  intros hincl.
+  ext.
+  split ; try apply hincl.
+  now rewrite femptyP.
+Qed.
+
+Lemma ub_nil (X : Poset) (a:X) : upper_bound a fempty.
+Proof.
+  now intros ? ?%femptyP.
+Qed.
+
+Program Definition fcons {A : Type} (a : A) (X : finset A) : finset A :=
+  quot_map (cons a) (e := _) X.
+Next Obligation.
+  rewrite /Proper /respectful /list_ext /=.
+  intros ? x _ l l' e x'.
+  now rewrite e.
+Qed.
+
+Lemma fconsP {A:Type} (a:A) (X:finset A) (x:A) :
+  x ∈ fcons a X <-> a = x \/ x ∈ X.
+Proof.
+  pattern X.
+  apply quot_ind.
+  intros l.
+  now rewrite /fcons /member /= /fmember quot_map_eq !quot_rec_eq /=.
+Qed.
+
+Lemma fcons_subset (X:Poset) (x:X) (xs ys:finset X) :
+  x ∈ ys -> xs ⊆ ys -> fcons x xs ⊆ ys.
+Proof.
+  now intros ? ? ? [->|]%fconsP.
+Qed.
+
+Lemma ub_fcons (X:Poset) (x:X) (xs:finset X) (a:X) :
+  x ≤ a ->
+  upper_bound a xs ->
+  upper_bound a (fcons x xs).
+Proof.
+  rewrite /upper_bound.
+  now intros ? ? ? [->|]%fconsP **.
+Qed.
+
+(**  Cartesian product of finite sets *)
+
+Instance Proper_prod {A B} : Proper (list_ext A ==> list_ext B ==> list_ext (A*B)) (@list_prod _ _).
+Proof.
+  rewrite /Proper /respectful /list_ext /=.
+  intros * H * H' [].
+  now rewrite !in_prod_iff H H'.
+Qed.
+
+Definition finprod {A B:Type} (P:finset A) (Q:finset B) : finset (A*B) :=
+  quot_map2 (@list_prod _ _) P Q.
+
+Lemma finprodP A B (P:finset A) (Q:finset B) a b :
   (a,b) ∈ finprod P Q <-> (a ∈ P /\ b ∈ Q).
 Proof.
-  intros A B. induction P; simpl; split; intros.
-  - apply nil_elem in H. elim H.
-  - destruct H. apply nil_elem in H. elim H.
-  - apply app_elem in H.
-    destruct H.
-    + destruct H as [?[??]].
-      apply in_map_iff in H.
-      destruct H as [q [??]].
-      subst x.
-      split.
-      * apply cons_elem. left.
-        destruct H0 as [[??][??]]; split; auto.
-      * exists q; split; auto.
-        destruct H0 as [[??][??]]; split; auto.
-    + apply IHP in H.
-      destruct H; split; auto.
-      apply cons_elem; auto.
-  - destruct H.
-    apply cons_elem in H.
-    destruct H.
-    + apply app_elem.
-      left.
-      destruct H0 as [q [??]].
-      exists (a,q). split.
-      * apply in_map_iff.
-        exists q. split; auto.
-      * destruct H; destruct H1.
-        split; split; auto.
-    + apply app_elem. right.
-      apply IHP. split; auto.
-Qed.  
+  pattern P ; apply quot_ind ; intros l.
+  pattern Q ; apply quot_ind ; intros l'.
+  now rewrite /finprod quot_map2_eq !finsetP in_prod_iff.
+Qed.
 
-(**  Disjoint union of finite sets.
-  *)
+(**  Disjoint union of finite sets *)
 
-Fixpoint left_finset (A B:preord) (X:finset (sum_preord A B)) : finset A :=
-  match X with
+Fixpoint left_list {A B} (l : list (A + B)) : list A :=
+  match l with
   | nil => nil
-  | inl l :: X' => l :: left_finset A B X'
-  | inr _ :: X' => left_finset A B X'
+  | inl a :: l' => a :: left_list l'
+  | inr _ :: l' => left_list l'
   end.
 
-Fixpoint right_finset (A B:preord) (X:finset (sum_preord A B)) : finset B :=
-  match X with
+Lemma left_in {A B} (l : list (A + B)) (a : A) : In (inl a) l <-> In a (left_list l).
+Proof.
+  induction l as [|[a'|b]] ; cbn in * ; try easy.
+  all: rewrite IHl.
+  - enough ((inl a' = inl a) <-> (a' = a)) as -> by reflexivity.
+    intuition congruence.
+  - split ; try easy.
+    intros [|] ; [congruence|easy].
+Qed.  
+
+Instance Proper_left {A B} : Proper (list_ext (A + B) ==> list_ext A) left_list.
+Proof.
+  rewrite /Proper /respectful /list_ext /=.
+  intros * H ?.
+  now rewrite -left_in H left_in.
+Qed.
+
+Definition left_finset {A B} (X : finset (A + B)) : finset A :=
+  quot_map left_list X.
+
+Lemma left_finsetP {A B} (X : finset (A + B)) (a : A) :
+  a ∈ left_finset X <-> (inl a) ∈ X.
+Proof.
+  pattern X ; apply quot_ind ; intros l.
+  now rewrite /left_finset quot_map_eq !finsetP left_in.
+Qed.
+
+Fixpoint right_list {A B} (l : list (A + B)) : list B :=
+  match l with
   | nil => nil
-  | inl _ :: X' => right_finset A B X'
-  | inr r :: X' => r :: right_finset A B X'
+  | inl _ :: l' => right_list l'
+  | inr b :: l' => b :: right_list l'
   end.
 
-Lemma left_finset_elem A B X a :
-  a ∈ left_finset A B X <-> inl a ∈ X.
+Lemma right_in {A B} (l : list (A + B)) (b : B) : In (inr b) l <-> In b (right_list l).
 Proof.
-  induction X; simpl.
-  - split; intros.
-    + apply nil_elem in H. elim H.
-    + apply nil_elem in H. elim H.
-  - destruct a0; simpl.
-    + split; intros.
-      * apply cons_elem in H. destruct H.
-        ** apply cons_elem. left. auto.
-        ** rewrite IHX in H.
-           apply cons_elem. right. auto.
-      * apply cons_elem in H. destruct H.
-        ** apply cons_elem. left. auto.
-        ** apply cons_elem. right. rewrite IHX. auto.
-    + split; intros.
-      * rewrite IHX in H.
-        apply cons_elem. right. auto.
-      * apply cons_elem in H. destruct H.
-        destruct H. elim H.
-        rewrite IHX. auto.
+  induction l as [|[a|b']] ; cbn in * ; try easy.
+  all: rewrite IHl.
+  - split ; try easy.
+    intros [|] ; [congruence|easy].
+  - enough ((inr b' = inr b) <-> (b' = b)) as -> by reflexivity.
+    intuition congruence.
 Qed.  
 
-Lemma right_finset_elem A B X b :
-  b ∈ right_finset A B X <-> inr b ∈ X.
+Instance Proper_right {A B} : Proper (list_ext (A + B) ==> list_ext B) right_list.
 Proof.
-  induction X; simpl.
-  - split; intros.
-    + apply nil_elem in H. elim H.
-    + apply nil_elem in H. elim H.
-  - destruct a; simpl.
-    + split; intros.
-      * rewrite IHX in H.
-        apply cons_elem. right. auto.
-      * apply cons_elem in H. destruct H.
-        ** destruct H. elim H.
-        ** rewrite IHX. auto.
-    + split; intros.
-      * apply cons_elem in H. destruct H.
-        ** apply cons_elem. left. auto.
-        ** rewrite IHX in H.
-           apply cons_elem. right. auto.
-      * apply cons_elem in H. destruct H.
-        ** apply cons_elem. left. auto.
-        ** apply cons_elem. right. rewrite IHX. auto.
-Qed.  
+  rewrite /Proper /respectful /list_ext /=.
+  intros * H ?.
+  now rewrite -right_in H right_in.
+Qed.
 
+Definition right_finset {A B} (X : finset (A + B)) : finset B :=
+  quot_map right_list X.
 
-Definition finsum {A B:preord} (P:finset A) (Q:finset B) : finset (sum_preord A B) :=
-  map inl P ++ map inr Q.
+Lemma right_finsetP {A B} (X : finset (A + B)) (b : B) :
+  b ∈ right_finset X <-> (inr b) ∈ X.
+Proof.
+  pattern X ; apply quot_ind ; intros l.
+  now rewrite /right_finset quot_map_eq !finsetP right_in.
+Qed.
 
-Lemma finsum_left_elem : forall A B (P:finset A) (Q:finset B) a, 
+Definition finsum {A B:Type} (P:finset A) (Q:finset B) : finset (A + B) :=
+  funion2 (image inl P) (image inr Q).
+
+Lemma finsum_left_elem A B (P:finset A) (Q:finset B) a : 
   inl a ∈ finsum P Q <-> a ∈ P.
 Proof.
-  split; intro.
-  - destruct H as [q [??]].
-    unfold finsum in H.
-    apply in_app_or in H.
-    destruct H.
-    + apply in_map_iff in H.
-      destruct H as [x [??]].
-      subst q.
-      exists x. split; auto.
-    + apply in_map_iff in H.
-      destruct H as [x [??]].
-      subst q.
-      destruct H0. elim H.
-  - destruct H as [x [??]].
-    exists (inl x).
-    split; auto.
-    + unfold finsum.
-      apply in_or_app.
-      left.
-      apply in_map. auto.
+  rewrite /finsum funion2P !imageP.
+  split.
+  - intros [[? [? [= ->]]]|[? []]] ; intuition congruence.
+  - intros.
+    left ; now eexists.
 Qed.
-  
 
-Lemma finsum_right_elem : forall A B (P:finset A) (Q:finset B) b, 
+Lemma finsum_right_elem A B (P:finset A) (Q:finset B) b :
   inr b ∈ finsum P Q <-> b ∈ Q.
 Proof.
-  split; intro.
-  - destruct H as [q [??]].
-    unfold finsum in H.
-    apply in_app_or in H.
-    destruct H.
-    + apply in_map_iff in H.
-      destruct H as [x [??]].
-      subst q.
-      destruct H0. elim H.
-    + apply in_map_iff in H.
-      destruct H as [x [??]].
-      subst q.
-      exists x; split; auto.
-  - destruct H as [x [??]].
-    exists (inr x).
-    split; auto.
-    unfold finsum.
-    apply in_or_app.
-    right.
-    apply in_map. auto.
+  rewrite /finsum funion2P !imageP.
+  split.
+  - intros [[? []]|[? [? [= ->]]]] ; intuition congruence.
+  - intros.
+    right ; now eexists.
 Qed.
 
-Lemma left_right_finset_finsum A B X :
-  X ≈ finsum (left_finset A B X) (right_finset A B X).
+Lemma left_right_finset_finsum A B (X : finset (A + B)):
+  X = finsum (left_finset X) (right_finset X).
 Proof.
-  split; hnf; intros.
-  - destruct a.
-    apply finsum_left_elem.
-    apply left_finset_elem. auto.
-    apply finsum_right_elem.
-    apply right_finset_elem. auto.
-  - destruct a.
-    + apply left_finset_elem. 
-      eapply finsum_left_elem; eauto.
-    + apply right_finset_elem.
-      eapply finsum_right_elem; eauto.
+  apply set_ext.
+  intros [|].
+  all: by rewrite ?finsum_right_elem ?finsum_left_elem ?left_finsetP ?right_finsetP.
 Qed.
 
+(** Finsets of sets with decidable equality have decidable membership *)
+
+Instance list_in_dec (A:EqTy) (X : list A) (x : A) : Decision (In x X).
+Proof.
+  induction X in x |- *  ; cbn.
+  - now right.
+  - destruct (IHX x).
+    1: now left.
+    destruct (eqdec a x).
+    1: now left.
+    right.
+    intuition.
+Qed.
+
+Instance finset_in_dec (A:EqTy) (X : finset A) (x : A) : Decision (x ∈ X).
+Proof.
+  apply quot_rect_dec ; clear.
+  intros X.
+  rewrite /Decision /member /=.
+  destruct (decide (In x X)) ; [left|right].
+  all: now rewrite ffinsetP.
+Qed.
 
 (**  We can take the subset of a finite set if the
      predicate we wish to use to take the subset is decidable.
   *)
-Section finsubset.
-  Variable A:preord.
-  Variable P : A -> Prop.
-  Variable HP : forall x y, x ≈ y -> P x -> P y.
-  Variable Hdec : forall x, { P x } + { ~P x }.
 
-  Fixpoint finsubset (l:finset A) : finset A :=
+Section finsubset.
+  Context {A:Type} (P : A -> Prop) {Hdec : forall x, Decision (P x)}.
+
+  Fixpoint filter (l:list A) : list A :=
     match l with
     | nil => nil 
-    | x::xs => if Hdec x then x :: finsubset xs else finsubset xs
+    | x::xs => if (Hdec x) then x :: (filter xs) else filter xs
     end.
 
-  Lemma finsubset_elem : forall X x,
-    x ∈ finsubset X <-> (x ∈ X /\ P x).
+  Lemma filterP (l : list A) x : In x (filter l) <-> In x l /\ P x.
   Proof.
-    induction X; simpl; split; simpl; intros.
-    - destruct H as [?[??]]. elim H.
-    - destruct H.
-      destruct H as [?[??]]. elim H.
-    - destruct (Hdec a).
-      + destruct H as [q [??]].
-        simpl in H; destruct H; subst.
-        * split.
-          ** exists q. split; simpl; auto.
-          ** apply HP with q; auto.
-        * assert (x ∈ finsubset X).
-          { exists q; split; simpl; auto. }
-          apply IHX in H1.
-          destruct H1.
-          destruct H1 as [q' [??]].
-          split; auto.
-          exists q'; split; simpl; auto.
-      + apply IHX in H.
-        destruct H.
-        split; auto.
-        destruct H as [q' [??]].
-        exists q'; split; simpl; auto.
-
-    - destruct H.
-      destruct H as [q [??]].
-      simpl in H; destruct H; subst.
-      + destruct (Hdec q).
-        exists q; split; simpl; auto.
-        elim n.
-        apply HP with x; auto.
-      + assert (x ∈ finsubset X).
-        apply IHX. split; auto.
-        exists q; split; auto.
-        destruct (Hdec a); auto.
-        destruct H2 as [q' [??]].
-        exists q'; split; simpl; auto.
+    induction l ; cbn -[member].
+    1: now intuition auto.
+    destruct (Hdec a).
+    - cbn ; intuition (subst ; intuition auto).
+    - intuition (subst ; intuition auto).
   Qed.
+
+  Lemma filter_length l : length (filter l) <= length l.
+  Proof.
+    induction l as [|a]; cbn.
+    1: reflexivity.
+    destruct ((Hdec a)) ; cbn ; lia.
+  Qed.
+
+  Lemma filter_length_lt l : (exists x, In x l /\ ~ P x) -> length (filter l) < length l.
+  Proof.
+    intros [x [Hin HP]].
+    induction l ; cbn in *.
+    1: intuition.
+    destruct Hin as [<-|Hin].
+    all: destruct (Hdec a) ; cbn ; try solve [intuition].
+    - pose proof (filter_length l) ; lia.
+    - specialize (IHl Hin).
+      lia.
+  Qed.
+
+  Instance filter_Proper : Proper (list_ext A ==> list_ext A) filter.
+  Proof.
+    intros ?? e ?.
+    now rewrite !filterP e.
+  Qed.
+
+  Definition finsubset : finset A -> finset A := quot_map filter.
+
+  Lemma finsubsetP (X : finset A) x : x ∈ (finsubset X) <-> x ∈ X /\ P x.
+  Proof.
+    pattern X.
+    apply quot_ind.
+    intros.
+    now rewrite /finsubset quot_map_eq !finsetP filterP.
+  Qed.
+
 End finsubset.
-    
 
-(**  We can take the intersection of finite sets if the elements
-     have decidable equality.
-  *)
-Definition fin_intersect (A:preord) (Hdec:ord_dec A) (X Y:finset A) : finset A
- := finsubset A (fun x => x ∈ X) (fun x => finset_dec A Hdec x X) Y.
+Section FinEqDec.
+  Context {A : EqTy}.
 
-Lemma fin_intersect_elem : forall A Hdec X Y x,
-  x ∈ fin_intersect A Hdec X Y <-> (x ∈ X /\ x ∈ Y).
-Proof.
-  intros.
-  split; intros.
-  - unfold fin_intersect in H.
-    apply finsubset_elem in H.
-    destruct H; split; simpl; auto.
-    intros. rewrite <- H1; auto.
-  - unfold fin_intersect.
-    apply finsubset_elem.
-    intros. rewrite <- H0; auto.
-    destruct H; split; auto.
-Qed.
+  (**  We can take the intersection of finite sets if the elements
+      have decidable equality.
+    *)
 
-Definition fin_list_intersect 
+  Definition fin_intersect (X Y : finset A) : finset A := finsubset (fun x => x ∈ X) Y.
+
+  Lemma fin_intersect_elem X Y x :
+    x ∈ fin_intersect X Y <-> (x ∈ X /\ x ∈ Y).
+  Proof.
+    rewrite /fin_intersect finsubsetP.
+    intuition.
+  Qed.
+
+(*
+Definition fin_finsetPtersect 
   A Hdec (l:finset (finset A)) (Z:finset A) : finset A :=
   List.fold_right (fin_intersect A Hdec) Z l.
 
-Lemma fin_list_intersect_elem : forall A Hdec l Z x,
-  x ∈ fin_list_intersect A Hdec l Z <-> (x ∈ Z /\ forall X, X ∈ l -> x ∈ X).
+Lemma fin_finsetPtersect_elem : forall A Hdec l Z x,
+  x ∈ fin_finsetPtersect A Hdec l Z <-> (x ∈ Z /\ forall X, X ∈ l -> x ∈ X).
 Proof.
   induction l; simpl; intros.
   - intuition.
@@ -537,326 +542,184 @@ Proof.
         destruct H1 as [q [??]].
         exists q; split; simpl; auto.
 Qed.
-
+*)
 
 (**  We can remove an element from a finite set if the elements have
      decidable equality.
   *)
-Fixpoint finset_remove {A:preord} (Hdec : ord_dec A) (X:finset A) (a:A) : finset A :=
-  match X with
-  | nil => nil
-  | List.cons x xs => if PREORD_EQ_DEC A Hdec x a 
-                  then finset_remove Hdec xs a
-                  else List.cons x (finset_remove Hdec xs a)
-  end.
 
-Lemma finset_remove_elem : forall A (Hdec:ord_dec A) X a x,
-  x ∈ finset_remove Hdec X a <-> (x ∈ X /\ x ≉ a).
-Proof.  
-  intros. induction X.
-  - split; intros.
-    + destruct H as [?[??]]. elim H.
-    + destruct H. auto.
-  - unfold finset_remove. fold (@finset_remove A).
-    destruct (PREORD_EQ_DEC A Hdec a0 a).
-    + rewrite IHX.
-      split; intros.
-      * destruct H.
-        split; auto.
-        destruct H as [q [??]].
-        exists q; split; simpl; auto.
-      * destruct H. split; auto.
-        destruct H as [q [??]].
-        simpl in H. destruct H; subst.
-        elim H0. eauto.
-        exists q; split; auto.
-    + split; intros.
-      * destruct H as [q[??]].
-        simpl in H. destruct H; subst.
-        ** split. 2: rewrite H0; auto.
-           exists q. split; simpl; auto.
-        ** assert (x ∈ (X:finset A) /\ x ≉ a).
-           { apply IHX. exists q; split; auto. }
-           destruct H1; split; auto.
-           destruct H1 as [q' [??]].
-           exists q'; split; simpl; auto.
-      * destruct H.
-        destruct H as [q[??]].
-        simpl in H. destruct H; subst.
-        ** exists q. split; simpl; auto.
-        ** assert (x ∈ finset_remove Hdec X a).
-           { apply IHX. split; auto.
-             exists q; split; auto.
-           }
-           destruct H2 as [q' [??]].
-           exists q'; split; simpl; auto.
-Qed.
+Definition fremove (x : A) : finset A -> finset A :=
+  finsubset (fun y => y <> x) (Hdec := fun y => @Decision_neg _ (eqdec y x)).
 
-Lemma finset_remove_length1 A Hdec (X:finset A) (a:A) :
-  length (finset_remove Hdec X a) <= length X.
-Proof.
-  induction X; simpl; auto.
-  - destruct (Hdec a0 a).
-    + destruct (Hdec a a0).
-      * transitivity (length X); auto with arith.
-      * simpl. auto with arith.
-    + simpl. auto with arith.
-Qed.
+  Lemma fremoveP (X : finset A) x y : y ∈ (fremove x X) <-> y ∈ X /\ (y <> x).
+  Proof.
+    by rewrite /fremove finsubsetP.
+  Qed.
 
-Lemma finset_remove_length2 A Hdec (X:finset A) (a:A) :
-  a ∈ X -> length (finset_remove Hdec X a) < length X.
-Proof.
-  intros [q [??]].
-  induction X; simpl; intros.
-  - destruct H.
-  - destruct H.
-    + subst a0.
-      destruct (Hdec q a).
-      * destruct (Hdec a q).
-        ** apply Nat.lt_succ_r. apply finset_remove_length1.
-        ** elim n; destruct H0; auto.
-      * elim n; destruct H0; auto.
-    + destruct (Hdec a0 a).
-      * destruct (Hdec a a0).
-        ** transitivity (length X); auto.
-        ** simpl. apply -> Nat.succ_lt_mono. apply IHX; auto.
-      * simpl. apply -> Nat.succ_lt_mono. apply IHX; auto.
-Qed.  
+End FinEqDec.
 
 (**  We can take the powerset of a finite set; that is, all finite
      subsets of a finite set.
   *)
-Fixpoint list_finsubsets {A:preord} (M:finset A) : finset (finset A) :=
-  match M with
-  | nil => List.cons nil nil
-  | List.cons x xs => 
-       let subs := list_finsubsets xs in
-           List.app (subs) (List.map (List.cons x) subs)
+Fixpoint fpow_list {A:Type} (l:list A) : finset (finset A) :=
+  match l with
+  | nil => fsingle fempty
+  | x :: xs =>
+       let pow := fpow_list xs in
+          funion2 pow (fimage (funion2 (fsingle x)) pow)
   end.
 
-Lemma list_finsubsets_correct A : forall (M X:finset A),
-  X ∈ list_finsubsets M -> X ⊆ M.
+Lemma member_fcons A (a : A) M x :
+  x ∈ (finlist (a :: M)) <-> x = a \/ x ∈ finlist M.
 Proof.
-  induction M; simpl; intros.
-  - destruct H as [?[??]]. elim H.
-    + simpl in H. intuition subst.
-      rewrite H0. red; auto.
-    + intros. elim H1.
-  - destruct H as [q [??]].
-    apply List.in_app_or in H.
-    destruct H.
-    + red. intros.
-      apply (IHM X) in H1.
-      * destruct H1 as [q' [??]].
-        exists q'; split; simpl; auto.
-      * exists q; split; auto.
-    + apply List.in_map_iff in H.
-      destruct H as [x [??]].
-      assert ((x:finset A) ⊆ (M:finset A)).
-      { apply IHM.
-        exists x. split; auto.
+  rewrite !finsetP /=.
+  intuition.
+Qed.
+
+Lemma fpow_list_sound {A} (M : list A) (X:finset A) :
+  X ∈ fpow_list M -> X ⊆ (finlist M).
+Proof.
+  induction M in X |- * ; cbn.
+  - rewrite fsingleP => -> ? /femptyP //.
+  - move => /funion2P [|] /=.
+    + move => /IHM hincl ? /hincl.
+      now rewrite member_fcons.
+    + move => /imageP [? []] /IHM hincl -> ? /funion2P [/fsingleP ->|/hincl].
+      all: now rewrite member_fcons.
+Qed.
+
+Lemma fpow_list_complete (A : EqTy) (M : list A) (X:finset A) :
+  X ⊆ (to_quot M :> finset A) -> X ∈ fpow_list M.
+Proof.
+  induction M in X |- * ; cbn.
+  - move => /incl_fempty ->.
+    now rewrite fsingleP.
+  - intros hX.
+    rewrite -/(member X _) funion2P.
+    destruct (decide (a ∈ X)) as [hin|hin].
+    + assert (X = fcons a (fremove a X)) as ->.
+      {
+        ext.
+        destruct (eqdec t a) as [->|].
+        1: transitivity True ; [|rewrite fconsP] ; intuition.
+        rewrite fconsP fremoveP.
+        intuition (subst ; auto).
       }
-      red; intros.
-      rewrite H0 in H3.
-      rewrite <- H in H3.
-      destruct H3 as [q' [??]].
-      simpl in H3; intuition subst.
-      exists q'. split; simpl; auto.
-      destruct (H2 a0) as [q'' [??]].
-      * exists q'. split; auto.
-      * exists q''. split; simpl; auto.
-Qed.
-
-Lemma list_finsubsets_complete A (Hdec : ord_dec A) : forall (M X:finset A),
-  X ⊆ M -> X ∈ list_finsubsets M.
-Proof.
-  induction M; intros.
-  - simpl. exists nil. split; simpl; auto.
-    split; auto.
-    red; simpl; intros. destruct H0 as [?[??]]. elim H0.
-  - simpl.
-    assert (finset_remove Hdec X a ⊆ (M:finset A)).
-    { red; intros.
-      apply finset_remove_elem in H0.
-      destruct H0.
-      apply H in H0.
-      destruct H0 as [q[??]].
-      simpl in H0; destruct H0; subst.
-      - elim H1; auto.
-      - exists q; split; auto.
-    }
-    destruct (finset_dec _ Hdec a X).
-    + generalize H0; intro.
-      apply IHM in H0.
-      destruct H0 as [Q[??]].
-      exists (List.cons a Q).
+      right.
+      apply fimageP.
+      exists (fremove a X).
       split.
-      * apply List.in_or_app. right.
-        apply List.in_map. auto.
-      * split; red; simpl; intros.
-        ** generalize H3; intros.
-           apply H in H3.
-           destruct H3 as [q [??]].
-           simpl in H3; destruct H3; subst.
-           *** exists q. split; simpl; auto.
-           *** destruct (PREORD_EQ_DEC A Hdec a0 a).
-               **** exists a. split; simpl; auto.
-               **** assert (a0 ∈ finset_remove Hdec X a).
-                    { apply finset_remove_elem. split; auto. }
-                    rewrite H2 in H6.
-                    destruct H6 as [q' [??]].
-                    exists q'; split; simpl; auto.
-        ** destruct H3 as [q [??]].
-           simpl in H3. destruct H3; subst.
-           *** rewrite H4. auto.
-           *** assert (a0 ∈ Q).
-               { exists q; split; auto. }
-               rewrite <- H2 in H5.
-               apply finset_remove_elem in H5.
-               destruct H5; auto.
-  
-    + assert (finset_remove Hdec X a ∈ list_finsubsets M).
-      { apply IHM. auto. }
-      destruct H1 as [Q [??]].
-      exists Q. split; auto.
-      * apply List.in_or_app. auto.
-      * rewrite <- H2.  
-        split; red; simpl; intros.
-        ** apply finset_remove_elem. split; auto.
-           intro. apply n. rewrite <- H4; auto.
-        ** apply finset_remove_elem in H3.
-           destruct H3; auto.
-Qed.
-
-
-(**  Decidability facts of various kinds can be pushed into finite sets.
-  *)
-Lemma finset_find_dec (A:preord)
-  (P:A -> Prop)
-  (HP : forall x y:A, x ≈ y -> P x -> P y)
-  (Hdec : forall x:A, {P x}+{~P x}) :
-  forall M:finset A, { z | z ∈ M /\ P z } + { forall z, z ∈ M -> ~P z }.
-Proof.
-  induction M.
-  - right. intros. destruct H as [?[??]]. elim H.
-  - destruct IHM.
-    + destruct s as [z [??]].
-      left. exists z. split; auto.
-      destruct H as [q [??]]. exists q; split; simpl; auto.
-      + destruct (Hdec a).
-        * left. exists a. split; auto.
-          exists a. split; simpl; auto.
-        * right.
-          intros. destruct H as [q [??]].
-          simpl in H; intuition subst.
-          ** apply n0. apply HP with z; auto.
-          ** apply (n z); auto.
-             exists q; split; auto.
-Qed.
-
-Lemma finset_find_dec' (A:preord)
-  (P:A -> Prop)
-  (HP : forall x y:A, x ≈ y -> P x -> P y)
-  (Hdec : forall x:A, {P x}+{~P x}) :
-  forall M:finset A, { z | z ∈ M /\ ~P z } + { forall z, z ∈ M -> P z }.
-Proof.
-  induction M.
-  - right. intros. destruct H as [?[??]]. elim H.
-  - destruct IHM.
-    + destruct s as [z [??]].
-      left. exists z. split; auto.
-      destruct H as [q [??]]. exists q; split; simpl; auto.
-    + destruct (Hdec a).
-      * right. intros.
-        destruct H as [q [??]].
-        simpl in H; intuition subst.
-        ** apply HP with q; auto.
-        ** apply p. exists q; split; auto.
-      * left. exists a. split; auto.
-        exists a; split; simpl; auto.
-Qed.
-
-Lemma finsubset_dec (A:preord)
-  (HAdec : ord_dec A)
-  (P:finset A -> Prop)
-  (HP : forall x y:finset A, x ≈ y -> P x -> P y)
-  (Hdec : forall x:finset A, {P x}+{~P x}) :
-  forall (M:finset A),
-    { exists X:finset A, X ⊆ M /\ P X } +
-    { forall X:finset A, X ⊆ M -> ~P X }.
-Proof.
-  intro M.
-  destruct (finset_find_dec (finset A) P) with  (list_finsubsets M); auto.
-  - destruct s as [?[??]].
-    left. exists x.
-    split; auto.
-    apply list_finsubsets_correct. auto.
-  - right; intros. apply n.
-    apply list_finsubsets_complete; auto.
-Qed.
-
-
-Lemma finsubset_dec' (A:preord)
-  (HAdec : ord_dec A)
-  (P:finset A -> Prop)
-  (HP : forall x y:finset A, x ≈ y -> P x -> P y)
-  (Hdec : forall x:finset A, {P x}+{~P x}) :
-  forall (M:finset A),
-    { forall X:finset A, X ⊆ M -> P X } +
-    { exists X:finset A, X ⊆ M /\ ~P X }.
-Proof.
-  intro M.
-  destruct (finset_find_dec' (finset A) P) with  (list_finsubsets M); auto.
-  - destruct s as [?[??]].
-    right. exists x.
-    split; auto.
-    apply list_finsubsets_correct. auto.
-  - left; intros. apply p.
-    apply list_finsubsets_complete; auto.
-Qed.
-
-Lemma finset_in_dec (A:preord) (Hdec : ord_dec A) : forall (M:finset A) (x:A),
-  { x ∈ M } + { x ∉ M }.
-Proof.
-  induction M.
-  - right. intro. destruct H as [?[??]]. elim H.
-  - intro x.
-    destruct (IHM x).
+      1: now apply IHM => x /fremoveP [] /hX /member_fcons [|] //.
+      ext.
+      rewrite fconsP funion2P singleP.
+      now intuition.
     + left.
-      destruct m as [q [??]].
-      exists q. split; simpl; auto.
-    + destruct (Hdec x a).
-      * destruct (Hdec a x).
-        ** left. exists a. split; simpl; auto.
-        ** right.
-           intro. destruct H as [q [??]].
-           simpl in H; intuition subst.
-           *** apply n0; destruct H0; auto.
-           *** apply n.
-               exists q. split; auto.
-      * right.
-        intro. destruct H as [q [??]].
-        simpl in H; intuition subst.
-        ** apply n0; destruct H0; auto.
-        ** apply n.
-           exists q. split; auto.
-Qed.    
+      apply IHM => ? /dup [] /hX /member_fcons [->|] //.
+Qed.
 
-Lemma finset_cons_eq (A:preord) (x y:A) (l1 l2:finset A) :
-  x ≈ y -> l1 ≈ l2 -> 
-  (x::l1 : finset A) ≈ (y::l2).
+Instance fpow_Proper {A : EqTy} : Proper (list_ext A ==> eq) fpow_list.
 Proof.
-  intros. split.
-  - hnf; intros.
-    apply cons_elem in H1.
-    destruct H1. rewrite H1.
-    apply cons_elem; auto.
-    apply cons_elem; right. rewrite <- H0; auto.
-  - hnf; intros.
-    apply cons_elem in H1.
-    destruct H1. rewrite H1.
-    apply cons_elem; auto.
-    apply cons_elem; right. rewrite H0; auto.
+  intros ?? ?.
+  ext.
+  split => /fpow_list_sound.
+  all: rewrite /finlist ; erewrite quot_ext ; [|solve [easy|now symmetry]].
+  all: apply fpow_list_complete.
+Qed.
+
+Definition fpow {A : EqTy} : finset A -> finset (finset A) :=
+  quot_rec fpow_list.
+
+Lemma fpowP {A : EqTy} (X Y : finset A) : Y ∈ fpow X <-> Y ⊆ X.
+Proof.
+  pattern X.
+  apply quot_ind.
+  intros.
+  rewrite /fpow quot_rec_eq.
+  split.
+  - apply fpow_list_sound.
+  - apply fpow_list_complete.
+Qed.  
+
+Section FinPredDec.
+  Context {A : Type} (P : A -> Prop) `{forall x, Decision (P x)}.
+
+  (** ** Decidability facts of various kinds can be pushed into finite sets. *)
+
+  (* The original formalisation had a sigma rather than an existential here,
+    but this does not respect the relation on the quotient. Hopefully this
+    will be enough. *)
+  Lemma finset_find_dec_list (l : list A) :
+    { z | In z l /\ P z } + {forall z, In z l -> ~P z}.
+  Proof.
+    induction l as [|a ?].
+    - right ; cbn ; intuition.
+    - destruct IHl as [[z []]|].
+      1: left ; exists z ; cbn ; now intuition.
+      destruct (decide (P a)).
+      1: left ; exists a ; cbn ; now intuition.
+      right.
+      cbn ; intuition (subst ; eauto).
+  Qed.
+
+  Lemma finset_find_dec (M:finset A) :
+    {exists z, z ∈ M /\ P z } + {forall z, z ∈ M -> ~P z}.
+  Proof.
+    pattern M.
+    eapply (quot_rect_sumbool
+      (P := fun (f : finset A) => exists z, z ∈ f /\ P z)
+      (Q := (fun f : finset A => forall z, z ∈ f -> ~ (P z)))).
+    2: intros ? [[? []]] ; now unfold not in *.
+    intros l.
+    destruct (finset_find_dec_list l) as [[? []]|] ; [left;eexists|right ; intros ?].
+    all: now rewrite finsetP.
+  Qed.
+
+End FinPredDec.
+
+Lemma finset_find_dec' {A} P `{forall x, Decision (P x)} (M:finset A) :
+  {exists z, z ∈ M /\ ~(P z) } + {forall z, z ∈ M -> P z}.
+Proof.
+  destruct (finset_find_dec (fun (x : A) => ~(P x)) M) as [|].
+  1: easy.
+  right.
+  intros z ?.
+  destruct (decide (P z)).
+  1: easy.
+  exfalso ; intuition eauto.
+Qed.
+
+Lemma finsubset_dec {A : EqTy}
+  (P:finset A -> Prop)
+  `{ Hdec : forall x:finset A, Decision (P x)}
+  (M:finset A) :
+    { exists X:finset A, X ⊆ M /\ P X} +
+    { forall X:finset A, X ⊆ M -> ~P X}.
+Proof.
+  destruct (finset_find_dec P (fpow M)) as [e|h].
+  - left.
+    destruct e as [x []].
+    exists x.
+    split; auto.
+    now apply fpowP.
+  - right; intros.
+    now apply h, fpowP.
+Qed.
+
+Lemma finsubset_dec' {A : EqTy}
+  (P:finset A -> Prop)
+  `{ Hdec : forall x:finset A, Decision (P x)}
+  (M:finset A) :
+    { exists X:finset A, X ⊆ M /\ ~ P X} +
+    { forall X:finset A, X ⊆ M -> P X}.
+Proof.
+  destruct (finset_find_dec' P (fpow M)) as [e|h].
+  - left.
+    destruct e as [x []].
+    exists x.
+    split; auto.
+    now apply fpowP.
+  - right; intros.
+    now apply h, fpowP.
 Qed.
 
 (** ** Swelling
@@ -874,55 +737,73 @@ Qed.
     settings; in a classical setting one would simply use a set
     comprehension principle to define the desired finite subset.
   *)
-Lemma swelling_lemma (A:preord) (HA:ord_dec A)
+
+Lemma list_length_ind {A} (P : list A -> Prop) :
+  (forall l, (forall l', length l' < length l -> P l') -> P l) ->
+  forall (l : list A), P l.
+Proof.
+  intros Hstep l.
+  pose proof (le_n (length l)) as e.
+  revert e.
+  generalize (length l) at 2.
+  intros n.
+  revert l.
+  induction n as [? IH] using Wf_nat.lt_wf_ind.
+  intros.
+  apply Hstep.
+  intros.
+  eapply (IH (length l')).
+  all: lia.
+Qed.
+
+Lemma swelling_lemma {A : EqTy}
   (M:finset A)
   (INV : finset A -> Prop)
   (P : finset A -> Prop) 
 
-  (HP : forall z, z ⊆ M -> INV z -> 
-    P z \/ exists q, q ∈ M /\ q ∉ z /\ INV (q::z)) :
+  (HP : forall (z : finset A), z ⊆ M -> INV z -> 
+    P z \/ exists q, q ∈ M /\ q ∉ z /\ INV (fcons q z)) :
 
-  (exists z0, z0 ⊆ M /\ INV z0) ->
-  exists z, z ⊆ M /\ INV z /\ P z.
+  (exists (z : finset A), z ⊆ M /\ INV z) ->
+  exists (z : finset A), z ⊆ M /\ INV z /\ P z.
 Proof.
-  intros [z [??]].
-  assert (exists M0:finset A,
-    (forall q, q ∈ M0 <-> q ∈ M /\ q ∉ z)).
-  { assert (forall q, {q ∉ z}+{~q ∉ z}).
-    { intros. destruct (finset_in_dec A HA z q); auto. }
-    set (M0 := finsubset A (fun q => q ∉ z) X M).
-    exists M0. intro q.
-    unfold M0. rewrite finsubset_elem. split; auto.
-    repeat intro. apply H2. rewrite H1; auto.
-  } 
-  destruct H1 as [M0 ?].
-  revert z H H0 H1.  
+  intros [z hz].
+  revert hz.
+  pattern z ; apply quot_ind ; clear z.
+  intros z.
+  revert HP.
+  pattern M ; apply quot_ind ; clear M ; intros M HP [hincl hinv].
+  
+  assert (exists M':list A,
+    (forall (q : A), In q M' <-> In q M /\ ~ In q z)) as [M' hM'].
+  {
+    exists (filter (fun q => ~ In q z) M).
+    intros q.
+    rewrite filterP.
+    now split.
+  }
+  revert z hincl hinv hM'.
 
-  induction M0 using 
-    (well_founded_induction (Wf_nat.well_founded_ltof _ (@length _))); intros.
+  induction M' as [M' IH] using 
+    (well_founded_induction (Wf_nat.well_founded_ltof _ (@length _))).
+  intros z hincl hinv hM'.
 
-  destruct (HP z); eauto.
-  destruct H3 as [q [?[??]]].
-  set (x' := @finset_remove A HA x q).
-  apply (H x') with (q::z).
+  destruct (HP (to_quot z)) as [|[q [?[? hinv']]]] ; eauto.
+
+  set (x' := filter (fun x => x <> q) M').
+  apply (IH x') with (q::z).
   - red; simpl. unfold x'.
-    apply finset_remove_length2.
-    apply H2. split; auto.
-  - apply cons_subset; auto.
-  - auto.
-  - intros. split; intros.
-    + apply finset_remove_elem in H6.
-      destruct H6.
-      apply H2 in H6.
-      destruct H6; split; auto.
-      intro.
-      apply cons_elem in H9. destruct H9.
-      * apply H7; auto.
-      * apply H8; auto.
-    + apply finset_remove_elem.
-      destruct H6. split.
-      * apply H2.
-        split; auto.
-        intro. apply H7. apply cons_elem; auto.
-      * intro. apply H7. apply cons_elem; auto.
+    apply filter_length_lt.
+    eexists ; split.
+    2: intuition reflexivity.
+    apply hM'.
+    now rewrite -!finsetP.
+  - intros ?.
+    rewrite finsetP /=.
+    intros [->|] => //.
+    now apply hincl, finsetP.
+  - by rewrite /fcons quot_map_eq in hinv'.
+  - intros q'.
+    rewrite /x' filterP /= hM'.
+    intuition.
 Qed.

@@ -205,3 +205,41 @@ Proof.
   unfold quot_map2.
   now rewrite !quot_rec_eq.
 Qed.
+
+(** ** Decisions *)
+
+(** Extensionality *)
+Lemma sumbool_excluded_ext (P Q : Prop) (p p' : {P} + {Q}) : ~ (P /\ Q) -> p = p'.
+Proof.
+  intros ?.
+  destruct p, p'.
+  all: try solve [exfalso ; intuition].
+  all: f_equal ; ext.
+Qed.
+
+Lemma decision_ext P (p p' : Decision P) : p = p'.
+Proof.
+  apply sumbool_excluded_ext.
+  intuition.
+Qed.
+
+Smpl Add (apply decision_ext) : extensionality.
+
+(** Special recursions *)
+Definition quot_rect_sumbool {T : Type} {R : relation T} `{! Equivalence R} {P Q : quot R -> Prop}
+  (f : forall t : T, {P (to_quot t)} + {Q (to_quot t)})
+  (e : forall x, ~ (P (to_quot x) /\ Q (to_quot x))) :
+  forall u : quot R, {P u} + {Q u}.
+Proof.
+  eapply (quot_rect _ f).
+  intros.
+  now apply sumbool_excluded_ext.
+Qed.
+
+Definition quot_rect_dec {T : Type} {R : relation T} `{! Equivalence R} {P : quot R -> Prop}
+  (f : forall t : T, Decision (P (to_quot t))) :
+  forall u : quot R, Decision (P u).
+Proof.
+  apply quot_rect_sumbool ; tea.
+  intuition.
+Qed.
