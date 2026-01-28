@@ -96,13 +96,10 @@ HB.instance Definition _ := IsPreCat.Build One (fun _ => tt) (fun _ _ _ _ _ => t
 
 Program Definition _One_cat := IsCat.Build One _ _ _.
 Next Obligation.
-  move => ?? [] //=.
+  ext.
 Qed.
 Next Obligation.
-  move => ?? [] //=.
-Qed.
-Next Obligation.
-  reflexivity.
+ ext.
 Qed.
 
 HB.instance Definition _ := _One_cat.
@@ -141,15 +138,15 @@ HB.instance Definition _ (C D : PreCat) :=
 
 Program Definition _Prod_cat (C D : Cat) := IsCat.Build (Prod C D) _ _ _.
 Next Obligation.
-  move => ?? ?? [fa fb].
+  destruct f as [fa fb].
   by rewrite /idmap /= /Prod_id /comp /= /Prod_comp /= !comp1o.
 Qed.
 Next Obligation.
-  move => ?? ?? [fa fb].
+  destruct f as [fa fb].
   by rewrite /idmap /= /Prod_id /comp /= /Prod_comp /= !compo1.
 Qed.
 Next Obligation.
-  move => ?? ???? [fa fb] [ga gb] [ha hb].
+  destruct f as [fa fb], g as [ga gb], h as [ha hb].
   by rewrite /comp /= /Prod_comp /= !compoA.
 Qed.
 

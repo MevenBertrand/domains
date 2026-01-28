@@ -6,7 +6,7 @@ theories/utils/basics.v
 theories/utils/axioms.v
 theories/utils/all.v
 
-theories/pairing.v
+theories/nat_isos.v
 theories/categories/categories.v
 theories/categories/morphisms.v
 theories/categories/functors.v

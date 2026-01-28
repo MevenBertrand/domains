@@ -1,6 +1,6 @@
 (** * domains.finsets: the set theory of finite sets *)
-From Stdlib Require Import List Program ssreflect ssrfun
-  Relations Classes.RelationClasses Classes.Morphisms Decidable Lia.
+From Stdlib Require Import List ssreflect ssrfun
+  Relations Classes.RelationClasses Classes.Morphisms Lia.
 From HB Require Import structures.
 
 Require Import utils.all categories.all preord sets.
@@ -52,12 +52,8 @@ Lemma finset_ext {A : Type} (f f' : finset A) :
   (forall x, fmember x f <-> fmember x f') ->
   f = f'.
 Proof.
-  pattern f.
-  apply quot_ind.
-  intros l.
-  pattern f'.
-  apply quot_ind.
-  intros l'.
+  induction f as [l] using quot_ind.
+  induction f' as [l'] using quot_ind.
   intros H.
   apply quot_ext.
   intros x.
@@ -73,7 +69,7 @@ Proof.
   intuition.
 Qed.
 
-Instance map_In {A B : Type} (f : A -> B) :
+Instance Proper_map {A B : Type} (f : A -> B) :
   Proper (list_ext A ==> list_ext B) (map f).
 Proof.
   rewrite /Proper /respectful /list_ext /=.
@@ -91,9 +87,7 @@ Definition fimage {A B : Type} (f : A -> B) (X : finset A) : finset B :=
 Lemma fimageP {A B : Type} (f : A -> B) (X : finset A) (y : B) :
   fmember y (fimage f X) <-> exists x, fmember x X /\ y = f x.
 Proof.
-  pattern X.
-  apply quot_ind.
-  intros l.
+  induction X as [l] using quot_ind.
   rewrite /fmember /fimage quot_map_eq quot_rec_eq in_map_iff.
   split.
   all: move => [x []].
@@ -125,12 +119,8 @@ Fixpoint fconcat {A : Type} (XS : list (finset A)) : finset A :=
 Lemma ffunion2P {A} (f f' : finset A) (x : A) :
   fmember x (funion2 f f') <-> fmember x f \/ fmember x f'.
 Proof.
-  pattern f.
-  apply quot_ind.
-  intros l.
-  pattern f'.
-  apply quot_ind.
-  intros l'.
+  induction f as [l] using quot_ind.
+  induction f' as [l'] using quot_ind.
   now rewrite /funion2 quot_map2_eq !ffinsetP in_app_iff.
 Qed.
 
@@ -170,9 +160,7 @@ Definition funion {A : Type} (XS : finset (finset A)) : finset A :=
 Lemma funionP {A : Type} (XS : finset (finset A)) a :
   fmember a (funion XS) <-> (exists X, fmember X XS /\ fmember a X).
 Proof.
-  pattern XS.
-  apply quot_ind.
-  intros l.
+  induction XS as [l] using quot_ind.
   rewrite /funion quot_rec_eq ffconcatP.
   split ; intros [? []] ; eexists.
   all: now split ; [apply ffinsetP|..].
@@ -183,7 +171,7 @@ HB.instance Definition _ :=
 
 HB.instance Definition _ :=
   IsSetTheory.Build finset
-    (@finset_ext) (@fsingleP) (@funionP) (@fimageP).
+    (@finset_ext) (@fsingleP) (@fimageP) (@funionP).
 
 Lemma finsetP {A} (X : list A) (x : A) : x ∈ (finlist X) <-> In x X.
 Proof.
@@ -239,7 +227,7 @@ Proof.
   apply in_nil.
 Qed.
 
-Lemma fempty_incl X (Q:finset X) :
+Lemma fempty_incl {set : SetTheory} X (Q:set X) :
   fempty ⊆ Q.
 Proof.
   now intros ? ?%femptyP.
@@ -262,16 +250,14 @@ Program Definition fcons {A : Type} (a : A) (X : finset A) : finset A :=
   quot_map (cons a) (e := _) X.
 Next Obligation.
   rewrite /Proper /respectful /list_ext /=.
-  intros ? x _ l l' e x'.
+  intros ?? e x'.
   now rewrite e.
 Qed.
 
 Lemma fconsP {A:Type} (a:A) (X:finset A) (x:A) :
   x ∈ fcons a X <-> a = x \/ x ∈ X.
 Proof.
-  pattern X.
-  apply quot_ind.
-  intros l.
+  induction X using quot_ind.
   now rewrite /fcons /member /= /fmember quot_map_eq !quot_rec_eq /=.
 Qed.
 
@@ -305,8 +291,8 @@ Definition finprod {A B:Type} (P:finset A) (Q:finset B) : finset (A*B) :=
 Lemma finprodP A B (P:finset A) (Q:finset B) a b :
   (a,b) ∈ finprod P Q <-> (a ∈ P /\ b ∈ Q).
 Proof.
-  pattern P ; apply quot_ind ; intros l.
-  pattern Q ; apply quot_ind ; intros l'.
+  induction P using quot_ind.
+  induction Q using quot_ind.
   now rewrite /finprod quot_map2_eq !finsetP in_prod_iff.
 Qed.
 
@@ -342,7 +328,7 @@ Definition left_finset {A B} (X : finset (A + B)) : finset A :=
 Lemma left_finsetP {A B} (X : finset (A + B)) (a : A) :
   a ∈ left_finset X <-> (inl a) ∈ X.
 Proof.
-  pattern X ; apply quot_ind ; intros l.
+  induction X using quot_ind.
   now rewrite /left_finset quot_map_eq !finsetP left_in.
 Qed.
 
@@ -376,7 +362,7 @@ Definition right_finset {A B} (X : finset (A + B)) : finset B :=
 Lemma right_finsetP {A B} (X : finset (A + B)) (b : B) :
   b ∈ right_finset X <-> (inr b) ∈ X.
 Proof.
-  pattern X ; apply quot_ind ; intros l.
+  induction X using quot_ind.
   now rewrite /right_finset quot_map_eq !finsetP right_in.
 Qed.
 
@@ -485,9 +471,7 @@ Section finsubset.
 
   Lemma finsubsetP (X : finset A) x : x ∈ (finsubset X) <-> x ∈ X /\ P x.
   Proof.
-    pattern X.
-    apply quot_ind.
-    intros.
+    induction X using quot_ind.
     now rewrite /finsubset quot_map_eq !finsetP filterP.
   Qed.
 
@@ -570,7 +554,7 @@ Fixpoint fpow_list {A:Type} (l:list A) : finset (finset A) :=
   end.
 
 Lemma member_fcons A (a : A) M x :
-  x ∈ (finlist (a :: M)) <-> x = a \/ x ∈ finlist M.
+  x ∈ (finlist (a :: M)) <-> a = x \/ x ∈ finlist M.
 Proof.
   rewrite !finsetP /=.
   intuition.
@@ -609,12 +593,12 @@ Proof.
       apply fimageP.
       exists (fremove a X).
       split.
-      1: now apply IHM => x /fremoveP [] /hX /member_fcons [|] //.
+      1: apply IHM => x /fremoveP [] /hX /member_fcons [->|] //.
       ext.
       rewrite fconsP funion2P singleP.
       now intuition.
     + left.
-      apply IHM => ? /dup [] /hX /member_fcons [->|] //.
+      apply IHM => ? /dup [] /hX /member_fcons [<-|] //.
 Qed.
 
 Instance fpow_Proper {A : EqTy} : Proper (list_ext A ==> eq) fpow_list.
@@ -631,9 +615,7 @@ Definition fpow {A : EqTy} : finset A -> finset (finset A) :=
 
 Lemma fpowP {A : EqTy} (X Y : finset A) : Y ∈ fpow X <-> Y ⊆ X.
 Proof.
-  pattern X.
-  apply quot_ind.
-  intros.
+  induction X using quot_ind.
   rewrite /fpow quot_rec_eq.
   split.
   - apply fpow_list_sound.
@@ -769,10 +751,9 @@ Lemma swelling_lemma {A : EqTy}
 Proof.
   intros [z hz].
   revert hz.
-  pattern z ; apply quot_ind ; clear z.
-  intros z.
+  induction z as [z] using quot_ind.
   revert HP.
-  pattern M ; apply quot_ind ; clear M ; intros M HP [hincl hinv].
+  induction M as [M] using quot_ind ; intros HP [hincl hinv].
   
   assert (exists M':list A,
     (forall (q : A), In q M' <-> In q M /\ ~ In q z)) as [M' hM'].

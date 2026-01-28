@@ -60,7 +60,9 @@ Qed.
 
 (** ** Quotients *)
 
-From Stdlib Require Import Relations.Relation_Definitions Classes.RelationClasses Classes.Morphisms.
+From Stdlib Require Import Relation_Definitions Relations RelationClasses RelationPairs Equivalence Morphisms.
+
+(** *** Basic quotient axioms *)
 
 (** The quotient type *)
 Axiom quot : forall {T : Type} (R : relation T) `{! Equivalence R}, Type.
@@ -72,7 +74,7 @@ Axiom to_quot : forall {T : Type} {R : relation T} `{! Equivalence R}, T -> quot
 Axiom quot_ext : forall {T : Type} {R : relation T} `{! Equivalence R} (t t' : T),
   R t t' -> to_quot t = to_quot t'.
 
-(** Quotient effectivity axiom*)
+(** Quotient effectivity axiom *)
 Axiom quot_eq : forall {T : Type} {R : relation T} `{! Equivalence R} (t t' : T),
   to_quot t = to_quot t' -> R t t'.
 
@@ -89,7 +91,9 @@ Axiom quot_rect_eq : forall {T : Type} {R : relation T} `{! Equivalence R},
   (f : forall (t : T), P (to_quot t))
   (r : forall (x y :T) (e : R x y), (quot_ext _ _ e) # (f x) = f y :> P (to_quot y))
   (x : T),
-  quot_rect P f r (to_quot x) = f x.
+  quot_rect P f r (to_quot x) = f x. 
+
+(** A version of the axiom of countable choice, which is valid in setoid-based models **)
 
 (** *** Quotient derived functions *)
 
@@ -153,8 +157,6 @@ Proof.
   by rewrite /quot_map quot_rec_eq.
 Qed.
 
-From Stdlib Require Import RelationPairs Morphisms.
-
 Instance PER_Equivalence {A} {RA : relation A} `{! PER RA} :
   @Equivalence {a : A | Proper RA a} (RA @@ sval).
 Proof.
@@ -206,6 +208,24 @@ Proof.
   now rewrite !quot_rec_eq.
 Qed.
 
+
+(** *** Countable choice *)
+
+(** Quotients can always be "pushed" below a function *)
+Definition eval_quot {A B : Type} {R : relation B} `{! Equivalence R}
+  (f : quot (pointwise_relation A R)) (a : A) : quot R :=
+    quot_rec (fun f' => to_quot (f' a)) (p := fun f' f'' e => quot_ext _ _ (e a)) f.
+
+(** We stipulate this operation is invertible when the domain is [nat].
+  This corresponds to a weak form of countable choice, which simultaneously picks a representative
+  in each equivalence classes, but only gives access to them under a quotient.
+  This is validated by using essentially the identity function in a setoid-based model. *)
+Axiom pull_quot_nat : forall {B : Type} {R : relation B} `{! Equivalence R},
+  (nat -> quot R) -> quot (pointwise_relation nat R).
+
+Axiom pull_quot_nat_eq : forall {B : Type} {R : relation B} `{! Equivalence R}
+  (f : quot (pointwise_relation nat R)), pull_quot_nat (eval_quot f) = f.
+
 (** ** Decisions *)
 
 (** Extensionality *)
@@ -224,6 +244,11 @@ Proof.
 Qed.
 
 Smpl Add (apply decision_ext) : extensionality.
+
+Corollary eqdec_refl {A : EqTy} (x : A) : eqdec x x = left eq_refl.
+Proof.
+  ext.
+Qed.
 
 (** Special recursions *)
 Definition quot_rect_sumbool {T : Type} {R : relation T} `{! Equivalence R} {P Q : quot R -> Prop}

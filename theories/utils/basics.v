@@ -1,5 +1,5 @@
 (** * Domains.Basics: basic definitions *)
-From Stdlib Require Import Morphisms Relations CRelationClasses CMorphisms ssreflect.
+From Stdlib Require Import Morphisms Relations RelationClasses ssreflect.
 From smpl Require Export Smpl.
 From HB Require Import structures.
 Require Import notations tactics.
@@ -36,6 +36,7 @@ Qed.
 Notation "x ≈ y" := (x = y) (only parsing).
 Notation "x ≉ y" := (~(x = y)) (only parsing).
 
+(*
 (** ** Lemmas for working with [iffT] *)
 Lemma arrowTE: CMorphisms.Proper (iffT ==> iffT ==> iffT) arrow.
 Proof. move=>A A' e B B' f; split; move=>p a; apply f, p, e, a. Defined.
@@ -56,6 +57,7 @@ Proof. move=>ab fg; split; move=>[x H]; (unshelve eexists; [apply ab, x|eapply f
 
 Lemma iffT_hyp {A A' B}: (iffT A A') -> (A' -> B) -> A -> B.
 Proof. move=>[+ _]; auto. Qed.
+*)
 
 (** ** Unique existence *)
 
@@ -92,7 +94,7 @@ Global Arguments decide _ {_} : simpl never, assert.
 
 Instance Decision_neg P `{h : Decision P} : Decision (~ P).
 Proof.
-  now destruct h ; [right|left].
+  destruct h ; [right|left] ; eauto.
 Qed.
 
 (** Decidable equality *)
@@ -116,3 +118,31 @@ Definition onSome {A} (P : A -> Prop) (x : option A) : Prop :=
   end.
 
 Arguments onSome {_}_ !_/.
+
+Definition option_rel {A} (R : relation A) : relation (option A) :=
+  fun x y => match x, y with
+  | None, None => True
+  | Some a, Some a' => R a a'
+  | _, _ => False
+  end.
+
+Instance Equiv_option {A} (R : relation A) `{Equivalence A R} : Equivalence (option_rel R).
+Proof.
+  split ; red.
+  all: repeat (intros []) ; cbn ; intros ; eauto.
+  - reflexivity.
+  - now symmetry.
+  - now etransitivity.
+Qed.
+
+Instance Proper_some {A} (R : relation A) : Proper (R ==> option_rel R) Some.
+Proof.
+  now cbv.
+Qed.
+
+(** Unit *)
+
+Lemma unit_ext (x y : unit) : x = y.
+Proof (match x, y with | tt, tt => eq_refl end).
+
+Smpl Add (apply unit_ext) : extensionality.

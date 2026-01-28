@@ -20,9 +20,8 @@ Definition dup {A : Type} : A -> A * A := fun x => (x,x).
 (** ** Automation *)
 
 Ltac tea := try eassumption.
-#[global] Ltac easy ::= solve [eauto 3 with core crelations].
+#[global] Ltac easy ::= solve [eauto 3 with core relations].
 
-#[global]Obligation Tactic := idtac.
 #[global] Ltac Tauto.intuition_solver ::= auto.
 
 (** ** Extensionality *)
@@ -55,3 +54,10 @@ Smpl Create extensionality.
 Ltac ext := intros ; repeat (smpl extensionality ; intros).
 
 Smpl Add (ltac2:(constr_ext ())) : extensionality.
+
+Lemma unit_ext p q : p = q :> unit.
+Proof.
+  destruct p, q ; reflexivity.
+Qed.
+
+Smpl Add (apply unit_ext) : extensionality.

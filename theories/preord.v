@@ -30,9 +30,9 @@ Arguments ord {_} : simpl never.
 Notation "x ≤ y" := (ord x y) : preord_scope.
 Notation "y ≥ x" := (ord y x) (only parsing) : preord_scope.
 
-#[primitive] HB.mixin Record IsPreOrder (T : Type) of pre_pre_ord T := {
-  ord_refl : forall (a : T), a ≤ a;
-  ord_trans : forall (a b c : T), a ≤ b -> b ≤ c -> a ≤ c;
+#[primitive] HB.mixin Record IsPreOrder T of pre_pre_ord T := {
+  ord_refl : Reflexive (ord (s := T));
+  ord_trans : Transitive (ord (s := T));
 }.
 
 #[short(type="PreOrder")]
@@ -41,6 +41,14 @@ HB.structure Definition pre_order := { T of pre_pre_ord T & IsPreOrder T}.
 #[primitive] HB.mixin Record IsPoset (T : Type) of pre_order T := {
   ord_antisym : forall (a b : T), a ≤ b -> b ≤ a -> a = b;
 }.
+
+(* To get transitivity to work *)
+Instance PreOrder_class (A : PreOrder) : RelationClasses.PreOrder (ord (s := A)).
+Proof.
+  split.
+  - apply ord_refl.
+  - apply ord_trans.
+Qed.
 
 #[short(type="Poset")]
 HB.structure Definition poset := { T of pre_order T & IsPoset T}.
@@ -95,7 +103,8 @@ Section Monotone.
   Program Definition mon_comp (g : Monotone D E) (f : Monotone C D) : Monotone C E :=
     {| mon_map := ssrfun.comp g f ; mon_mon := _ |}.
   Next Obligation.
-    intros [? Hg] [? Hf] x y ? ; cbn.
+    destruct g as [? Hg], f as [? Hf] ; cbn.
+    intros x y ? ; cbn.
     now apply Hg, Hf.
   Qed.
 
@@ -116,13 +125,6 @@ HB.instance Definition _ := _PreOrd_Cat.
 HB.instance Definition _ := IsPreCat.Build Poset (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
 Definition _Poset_Cat : IsCat Poset := IsCat.Build Poset ltac:(by ext) ltac:(by ext) ltac:(by ext).
 HB.instance Definition _ := _Poset_Cat.
-
-
-(* To get transitivity to work *)
-Add Parametric Relation (A:PreOrder) : A (@ord A)
-  reflexivity proved by (@ord_refl A)
-  transitivity proved by (@ord_trans A)
-    as ord_rel.
 
 (**  This lemma is handy for using an equality in the context to prove a goal
      by transitivity on both sides.
@@ -146,12 +148,6 @@ HB.instance Definition _ := IsPoset.Build nat Nat.le_antisymm.
 
 HB.instance Definition _ := IsPrePreOrder.Build unit (fun _ _ => True).
 HB.instance Definition _ := IsPreOrder.Build unit (fun _ => I) (fun _ _ _ _ _ => I).
-
-Lemma unit_ext (x y : unit) : x = y.
-Proof (match x, y with | tt, tt => eq_refl end).
-
-Smpl Add (apply unit_ext) : extensionality.
-
 HB.instance Definition _ := IsPoset.Build unit (fun _ _ _ _ => unit_ext _ _).
 
 Program Definition _PreTermPoset := IsPreTerminated.Build Poset unit
@@ -210,19 +206,19 @@ HB.instance Definition _ (A B:PrePreOrder) := IsPrePreOrder.Build (A*B) (prod_or
 
 Program Definition _ProdPreOrd (A B : PreOrder) := IsPreOrder.Build (A*B) _ _.
 Next Obligation.
-  intros ? ? [] ; cbn ; red ; cbn.
   split ; reflexivity.
 Qed.
 Next Obligation.
-  intros ? ? [] [] [] [] [] ; cbn in * ; red ; cbn.
-  split ; now etransitivity.
+  red ; intros ; red ; cbn.
+  repeat match goal with | H : _ ≤ _ |- _ => destruct H end.
+  split; now etransitivity.
 Qed.
 
 HB.instance Definition _ (A B : PreOrder) := _ProdPreOrd A B.
 
 Program Definition _ProdPoset (A B : Poset) := IsPoset.Build (A*B) _.
 Next Obligation.
-  intros ?? [] [] [] [] ; cbn in *.
+  repeat match goal with | H : _ ≤ _ |- _ => destruct H end.
   ext ; now apply ord_antisym.
 Qed.
 
@@ -234,13 +230,12 @@ Program Definition _PreHasProdsPoset := PreHasProds.Build Poset
   (fun p q => {| mon_map := snd ; mon_mon := _|})
   (fun p q x f g => {| mon_map := fun x => (f x,g x) ; mon_mon := _|}).
 Next Obligation.
-  now intros ?? [] [] [].
+  now intros [] [] [].
 Qed.
 Next Obligation.
-  now intros ?? [] [] [].
+  now intros [] [] [].
 Qed.
 Next Obligation.
-  intros * ?? ?.
   split ; cbn.
   all: now apply: mon_mon.
 Qed.
@@ -274,11 +269,12 @@ HB.instance Definition _ (A B:PrePreOrder) :=
 
 Program Definition _ExpPreOrd (A B : PreOrder) := IsPreOrder.Build (Monotone A B) _ _.
 Next Obligation.
-  intros * ; cbn ; red ; cbn ; intros.
   now apply: mon_mon.
 Qed.
 Next Obligation.
-  move => * ; rewrite /ord /= => *.
+  red ; intros.
+  unfold ord in * ; cbn in *.
+  intros.
   now etransitivity.
 Qed.
 
@@ -304,8 +300,7 @@ Program Definition _HasExpsPoset := PreHasExps.Build Poset
       |} ;
     mon_mon := _|} ).
 Next Obligation.
-  cbn.
-  intros ?? ??.
+  intros ?? ; cbn in *.
   rewrite {1}/ord /=.
   intros [Hf Ha] ; cbn in *.
   now apply: Hf.
@@ -342,11 +337,11 @@ HB.instance Definition _ (A B:PrePreOrder) := IsPrePreOrder.Build (A+B)%type (su
 
 Program Definition _SumPreOrd (A B : PreOrder) := IsPreOrder.Build (A+B)%type _ _.
 Next Obligation.
-  intros ? ? [] ; red ; cbn.
-  all: reflexivity.
+  intros [] ; red ; cbn ; reflexivity.
 Qed.
 Next Obligation.
-  intros ? ? [] [] [] H H'; cbn in * ; red in H, H' |- * ; cbn in *.
+  intros [] [] [] ** ;
+  repeat (match goal with | H : _ ≤ _ |- _ => red in H end) ; red ; cbn in *.
   all: try done.
   all: now etransitivity.
 Qed.
@@ -355,7 +350,8 @@ HB.instance Definition _ (A B : PreOrder) := _SumPreOrd A B.
 
 Program Definition _SumPoset (A B : Poset) := IsPoset.Build (A+B)%type _.
 Next Obligation.
-  intros ?? [] [] H H' ; red in H, H' ; cbn in *.
+  repeat (match goal with | H : _ + _ |- _ => destruct H end) ;
+  repeat (match goal with | H : _ ≤ _ |- _ => red in H end) ; cbn in *.
   all: try done.
   all: ext ; now apply ord_antisym.
 Qed.
@@ -413,7 +409,7 @@ Fact ord_dec_eq_dec x y : Decision (x = y :> P).
 Proof.
   case: (orddec x y) => [hle | hnle].
   1: case: (orddec y x) => [hle' | hnle].
-  2-3: right => ? ; subst ; apply: hnle ; apply: ord_refl.
+  2-3: right => ? ; subst ; apply: hnle ; reflexivity.
   1: by left ; apply: ord_antisym.
 Qed.
 
@@ -422,6 +418,15 @@ HB.instance Definition _ := HasEqDec.Build P ord_dec_eq_dec.
 HB.end.
 
 HB.instance Definition _ := HasOrdDec.Build nat le_dec.
+
+
+Lemma unit_dec (x y : unit) : Decision (x ≤ y).
+Proof.
+  repeat match goal with | h : unit |- _ => destruct h end.
+  now left.
+Qed.
+
+HB.instance Definition _ := HasOrdDec.Build unit unit_dec.
 
 (** ** Concreteness *)
 
@@ -477,17 +482,19 @@ Definition PrePreOrder_lift (A : PrePreOrder) : PrePreOrder := HB.pack (lift A).
 
 Program Definition _LiftPreOrd (A : PreOrder) := IsPreOrder.Build (lift A) _ _.
 Next Obligation.
-  intros ?? ; red ; cbn.
+  red ; cbn.
   unshelve eexists.
   1: exact ssrfun.id.
   reflexivity.
 Qed.
 Next Obligation.
-  intros ? ??? [f Hf] [g Hg] ; red ; cbn.
+  intros ? * [] [].
+  red ; cbn.
   unshelve eexists.
-  1: exact (ssrfun.comp g f).
-  intros.
-  rewrite Hf Hg => //=.
+  1: refine (ssrfun.comp _ _) ; shelve.
+  intros ; cbn.
+  repeat (match goal with | H : _ |- _ => rewrite H end).
+  reflexivity.
 Qed.
 
 HB.instance Definition _ (A : PreOrder) := _LiftPreOrd A.
@@ -496,10 +503,11 @@ Definition PreOrder_lift (A : PreOrder) : PreOrder := HB.pack (lift A).
 
 Program Definition _LiftPoset (A : Poset) := IsPoset.Build (lift A) _.
 Next Obligation.
-  intros ? ?? [] [].
+  repeat (match goal with | H : _ ≤ _ |- _ => let e := fresh e in destruct H as [? e] end).
   unshelve eapply lift_ext.
   1: split ; assumption.
   intros.
+  cbn.
   rewrite e.
   f_equal.
   ext.
@@ -535,7 +543,6 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  cbn ; intros ??? f g.
   by ext.
 Qed.
 
@@ -550,7 +557,6 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  cbn ; intros ??? f g.
   by ext.
 Qed.
 
@@ -565,7 +571,6 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  cbn ; intros ??? f g.
   by ext.
 Qed.
 

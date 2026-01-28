@@ -38,6 +38,7 @@ Delimit Scope set_scope with set.
 
 #[primitive] HB.mixin Record IsPreSetTheory (set : Type -> Type):= {
   member (A : Type) : A -> set A -> Prop ;
+  (* empty (A : Type) : set A ; *)
   single (A : Type) : A -> set A ;
   image (A B : Type) (f : A -> B) : set A -> set B ;
   union (A : Type) : set (set A) -> set A ;
@@ -47,11 +48,13 @@ Delimit Scope set_scope with set.
 HB.structure Definition presettheory :=
   { set & IsPreSetTheory set }.
 
+(* Arguments empty {set _} : rename. *)
 Arguments member {set _} : rename.
 Arguments single {set _} : rename.
 Arguments image {set _ _} : rename.
 Arguments union {set _} : rename.
 
+(* Notation "∅" := (empty) : set_scope. *)
 Notation "x ∈ X" := (member x (X)%set) : set_scope.
 Notation "x ∉ X"  := (not (member x (X)%set)) : set_scope.
 Notation "∪ XS" := (union (XS)%set) : set_scope.
@@ -59,11 +62,12 @@ Notation "∪ XS" := (union (XS)%set) : set_scope.
 #[primitive] HB.mixin Record IsSetTheory set of presettheory set :=
   {
     set_ext T (X Y : set T) : (forall t, t ∈ X <-> t ∈ Y) -> X = Y ;
+    (* emptyP T (x : T) : (x ∈ empty (set := set)) <-> False ; *)
     singleP T (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
-    unionP T (xs : (set (set T))) (a : T) :
-      a ∈ (∪ xs) <-> exists x : (set T), x ∈ xs /\ a ∈ x ;
     imageP (A B : Type) (f : A -> B) (P : (set A)) (y : B) :
-      y ∈ (image f P) <-> exists x, member x P /\ y = f x
+      y ∈ (image f P) <-> exists x, member x P /\ y = f x ;
+    unionP T (xs : (set (set T))) (a : T) :
+      a ∈ (∪ xs) <-> exists x : (set T), x ∈ xs /\ a ∈ x
   }.
 
 #[short(type="SetTheory"),primitive]
@@ -106,6 +110,7 @@ Next Obligation.
   now cbv.
 Qed.
 Next Obligation.
+  red.
   now rewrite /ord /= /incl /=.
 Qed.
 
@@ -206,10 +211,9 @@ Next Obligation.
   cbn ; eauto using color_image.
 Qed.
 Next Obligation.
-  cbn ; intros * ? H.
   split.
   all: apply color_union ; eauto.
-  all: apply H.
+  all: intros ; match goal with | H : _ |- _ => now apply H end.
 Qed.
   
 (**  The property of being inhabited is a simple example of a color. *)
@@ -222,12 +226,11 @@ Next Obligation.
   now apply singleP.
 Qed.
 Next Obligation.
-  cbn ; intros * [].
   eexists.
   now apply image_fun.
 Qed.
 Next Obligation.
-  cbn ; eintros * [] [] ; eauto.
+  match goal with | H : _ |- _=> edestruct H end ; eauto.
   eexists.
   now apply unionP.
 Qed.
@@ -246,9 +249,11 @@ Section ColoredSets.
   Definition cmember A a (X:colored_sets A) := a ∈ proj1_sig X.
 
   Definition csingle A a : colored_sets A := exist _ (single a) (color_single C A a).
+
   Definition cimage (A B:Type) (f:A -> B) (X : colored_sets A) :=
     exist _ (image f (proj1_sig X))
             (color_image C A B f (proj1_sig X) (proj2_sig X)).
+
   Program Definition cunion (A : Type) (XS : colored_sets (colored_sets A)) : colored_sets A :=
     exist (color_prop C) (∪ (image sval (projT1 XS))) _.
   Next Obligation.
@@ -274,14 +279,17 @@ HB.instance Definition _ (set : SetTheory) (c : color set) :=
 Program Definition _ColoredSets (set : SetTheory) (c : color set) :=
   IsSetTheory.Build (colored_sets c) _ _ _ _.
 Next Obligation.
-  intros ??? [x ] [x' ] Heq.
-  enough (x = x') as -> by (f_equal ; ext).
-  apply set_ext.
-  assumption.
+  destruct X as [X], Y as [Y].
+  enough (X = Y) as -> by (f_equal ; ext).
+  now apply set_ext.
 Qed.
 Next Obligation.
   intros.
   apply singleP.
+Qed.
+Next Obligation.
+  intros.
+  apply imageP.
 Qed.
 Next Obligation.
   intros.
@@ -297,10 +305,6 @@ Next Obligation.
     exists (proj1_sig X).
     split; auto.
     now apply imageP.
-Qed.
-Next Obligation.
-  intros.
-  apply imageP.
 Qed.
 
 HB.instance Definition _ (set : SetTheory) (c : color set) := _ColoredSets set c.
