@@ -49,14 +49,21 @@ From Stdlib Require Export FunctionalExtensionality.
 
 Smpl Add 200 (apply functional_extensionality_dep) : extensionality.
 
-Corollary pred_ext: forall {A} (P Q : A -> Prop), (forall x, P x <-> Q x) -> P = Q.
+
+Corollary fun_ext: forall {A B} (f g : A -> B), (forall x, f x = g x) <-> f = g.
 Proof.
-  intros.
-  now ext.
+  intros ; split.
+  - now ext.
+  - now intros ->.
 Qed.
 
+Corollary pred_ext: forall {A} (P Q : A -> Prop), (forall x, P x <-> Q x) <-> P = Q.
+Proof.
+  intros ; split.
+  - now ext.
+  - now intros ->. 
+Qed.
 
-(* Print functional_extensionality_dep. *)
 
 (** ** Quotients *)
 
@@ -73,6 +80,8 @@ Axiom to_quot : forall {T : Type} {R : relation T} `{! Equivalence R}, T -> quot
 (** The quotient path constructor *)
 Axiom quot_ext : forall {T : Type} {R : relation T} `{! Equivalence R} (t t' : T),
   R t t' -> to_quot t = to_quot t'.
+
+Smpl Add (apply quot_ext) : extensionality.
 
 (** Quotient effectivity axiom *)
 Axiom quot_eq : forall {T : Type} {R : relation T} `{! Equivalence R} (t t' : T),
@@ -216,6 +225,14 @@ Definition eval_quot {A B : Type} {R : relation B} `{! Equivalence R}
   (f : quot (pointwise_relation A R)) (a : A) : quot R :=
     quot_rec (fun f' => to_quot (f' a)) (p := fun f' f'' e => quot_ext _ _ (e a)) f.
 
+Lemma eval_quot_eq {A B : Type} {R : relation B} `{! Equivalence R}
+  (f : A -> B) :
+  eval_quot (to_quot f) = to_quot \o f.
+Proof.
+  ext.
+  rewrite /eval_quot quot_rec_eq //.
+Qed.
+
 (** We stipulate this operation is invertible when the domain is [nat].
   This corresponds to a weak form of countable choice, which simultaneously picks a representative
   in each equivalence classes, but only gives access to them under a quotient.
@@ -224,7 +241,7 @@ Axiom pull_quot_nat : forall {B : Type} {R : relation B} `{! Equivalence R},
   (nat -> quot R) -> quot (pointwise_relation nat R).
 
 Axiom pull_quot_nat_eq : forall {B : Type} {R : relation B} `{! Equivalence R}
-  (f : quot (pointwise_relation nat R)), pull_quot_nat (eval_quot f) = f.
+  (f : nat -> quot R), eval_quot (pull_quot_nat f) = f.
 
 (** ** Decisions *)
 

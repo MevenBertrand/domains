@@ -145,8 +145,8 @@ Definition fun_union {A} (XS : nat -> option (nat -> option A)) : nat -> option 
       end.
 
 Lemma fun_unionP {A} (XS : nat -> option (nat -> option A)) a :
-  fun_member a (fun_union XS) <-> exists (X : nat -> option A),
-  fun_member X XS /\ fun_member a X.
+  fun_member a (fun_union XS) <->
+    exists (X : nat -> option A), fun_member X XS /\ fun_member a X.
 Proof.
   split.
   - intros [n Hn].
@@ -187,24 +187,86 @@ Definition pull_quot_option {B : Type} {R : relation B} `{! Equivalence R} :
   | None => to_quot None
   end.
 
-Definition pull_quot_eset {A} (XS : nat -> option (eset A)) :=
-  pull_quot_nat (fun n => pull_quot_option (XS n)).
+Lemma pull_quot_option_some  {B : Type} {R : relation B} `{! Equivalence R}
+  (b : B) (x : option (quot R)) :
+  pull_quot_option x = to_quot (Some b) <-> x = Some (to_quot b).
+Proof.
+  split.
+  - destruct x as [q|] ; cbn.
+    + induction q as [b'] using quot_ind.
+      rewrite quot_map_eq.
+      intros e%quot_eq.
+      cbn in e.
+      now ext.
+    + intros e%quot_eq.
+      now cbn in e.
+  - intros -> => /=.
+    now rewrite quot_map_eq.
+Qed.
 
-About pull_quot_eset.
+Definition fun_eset_union {A} (XS : nat -> option (eset A)) : eset A :=
+  quot_map fun_union (pull_quot_nat (pull_quot_option \o XS)).
 
-Program Definition eunion {A} (XS : eset (eset A)) : eset A :=
-  quot_rec (fun XS => quot_map fun_union (pull_quot_eset XS))
-    (p := _) XS.
-Next Obligation.
-  (* ???? *)
-  
+Lemma fun_eset_unionP {A} (XS : nat -> option (eset A)) a :
+  emember a (fun_eset_union XS) <->
+    exists (X : eset A), fun_member X XS /\ emember a X.
+Proof.
+  rewrite /fun_eset_union.
+  set (XS' := (pull_quot_nat (pull_quot_option \o XS))).
+  assert (forall n, eval_quot XS' n = pull_quot_option (XS n)) as eXS'
+    by rewrite /XS' pull_quot_nat_eq //.
+  clearbody XS'.
+  induction XS' as [XS'] using quot_ind.
+  rewrite !quot_map_eq /emember quot_rec_eq fun_unionP.
+  split.
+  - intros (X&(n&HXin)&HinX).
+    exists (to_quot X).
+    rewrite quot_rec_eq.
+    split ; [|easy].
+    exists n.
+    apply pull_quot_option_some.
+    rewrite -eXS' eval_quot_eq /= HXin //.
+  - intros (X&(n&HXin)&HinX).
+    induction X as [X] using quot_ind.
+    rewrite quot_rec_eq in HinX.
+    apply pull_quot_option_some in HXin.
+    rewrite -eXS' eval_quot_eq /= in HXin.
+    apply quot_eq in HXin.
+    destruct (XS' n) as [X'|] eqn:e => //.
+    cbn in HXin.
+    exists X'.
+    split ; [now eexists|].
+    now apply HXin.
+Qed.
+
+Instance Proper_fun_eset_union {A} : Proper (funset_ext (eset A) ==> eq) fun_eset_union.
+Proof.
+  intros ?? e.
+  apply eset_ext.
+  intros a.
+  rewrite !fun_eset_unionP.
+  split.
+  all: intros (X&[]) ; exists X ; split ; try easy ; now apply e.
+Qed.
+
+Definition eunion {A} : eset (eset A) -> eset A := quot_rec fun_eset_union.
+
+Lemma eunionP {A} XS a :
+  emember a (eunion XS) <-> exists (X : eset A), emember X XS /\ emember a X.
+Proof.
+  induction XS using quot_ind.
+  rewrite /eunion !quot_rec_eq fun_eset_unionP.
+  split.
+  all: intros (X&[HX]) ; exists X ; split ; [|easy].
+  all: apply eesetP ; eassumption.
+Qed.
 
 HB.instance Definition _ :=
-  IsPreSetTheory.Build eset (@emember) (@esingle) (@eimage).
+  IsPreSetTheory.Build eset (@emember) (@esingle) (@eimage) (@eunion).
 
 HB.instance Definition _ :=
   IsSetTheory.Build eset
-    (@eset_ext) (@esingleP) (@eimageP).
+    (@eset_ext) (@esingleP) (@eimageP) (@eunionP).
 
 Lemma esetP {A} (X : nat -> option A) (x : A) : x ∈ (efun X) <-> fun_member x X.
 Proof.
