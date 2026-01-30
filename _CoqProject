@@ -19,37 +19,39 @@ theories/preord.v
 theories/sets.v
 theories/finsets.v
 theories/esets.v
-theories/effective.v
-theories/plotkin.v
-theories/cusl.v
-theories/directed.v
-theories/cont_functors.v
-theories/cpo.v
-theories/joinable.v
-theories/approx_rels.v
-theories/bilimit.v
-theories/profinite.v
-theories/rational_intervals.v
-theories/realdom.v
-theories/realops.v
-theories/embed.v
-theories/profinite_adj.v
-theories/cont_profinite.v
-theories/exp_functor.v
-theories/sumprod_functor.v
-theories/cont_adj.v
-theories/atoms.v
-theories/permutations.v
-theories/nominal.v
-theories/fixes.v
-theories/discrete.v
-theories/flat.v
-theories/lam_models.v
-theories/powerdom.v
-theories/strict_utils.v
-theories/finprod.v
+theories/sets_choice.v
 
-theories/examples/ski.v
-theories/examples/skiy.v
-theories/examples/st_lam.v
-theories/examples/st_lam_fix.v
+# theories/effective.v
+# theories/plotkin.v
+# theories/cusl.v
+# theories/directed.v
+# theories/cont_functors.v
+# theories/cpo.v
+# theories/joinable.v
+# theories/approx_rels.v
+# theories/bilimit.v
+# theories/profinite.v
+# theories/rational_intervals.v
+# theories/realdom.v
+# theories/realops.v
+# theories/embed.v
+# theories/profinite_adj.v
+# theories/cont_profinite.v
+# theories/exp_functor.v
+# theories/sumprod_functor.v
+# theories/cont_adj.v
+# theories/atoms.v
+# theories/permutations.v
+# theories/nominal.v
+# theories/fixes.v
+# theories/discrete.v
+# theories/flat.v
+# theories/lam_models.v
+# theories/powerdom.v
+# theories/strict_utils.v
+# theories/finprod.v
+
+# theories/examples/ski.v
+# theories/examples/skiy.v
+# theories/examples/st_lam.v
+# theories/examples/st_lam_fix.v

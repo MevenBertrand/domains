@@ -11,6 +11,7 @@ From smpl Require Export Smpl.
   match goal with
     | H : False |- _ => destruct H
     | H : _ /\ _ |- _ => destruct H
+    | H : exists _, _ |- _ => destruct H
     | H : ~ _ |- False => apply H
   end : core.
 

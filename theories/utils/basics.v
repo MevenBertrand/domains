@@ -69,6 +69,24 @@ Notation "∃! x .. y , P" :=
   (ex (unique (fun x => .. (ex (unique (fun y => P))) ..)))
   (at level 200, x binder, right associativity).
 
+Lemma unique_exists {A : Type} {P : A -> Prop} :
+  (∃! x, P x) -> exists x, P x.
+Proof.
+  intros [] ; unfold unique in *.
+  now eexists.
+Qed.
+
+Lemma unique_exists_unique {A : Type} {P : A -> Prop} x y :
+  (∃! x, P x) ->
+  P x ->
+  P y ->
+  x = y.
+Proof.
+  intros [z [? e]] ?? ; unfold unique in *.
+  transitivity z.
+  all: now erewrite <- e.
+Qed.
+
 Notation "Σ! x .. y , P" := (sig (unique (fun x => .. (sig (unique (fun y => P))) ..)))
   (at level 200, x binder, y binder, right associativity).
 
