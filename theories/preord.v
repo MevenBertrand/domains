@@ -197,7 +197,7 @@ HB.instance Definition _ := _InitPoset.
 
 (**  ** Poset is cartesian *)
 
-Definition prod_ord (A B:PrePreOrder) (x y:A*B):=
+Definition prod_ord (A B:PrePreOrder) (x y:A*B) : Prop :=
   (fst x) ≤ (fst y) /\ (snd x) ≤ (snd y).
 
 Arguments prod_ord _ _ _ _/.
@@ -396,7 +396,8 @@ HB.instance Definition _ := _HasSumsPoset.
 (**  Preorders with decidable ordering *)
 
 #[primitive]HB.mixin Record HasOrdDec T of poset T := {
-  orddec : forall x y:T, Decision (x ≤ y) }.
+  ord_dec : forall x y:T, Decision (x ≤ y)
+}.
 
 #[short(type="DecPoset")]
 HB.structure Definition dec_poset := { T of poset T & HasOrdDec T & HasEqDec T}.
@@ -407,8 +408,8 @@ HB.builders Context P of HasOrdDec P.
 
 Fact ord_dec_eq_dec x y : Decision (x = y :> P).
 Proof.
-  case: (orddec x y) => [hle | hnle].
-  1: case: (orddec y x) => [hle' | hnle].
+  case: (ord_dec x y) => [hle | hnle].
+  1: case: (ord_dec y x) => [hle' | hnle].
   2-3: right => ? ; subst ; apply: hnle ; reflexivity.
   1: by left ; apply: ord_antisym.
 Qed.
@@ -447,54 +448,28 @@ HB.instance Definition _ := _Poset_Concrete.
 
 (** ** Lift *)
 (** The "lift" preorder, which adjoins a new bottom element.
-    The lift construction gives rise to an endofunctor on PREORD.
+    The lift construction gives rise to an endofunctor on preorders.
   *)
 
-Definition lift A := {p : Prop & p -> A}.
-Definition defined {A} (x : lift A) : Prop := projT1 x.
-Definition value {A} (x : lift A) : defined x -> A :=
-  projT2 x.
+Definition lift A := option A.
 
-Definition on_lift {A} (P : A -> Prop) (x : lift A) : Prop :=
-  {p : defined x & P (value x p)}.
-
-Lemma lift_ext {A} (x y : lift A) :
-  forall (f : defined x <-> defined y),
-  (forall p : defined x, value x p = value y (fst f p)) ->
-  x = y.
-Proof.
-  intros f e.
-  destruct x, y ; cbn in *.
-  pose proof (prop_ext f) ; subst.
-  ext.
-  rewrite e.
-  f_equal.
-  ext.
-Qed.
-
-Definition lift_ord (A:PrePreOrder) (x:lift A) (y: lift A) : Prop :=
-  {f : defined x -> defined y & forall p : defined x, value x p = value y (f p)}.
+Definition lift_bot {A} : lift A := None.
 
 HB.instance Definition _ (A:PrePreOrder) :=
-  IsPrePreOrder.Build (lift A) (lift_ord A).
+  IsPrePreOrder.Build (lift A) (option_rel ord).
 
 Definition PrePreOrder_lift (A : PrePreOrder) : PrePreOrder := HB.pack (lift A).
 
 Program Definition _LiftPreOrd (A : PreOrder) := IsPreOrder.Build (lift A) _ _.
 Next Obligation.
   red ; cbn.
-  unshelve eexists.
-  1: exact ssrfun.id.
-  reflexivity.
+  intros [] ; red ; cbn.
+  all: reflexivity.
 Qed.
 Next Obligation.
-  intros ? * [] [].
-  red ; cbn.
-  unshelve eexists.
-  1: refine (ssrfun.comp _ _) ; shelve.
-  intros ; cbn.
-  repeat (match goal with | H : _ |- _ => rewrite H end).
-  reflexivity.
+  intros [] [] [] h1 h2.
+  all: red in h1, h2 |- * ; cbn in * ; try easy.
+  now etransitivity.
 Qed.
 
 HB.instance Definition _ (A : PreOrder) := _LiftPreOrd A.
@@ -503,35 +478,42 @@ Definition PreOrder_lift (A : PreOrder) : PreOrder := HB.pack (lift A).
 
 Program Definition _LiftPoset (A : Poset) := IsPoset.Build (lift A) _.
 Next Obligation.
-  repeat (match goal with | H : _ ≤ _ |- _ => let e := fresh e in destruct H as [? e] end).
-  unshelve eapply lift_ext.
-  1: split ; assumption.
-  intros.
-  cbn.
-  rewrite e.
+  destruct a, b.
+  all: repeat (match goal with | H : _ ≤ _ |- _ => red in H end) ; cbn in *.
+  all: try easy.
   f_equal.
-  ext.
+  now apply ord_antisym.
 Qed.
 
 HB.instance Definition _ (A : Poset) := _LiftPoset A.
 
 Definition Poset_lift (A : Poset) : Poset := HB.pack (lift A).
 
+Program Definition liftup {A : PreOrder} : Monotone A (lift A) :=
+  {|
+      mon_map := Some ;
+      mon_mon := _
+  |}.
+Next Obligation.
+  intros ?? Hl.
+  exact Hl.
+Qed.
+
 (* HB.instance Definition _ := _LiftPreFunctor. *)
 
 Definition liftF_map {A B : PrePreOrder} (f : A -> B) : lift A -> lift B :=
-  fun x => existT _ (defined x) (fun p => f (value x p)).
+  fun x => match x with | None => None | Some x' => Some (f x') end.
 
-Program Definition liftF (A B : PrePreOrder) (f : A -> B) : Monotone (lift A) (lift B) :=
+Program Definition liftF (A B : PrePreOrder) (f : Monotone A B) : Monotone (lift A) (lift B) :=
   {|
       mon_map := liftF_map f ;
       mon_mon := _
   |}.
 Next Obligation.
-  intros ** ?? [fd fv].
-  red ; cbn ; red ; cbn.
-  exists fd.
-  intros ; by rewrite fv.
+  intros ** [] [] h.
+  all: red in h |- * ; cbn in *.
+  all: try easy.
+  now apply mon_mon.
 Qed.
  
 Program Definition _LiftFunctor_PrePreOrder := IsFunctor.Build PrePreOrder PrePreOrder PrePreOrder_lift
@@ -543,7 +525,8 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  by ext.
+  ext ; cbn.
+  destruct x ; reflexivity.
 Qed.
 
 HB.instance Definition _ := _LiftFunctor_PrePreOrder.
@@ -557,7 +540,8 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  by ext.
+  ext.
+  destruct x ; reflexivity.
 Qed.
 
 HB.instance Definition _ := _LiftFunctor_PreOrder.
@@ -571,7 +555,175 @@ Next Obligation.
   destruct x ; reflexivity.
 Qed.
 Next Obligation.
-  by ext.
+  ext.
+  destruct x ; reflexivity.
 Qed.
 
 HB.instance Definition _ := _LiftFunctor_Poset.
+
+
+Lemma lift_dec {A : DecPoset} (x y : lift A) : Decision (x ≤ y).
+Proof.
+  destruct x as [x|], y as [y|].
+  - now destruct (ord_dec x y) ; [left |right].
+  - right.
+    now cbv.
+  - right.
+    now cbv.
+  - now left.
+Qed.
+
+HB.instance Definition _ (A : DecPoset) := HasOrdDec.Build (lift A) lift_dec.
+
+(** ** Partial *)
+(** The "partial" preorder, which classifies partial maps:
+    a function [A -> partial B] is the same as a partial function from [A] to [B].
+    The partial construction gives rise to an endofunctor on preorders.
+  *)
+
+Definition partial A := {p : Prop & p -> A}.
+Definition defined {A} (x : partial A) : Prop := projT1 x.
+Definition value {A} (x : partial A) : defined x -> A :=
+  projT2 x.
+
+Definition partial_bot {A} : partial A := existT _ False (False_rect _).
+
+Definition on_partial {A} (P : A -> Prop) (x : partial A) : Prop :=
+  {p : defined x & P (value x p)}.
+
+Lemma partial_ext {A} (x y : partial A) :
+  forall (f : defined x <-> defined y),
+  (forall p : defined x, value x p = value y (fst f p)) ->
+  x = y.
+Proof.
+  intros f e.
+  destruct x, y ; cbn in *.
+  pose proof (prop_ext f) ; subst.
+  ext.
+  rewrite e.
+  f_equal.
+  ext.
+Qed.
+
+Definition partial_ord (A:PrePreOrder) (x:partial A) (y: partial A) : Prop :=
+  {f : defined x -> defined y & forall p : defined x, value x p ≤ value y (f p)}.
+
+HB.instance Definition _ (A:PrePreOrder) :=
+  IsPrePreOrder.Build (partial A) (partial_ord A).
+
+Definition PrePreOrder_partial (A : PrePreOrder) : PrePreOrder := HB.pack (partial A).
+
+Program Definition _PartialPreOrd (A : PreOrder) := IsPreOrder.Build (partial A) _ _.
+Next Obligation.
+  red ; cbn.
+  unshelve eexists.
+  1: exact ssrfun.id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros ? * [] [].
+  red ; cbn.
+  unshelve eexists.
+  1: refine (ssrfun.comp _ _) ; shelve.
+  intros ; cbn.
+  etransitivity ; eauto.
+Qed.
+
+HB.instance Definition _ (A : PreOrder) := _PartialPreOrd A.
+
+Definition PreOrder_partial (A : PreOrder) : PreOrder := HB.pack (partial A).
+
+Program Definition _PartialPoset (A : Poset) := IsPoset.Build (partial A) _.
+Next Obligation.
+  repeat (match goal with | H : _ ≤ _ |- _ => let e := fresh e in destruct H as [? e] end).
+  unshelve eapply partial_ext.
+  1: split ; assumption.
+  intros.
+  cbn.
+  apply ord_antisym.
+  - etransitivity.
+    1: eauto.
+    apply rrefl.
+    f_equal.
+    ext.
+  - etransitivity.
+    1: eauto.
+    apply rrefl.
+    f_equal.
+    ext.
+Qed.
+
+HB.instance Definition _ (A : Poset) := _PartialPoset A.
+
+Definition Poset_partial (A : Poset) : Poset := HB.pack (partial A).
+
+Program Definition partialup {A : PreOrder} : Monotone A (partial A) :=
+  {|
+      mon_map := fun x => existT _ True (fun _ => x) ;
+      mon_mon := _
+  |}.
+Next Obligation.
+  intros ?? Hl.
+  red ; cbn ; red ; cbn.
+  now exists idfun.
+Qed.
+
+(* HB.instance Definition _ := _PartialPreFunctor. *)
+
+Definition partialF_map {A B : PrePreOrder} (f : A -> B) : partial A -> partial B :=
+  fun x => existT _ (defined x) (fun p => f (value x p)).
+
+Program Definition partialF (A B : PrePreOrder) (f : Monotone A B) : Monotone (partial A) (partial B) :=
+  {|
+      mon_map := partialF_map f ;
+      mon_mon := _
+  |}.
+Next Obligation.
+  intros ** ?? [fd fv].
+  red ; cbn ; red ; cbn.
+  exists fd.
+  intros.
+  now apply mon_mon.
+Qed.
+ 
+Program Definition _PartialFunctor_PrePreOrder := IsFunctor.Build PrePreOrder PrePreOrder PrePreOrder_partial
+  partialF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
+Qed.
+Next Obligation.
+  by ext.
+Qed.
+
+HB.instance Definition _ := _PartialFunctor_PrePreOrder.
+ 
+Program Definition _PartialFunctor_PreOrder := IsFunctor.Build PreOrder PreOrder PreOrder_partial
+  partialF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
+Qed.
+Next Obligation.
+  by ext.
+Qed.
+
+HB.instance Definition _ := _PartialFunctor_PreOrder.
+ 
+Program Definition _PartialFunctor_Poset := IsFunctor.Build Poset Poset Poset_partial
+  partialF _ _.
+Next Obligation.
+  cbn.
+  intros.
+  ext.
+  destruct x ; reflexivity.
+Qed.
+Next Obligation.
+  by ext.
+Qed.
+
+HB.instance Definition _ := _PartialFunctor_Poset.

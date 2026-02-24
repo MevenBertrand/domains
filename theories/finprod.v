@@ -1432,7 +1432,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
           forall m : finprod ls avd, m ∈ M -> m i' ≤ codom_elem n r)
          (Hdec i' n)
          (erel_image X (ty (lookup i' ls))
-            {| orddec := eff_ord_dec X (PLT.effective X) |}
+            {| ord_dec := eff_ord_dec X (PLT.effective X) |}
             (PLT.hom_rel (f i' n)) x))).
       exists x2. rewrite H3. auto.
       rewrite esubset_dec_elem in H5.
@@ -1459,7 +1459,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
           forall m : finprod ls avd, m ∈ M -> m i ≤ codom_elem n r)
          (Hdec i n)
          (erel_image X (ty (lookup i ls))
-            {| orddec := eff_ord_dec X (PLT.effective X) |}
+            {| ord_dec := eff_ord_dec X (PLT.effective X) |}
             (PLT.hom_rel (f i n)) x))).
       exists x1. rewrite H1. auto.
       rewrite esubset_dec_elem in H3.
@@ -1497,7 +1497,7 @@ Module finprod (FI:FINPROD_INPUT) <: FINPROD.
 
           assert (forall i' (Hnin':~In i' avd),
             einhabited (erel_image X (ty (lookup i' ls))
-              {| orddec := eff_ord_dec X (PLT.effective X) |}
+              {| ord_dec := eff_ord_dec X (PLT.effective X) |}
               (PLT.hom_rel (f i' Hnin')) c)).
           intros. apply member_inhabited.
           destruct (PLT.hom_directed _ _ _ (f i' Hnin') c nil) as [q [??]]; auto.

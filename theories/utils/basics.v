@@ -1,8 +1,10 @@
 (** * Domains.Basics: basic definitions *)
-From Stdlib Require Import Morphisms Relations RelationClasses ssreflect.
+From Stdlib Require Import ssreflect Morphisms Relations RelationClasses.
 From smpl Require Export Smpl.
 From HB Require Import structures.
 Require Import notations tactics.
+
+Open Scope general_if_scope.
 
 (** ** Equalities *)
 
@@ -58,6 +60,12 @@ Proof. move=>ab fg; split; move=>[x H]; (unshelve eexists; [apply ab, x|eapply f
 Lemma iffT_hyp {A A' B}: (iffT A A') -> (A' -> B) -> A -> B.
 Proof. move=>[+ _]; auto. Qed.
 *)
+
+Lemma rrefl {A} {R : relation A} `{Reflexive _ R} (x y : A) : x = y -> R x y.
+Proof.
+  intros ->.
+  reflexivity.
+Qed.
 
 (** ** Unique existence *)
 
@@ -115,9 +123,16 @@ Proof.
   destruct h ; [right|left] ; eauto.
 Qed.
 
+Lemma dec_Some {A P} {Hdec : forall x, Decision (P x)} (a x : A) :
+  ((if Hdec a then (Some a) else None) = Some x) <-> (x = a) /\ P a.
+Proof.
+  split.
+  all: destruct (Hdec a) ; intuition (eauto ; congruence).
+Qed.
+
 (** Decidable equality *)
 
-HB.mixin Record HasEqDec (T:Type) := {eqdec : forall x y:T, Decision (x = y)}.
+HB.mixin Record HasEqDec (T:Type) := {#[canonical=no]eqdec : forall x y:T, Decision (x = y)}.
 
 #[short(type="EqTy"),primitive]
 HB.structure Definition eqTy := {T of HasEqDec T}.
@@ -157,6 +172,23 @@ Instance Proper_some {A} (R : relation A) : Proper (R ==> option_rel R) Some.
 Proof.
   now cbv.
 Qed.
+
+Lemma option_map_some A B (f : A -> B) (a : option A) (b : B) :
+  (option_map f a = Some b) ->
+  exists a', a = Some a' /\ b = f a'.
+Proof.
+ destruct a ; cbn.
+ 2: congruence.
+ intros [= <-].
+ now eexists.
+Qed.
+
+Definition option_bind {A B} (f : A -> option B) : option A -> option B :=
+  fun x =>
+  match x with
+  | None => None
+  | Some a => f a
+  end.
 
 (** Unit *)
 

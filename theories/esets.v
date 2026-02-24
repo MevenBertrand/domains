@@ -15,25 +15,6 @@ Require Import utils.all nat_isos categories.all preord sets finsets.
        in pairing.
   *)
 
-(* TODO move *)
-
-Lemma option_map_some A B (f : A -> B) (a : option A) (b : B) :
-  (option_map f a = Some b) ->
-  exists a', a = Some a' /\ b = f a'.
-Proof.
- destruct a ; cbn.
- 2: congruence.
- intros [= <-].
- now eexists.
-Qed.
-
-Definition option_bind {A B} (f : A -> option B) : option A -> option B :=
-  fun x =>
-  match x with
-  | None => None
-  | Some a => f a
-  end.
-
 Definition fun_member {A} (a : A) (X: nat -> option A) :=
   exists n, X n = Some a.
 
@@ -501,7 +482,7 @@ Qed.
 Definition eprod {A B}: eset A -> eset B -> eset (A*B) :=
   quot_map2 fun_prod.
 
-Lemma eprodP {A} (P Q : eset A) x : (x ∈ eprod P Q) <-> (fst x ∈ P) /\ (snd x ∈ Q).
+Lemma eprodP {A B} (P : eset A) (Q : eset B) x : (x ∈ eprod P Q) <-> (fst x ∈ P) /\ (snd x ∈ Q).
 Proof.
   induction P as [f] using quot_ind.
   induction Q as [g] using quot_ind.
@@ -710,7 +691,7 @@ Qed.
   *)
 Class SemiDec (P:Prop) :=
   { decset : eset unit
-  ; decset_correct : tt ∈ decset <-> P
+  ; decsetP : tt ∈ decset <-> P
   }.
 
 Arguments decset _ {_}.
@@ -718,36 +699,36 @@ Arguments decset _ {_}.
 (**  Decidable predicates are semidecidable.
   *)
 #[refine]Instance dec_semidec P `{!Decision P} : SemiDec P :=
-  {| decset := (if (decide P) then single tt else eempty) ; decset_correct := _ |}.
+  {| decset := (if (decide P) then single tt else eempty) ; decsetP := _ |}.
 Proof.
   destruct (decide P).
   all: rewrite ?singleP ?eemptyP ; intuition.
 Qed.
 
 #[refine]Instance semidec_true : SemiDec True
-  := {| decset := (single tt) ; decset_correct := _ |}.
+  := {| decset := (single tt) ; decsetP := _ |}.
 Proof.
   rewrite singleP ; intuition.
 Qed.
 
 #[refine]Instance semidec_false : SemiDec False
-  := {| decset := eempty ; decset_correct := _ |}.
+  := {| decset := eempty ; decsetP := _ |}.
 Proof.
   now rewrite eemptyP.
 Qed.
 
 #[refine]Instance semidec_disj (P Q:Prop) `{HP : SemiDec P} `{HQ : SemiDec Q}
   : SemiDec (P \/ Q)
-  := {| decset := (eunion2 (decset P) (decset Q)) ; decset_correct := _|}.
+  := {| decset := (eunion2 (decset P) (decset Q)) ; decsetP := _|}.
 Proof.
-  now rewrite eunion2P !decset_correct.
+  now rewrite eunion2P !decsetP.
 Qed.
 
 #[refine]Instance semidec_conj (P Q:Prop) `{HP : SemiDec P} `{HQ : SemiDec Q}
   : SemiDec (P /\ Q)
-  := {| decset := (einter2 (decset P) (decset Q)) ; decset_correct := _|}.
+  := {| decset := (einter2 (decset P) (decset Q)) ; decsetP := _|}.
 Proof.
-  now rewrite einter2P !decset_correct.
+  now rewrite einter2P !decsetP.
 Qed.
 
 (* unnecessary by propext *)
@@ -756,7 +737,7 @@ Qed.
   SemiDec P -> SemiDec Q. *)
 
 #[refine]Instance semidec_in {A : EqTy} (X:eset A) x : SemiDec (x ∈ X) :=
-  {| decset := image (fun=> tt) (einter2 X (single x)) ; decset_correct := _|}.
+  {| decset := image (fun=> tt) (einter2 X (single x)) ; decsetP := _|}.
 Proof.
   rewrite imageP.
   split.
@@ -773,7 +754,7 @@ Qed.
   {|
     decset :=
       image (fun=> tt) (finter (esingle tt) (image (fun a => decset (P a)) X)) ;
-    decset_correct := _
+    decsetP := _
   |}.
 Proof.
   rewrite imageP.
@@ -781,37 +762,36 @@ Proof.
   setoid_rewrite imageP.
   split.
   - intros ([]&[_ H]&_) a Hin.
-    apply decset_correct, H.
+    apply decsetP, H.
     now eexists.
   - intros.
     exists tt.
     repeat split.
     1: now rewrite singleP.
     intros ? (?&[]) ; subst.
-    now apply decset_correct.
+    now apply decsetP.
 Qed.
 
-#[refine]Instance semidec_ex {A : EqTy} (X:finset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
+#[refine]Instance semidec_ex {A : EqTy} (X:eset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
   SemiDec (exists a : A, a ∈ X /\ P a) :=
   {|
     decset :=
-      image (fun=> tt) (union (fset_eset (image (fun a => decset (P a)) X))) ;
-    decset_correct := _
+      image (fun=> tt) (union (image (fun a => decset (P a)) X)) ;
+    decsetP := _
   |}.
 Proof.
   rewrite imageP.
   setoid_rewrite unionP.
-  setoid_rewrite fset_esetP.
   setoid_rewrite imageP.
   split.
   - intros ([]&(?&(?&?&?)&?)&_) ; subst.
     eexists ; split ; tea.
-    now apply decset_correct.
+    now apply decsetP.
   - intros (?&[]).
     exists tt.
     repeat split.
     eexists ; split ; eauto.
-    now apply decset_correct.
+    now apply decsetP.
 Qed.
 
 (** It is enough to have a *semi-decidable* proposition
@@ -831,7 +811,7 @@ Proof.
     rewrite imageP in Him.
     destruct Him as ([]&?&<-).
     split ; [easy|].
-    now apply decset_correct.
+    now apply decsetP.
   - intros [].
     exists (single x).
     split.
@@ -842,7 +822,7 @@ Proof.
     split.
     + intros ->.
       exists tt.
-      now rewrite decset_correct.
+      now rewrite decsetP.
     + now intros ([]&?&?).
 Qed.
 

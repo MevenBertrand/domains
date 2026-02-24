@@ -36,38 +36,74 @@ Delimit Scope set_scope with set.
        have yet to discover it.
   *)
 
-#[primitive] HB.mixin Record IsPreBaseSetTheory (set : Type -> Type) := {
-  member {A : Type} : A -> set A -> Prop ;
+#[primitive] HB.mixin Record IsBaseSetTheory (set : Poset -> Type) := {
+  member {A : Poset} : A -> set A -> Prop ;
+  _set_ext T (X Y : set T) : (forall t, member t X <-> member t Y) -> X = Y ;
   }.
 
-#[short(type="PreBaseSetTheory"),primitive]
-HB.structure Definition prebasesettheory :=
-  { set & IsPreBaseSetTheory set }.
+#[short(type="BaseSetTheory"),primitive]
+HB.structure Definition basesettheory :=
+  { set & IsBaseSetTheory set }.
 
 Arguments member {set _} : simpl never, rename.
 Notation "x ∈ X" := (member x (X)%set) : set_scope.
 Notation "x ∉ X"  := (not (member x (X)%set)) : set_scope.
 
-#[primitive] HB.mixin Record IsBaseSetTheory set of prebasesettheory set :=
-  {
-    set_ext T (X Y : set T) : (forall t, member t X <-> member t Y) -> X = Y ;
-  }.
+Lemma set_ext (set : BaseSetTheory)
+(A : Poset) (X Y : set A) :
+  (forall t : A, t ∈ X <-> t ∈ Y) -> X = Y.
+Proof.
+  apply _set_ext.
+Qed.
 
-#[short(type="BaseSetTheory"),primitive]
-HB.structure Definition basesettheory := { set of prebasesettheory set & IsBaseSetTheory set }.
+Smpl Add (apply: set_ext) : extensionality.
 
-Smpl Add (apply: @set_ext) : extensionality.
+Definition incl {set set' : BaseSetTheory} {A : Poset} (X : set A) (Y : set' A) :=
+  forall a, a ∈ X -> a ∈ Y.
 
-#[primitive] HB.mixin Record IsPreSetTheory set of prebasesettheory set := {
+Notation "X ⊆ Y" := (incl (X)%set (Y)%set) : set_scope.
+
+HB.instance Definition _ (set : BaseSetTheory) (A : Poset) :=
+  IsPrePreOrder.Build (set A) (@incl set set A).
+
+Program Definition _SetPreOrder (set : BaseSetTheory) (A : Poset) :=
+  IsPreOrder.Build (set A) _ _.
+Next Obligation.
+  now cbv.
+Qed.
+Next Obligation.
+  red.
+  now rewrite /ord /= /incl /=.
+Qed.
+
+HB.instance Definition _ (set : BaseSetTheory) (A : Poset) := _SetPreOrder set A.
+
+Program Definition _SetPoset (set : BaseSetTheory) (A : Poset) :=
+  IsPoset.Build (set A) _.
+Next Obligation.
+  rewrite /ord /= /incl /=.
+  ext.
+  red in H, H0 ; cbn in *.
+  red in H, H0 ; cbn in *.
+  split.
+  - now intros ?%H.
+  - now intros ?%H0.
+Qed.
+
+HB.instance Definition _ (set : BaseSetTheory) (A : Poset) : IsPoset (set A) := _SetPoset set A.
+
+Notation set_pack set A := (basesettheory.sort set A) (only parsing).
+
+#[primitive] HB.mixin Record IsPreSetTheory set of basesettheory set := {
   (* empty (A : Type) : set A ; *)
-  single {A : Type} : A -> set A ;
-  image {A B : Type} (f : A -> B) : set A -> set B ;
-  union {A : Type} : set (set A) -> set A ;
+  single {A : Poset} : A -> set A ;
+  image {A B : Poset} (f : A -> B) : set A -> set B ;
+  union {A : Poset} : set (set_pack set A) -> set A ;
   }.
 
 #[short(type="PreSetTheory"),primitive]
 HB.structure Definition presettheory :=
-  { set of prebasesettheory set & IsPreSetTheory set }.
+  { set of basesettheory set & IsPreSetTheory set }.
 
 (* Arguments empty {set _} : rename. *)
 Arguments single {set _} : rename.
@@ -80,18 +116,18 @@ Notation "∪ XS" := (union (XS)%set) : set_scope.
 #[primitive] HB.mixin Record IsSetTheory set of presettheory set :=
   {
     (* emptyP T (x : T) : (x ∈ empty (set := set)) <-> False ; *)
-    singleP T (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
-    imageP (A B : Type) (f : A -> B) (P : (set A)) (y : B) :
+    singleP (T : Poset) (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
+    imageP (A B : Poset) (f : A -> B) (P : (set A)) (y : B) :
       y ∈ (image f P) <-> exists x, x ∈ P /\ y = f x ;
-    unionP T (xs : (set (set T))) (a : T) :
-      a ∈ (∪ xs) <-> exists x : (set T), x ∈ xs /\ a ∈ x
+    unionP (T : Poset) (xs : (set (set_pack set T))) (a : T) :
+      a ∈ (∪ xs) <-> exists x : (set_pack set T), x ∈ xs /\ a ∈ x
   }.
 
 #[short(type="SetTheory"),primitive]
 HB.structure Definition settheory :=
   { set of basesettheory set & IsPreSetTheory set & IsSetTheory set }.
 
-Lemma image_compose (set : SetTheory) A B C (f:A -> B) (g:B -> C) (X: set A) (c:C) :
+Lemma image_compose (set : SetTheory) (A B C : Poset) (f:A -> B) (g:B -> C) (X: set A) (c:C) :
   c ∈ (image (g \o f) X) <-> c ∈ (image g (image f X)).
 Proof.
   rewrite !imageP.
@@ -106,48 +142,50 @@ Proof.
     now exists x ; split.
 Qed.
 
-Lemma image_fun (set : SetTheory) A B (f:A -> B) (X: set A) (x : A) :
+Lemma image_fun (set : SetTheory) (A B : Poset) (f:A -> B) (X: set A) (x : A) :
   x ∈ X -> f x ∈ image f X.
 Proof.
   now rewrite !imageP.
 Qed.
 
-Definition incl {set set' : BaseSetTheory} {A : Type} (X : set A) (Y : set' A) :=
-  forall a, a ∈ X -> a ∈ Y.
-
-Notation "X ⊆ Y" := (incl (X)%set (Y)%set) : set_scope.
-
-HB.instance Definition _ (set : BaseSetTheory) (A : Type) :=
-  IsPrePreOrder.Build (set A) (@incl set set A).
-  
-Program Definition _SetPreOrder (set : BaseSetTheory) (A : Type) :=
-  IsPreOrder.Build (set A) _ _.
-Next Obligation.
-  now cbv.
-Qed.
-Next Obligation.
-  red.
-  now rewrite /ord /= /incl /=.
+Lemma single_incl {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :
+  (single (set := set) a) ⊆ X <-> a ∈ X.
+Proof.
+  rewrite /incl.
+  setoid_rewrite singleP.
+  intuition (subst ; auto).
 Qed.
 
-HB.instance Definition _ (set : BaseSetTheory) (A : Type) := _SetPreOrder set A.
-
-Program Definition _SetPoset (set : SetTheory) (A : Type) :=
-  IsPoset.Build ((set :> BaseSetTheory) A) _.
-Next Obligation.
-  rewrite /ord /= /incl /=.
-  apply set_ext.
-  ext.
-  now split.
+Lemma image_incl {set : SetTheory} {A B : Poset} (X : set A) (Y : set B) (f : A -> B) :
+  image f X ⊆ Y <-> forall x, x ∈ X -> (f x) ∈ Y.
+Proof.
+  rewrite /incl.
+  setoid_rewrite imageP.
+  split.
+  - intros h ? ?.
+    apply h.
+    now eexists.
+  - now intros ? ? (?&?&->).
 Qed.
 
-HB.instance Definition _ (set : SetTheory) (A : Type) := _SetPoset set A.
+(* Lemma union_incl {set : SetTheory} {A} (X : set (set A)) (Y : set A) :
+  union X ⊆ Y <-> forall x, x ∈ X -> x ⊆ Y.
+Proof.
+  rewrite /incl.
+  setoid_rewrite unionP.
+  split.
+  - intros h **.
+    apply h.
+    now eexists.
+  - intros ? ? (?&?&?).
+    eauto.
+Qed. *)
 
 (** ** Decidablitiy *)
 
 (**  A set has a [set_dec] if set membership is decidable. *)
 
-Record set_dec (set : BaseSetTheory) (A:Type) :=
+Record set_dec (set : BaseSetTheory) (A:Poset) :=
   Setdec
   { setdec :> forall (x:A) (X:set A), { x ∈ X } + { x ∉ X } }.
 
@@ -188,7 +226,6 @@ Definition greatest_lower_bound {set : BaseSetTheory} {A : Poset}
   lower_bound glb X /\
   (forall b, lower_bound b X -> b ≤ glb).
 
-
 (**  ** Colored sets *)
 
 (**
@@ -201,16 +238,16 @@ Definition greatest_lower_bound {set : BaseSetTheory} {A : Poset}
      image (under a monotone function) of a colored set is again colored.
   *)
 
-Record color {set : PreSetTheory} :=
+Record color {set : SetTheory} :=
   Color
-  { color_prop : forall (A : Type) (X : set A), Prop
-  ; color_single : forall (A : Type) (a:A),
+  { color_prop : forall (A : Poset) (X : set A), Prop
+  ; color_single : forall (A : Poset) (a:A),
         color_prop A (single a)
-  ; color_image : forall (A B : Type) (f:A -> B) (X : set A),
+  ; color_image : forall (A B : Poset) (f:A -> B) (X : set A),
         color_prop A X -> color_prop B (image f X)
-  ; color_union : forall (A : Type) (XS:set (set A)),
-        color_prop (set A) XS ->
-        (forall X : set A, X ∈ XS -> color_prop A X) ->
+  ; color_union : forall (A : Poset) (XS:set (set_pack set A)),
+        color_prop (set_pack set A) XS ->
+        (forall X : (set_pack set A), X ∈ XS -> color_prop A X) ->
         color_prop A (∪XS)
   }.
 
@@ -260,24 +297,38 @@ Qed.
 Section ColoredSets.
   Context {set : SetTheory} (C:color set).
 
-  Definition colored_sets : Type -> Type :=
-    fun A => { X : set A | color_prop C X }.
+  Definition colored_sets : Poset -> Type :=
+    fun A => { X : set A | color_prop C X }.  
 
   Definition cmember A a (X:colored_sets A) := a ∈ proj1_sig X.
 
+  Program Definition _BaseColoredSets :=
+    IsBaseSetTheory.Build colored_sets cmember _.
+  Next Obligation.
+    destruct X as [X], Y as [Y].
+    enough (X = Y) as -> by (f_equal ; ext).
+    now apply set_ext.
+  Qed.
+
+  HB.instance Definition _ := _BaseColoredSets.
+
   Definition csingle A a : colored_sets A := exist _ (single a) (color_single C A a).
 
-  Definition cimage (A B:Type) (f:A -> B) (X : colored_sets A) :=
+  Definition cimage (A B:Poset) (f:A -> B) (X : colored_sets A) :=
     exist _ (image f (proj1_sig X))
             (color_image C A B f (proj1_sig X) (proj2_sig X)).
 
-  Program Definition cunion (A : Type) (XS : colored_sets (colored_sets A)) : colored_sets A :=
-    exist (color_prop C) (∪ (image sval (projT1 XS))) _.
+  Program Definition cunion
+    (A : Poset) (XS : colored_sets (set_pack colored_sets A)) : colored_sets A :=
+    exist (color_prop C) _ _.
   Next Obligation.
-    intros.
-    cbn.
+    refine (∪ (image (A := (set_pack colored_sets A)) (B := (set_pack set A)) sval (projT1 XS))).
+  Defined.
+  Next Obligation.
+    unfold cunion_obligation_1.
     apply color_union.
-    - apply color_image, proj2_sig.
+    - apply: color_image.
+      apply: proj2_sig.
     - intros ? Hin.
       apply imageP in Hin as [? [? ->]].
       apply proj2_sig.
@@ -288,23 +339,10 @@ End ColoredSets.
 Arguments cmember _ _ _/.
 Arguments csingle _ _ /.
 Arguments cimage _ _ _ _/.
-Arguments cunion _ _/.
-
-HB.instance Definition _ (set : SetTheory) (c : color set) :=
-  IsPreBaseSetTheory.Build (colored_sets c) (cmember c).
+(* Arguments cunion _ _/. *)
 
 HB.instance Definition _ (set : SetTheory) (c : color set) :=
   IsPreSetTheory.Build (colored_sets c) (csingle c) (cimage c) (cunion c).
-
-Program Definition _BaseColoredSets (set : SetTheory) (c : color set) :=
-  IsBaseSetTheory.Build (colored_sets c) _.
-Next Obligation.
-  destruct X as [X], Y as [Y].
-  enough (X = Y) as -> by (f_equal ; ext).
-  now apply set_ext.
-Qed.
-
-HB.instance Definition _ (set : SetTheory) (c : color set) := _BaseColoredSets set c.
 
 Program Definition _ColoredSets (set : SetTheory) (c : color set) :=
   IsSetTheory.Build (colored_sets c) _ _ _.
@@ -329,7 +367,8 @@ Next Obligation.
   - destruct H as [X [??]].
     exists (proj1_sig X).
     split; auto.
-    now apply imageP.
+    apply imageP.
+    now cbn.
 Qed.
 
 HB.instance Definition _ (set : SetTheory) (c : color set) := _ColoredSets set c.

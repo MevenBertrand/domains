@@ -18,13 +18,13 @@ theories/categories/all.v
 theories/preord.v
 theories/sets.v
 theories/finsets.v
-theories/esets.v
-theories/sets_choice.v
+# theories/esets.v
+# theories/sets_choice.v
 
 # theories/effective.v
+# theories/directed.v
 # theories/plotkin.v
 # theories/cusl.v
-# theories/directed.v
 # theories/cont_functors.v
 # theories/cpo.v
 # theories/joinable.v

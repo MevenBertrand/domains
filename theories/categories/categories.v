@@ -75,7 +75,7 @@ Arguments compoA {_ _ _ _ _}.
     carrierF (g ∘ f) = fun x => (carrierF g (carrierF f x))
 }.
 
-#[short(type="Concrete"),primitive]
+#[short(type="ConcreteCat"),primitive]
 HB.structure Definition concretecat := { T of precat T & IsConcrete T}.
 
 Arguments carrierF {_ _ _} _ _.
