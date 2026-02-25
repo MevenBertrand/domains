@@ -98,9 +98,9 @@ Smpl Add (apply: mon_ext_pos ; cbn) : extensionality. *)
 Section Monotone.
   Context {C D E : PrePreOrder}.
 
-  Definition mon_id : Monotone C C := {| mon_map := ssrfun.id ; mon_mon := fun _ _ h => h |}.
+  Definition id_mon : Monotone C C := {| mon_map := ssrfun.id ; mon_mon := fun _ _ h => h |}.
 
-  Program Definition mon_comp (g : Monotone D E) (f : Monotone C D) : Monotone C E :=
+  Program Definition comp_mon (g : Monotone D E) (f : Monotone C D) : Monotone C E :=
     {| mon_map := ssrfun.comp g f ; mon_mon := _ |}.
   Next Obligation.
     destruct g as [? Hg], f as [? Hf] ; cbn.
@@ -111,20 +111,21 @@ Section Monotone.
 End Monotone.
 
 HB.instance Definition _ := IsPreCat.Build PrePreOrder
-  (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+  (fun _ => id_mon) (fun _ _ _ f g => comp_mon g f).
 Definition _PrePreOrd_Cat : IsCat PrePreOrder :=
   IsCat.Build PrePreOrder ltac:(by ext) ltac:(by ext) ltac:(by ext).
 HB.instance Definition _ := _PrePreOrd_Cat.
 
 HB.instance Definition _ := IsPreCat.Build PreOrder
-  (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+  (fun _ => id_mon) (fun _ _ _ f g => comp_mon g f).
 Definition _PreOrd_Cat : IsCat PreOrder :=
   IsCat.Build PreOrder ltac:(by ext) ltac:(by ext) ltac:(by ext).
 HB.instance Definition _ := _PreOrd_Cat.
 
-HB.instance Definition _ := IsPreCat.Build Poset (fun _ => mon_id) (fun _ _ _ f g => mon_comp g f).
+HB.instance Definition _ := IsPreCat.Build Poset (fun _ => id_mon) (fun _ _ _ f g => comp_mon g f).
 Definition _Poset_Cat : IsCat Poset := IsCat.Build Poset ltac:(by ext) ltac:(by ext) ltac:(by ext).
 HB.instance Definition _ := _Poset_Cat.
+
 
 (**  This lemma is handy for using an equality in the context to prove a goal
      by transitivity on both sides.
@@ -166,6 +167,14 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ := _TermPoset.
+
+(** *** Constant monotone function *)
+
+
+Program Definition const_mon {C D : Poset} (d : D) : Monotone C D := {| mon_map := fun=> d |}.
+Next Obligation.
+  red ; reflexivity.
+Qed.
 
 (** ** Poset is initialised. *)
 
@@ -429,6 +438,34 @@ Qed.
 
 HB.instance Definition _ := HasOrdDec.Build unit unit_dec.
 
+Program Definition _ProdDec (A B : DecPoset) := HasOrdDec.Build (A*B) _.
+Next Obligation.
+  destruct (ord_dec s1 s).
+  2: right ; intros [] ; now cbn in *.
+  destruct (ord_dec s2 s0).
+  2: right ; intros [] ; now cbn in *.
+  left.
+  now red ; cbn.
+Qed.
+
+HB.instance Definition _ (A B : DecPoset) := _ProdDec A B.
+
+Program Definition _SumDec (A B : DecPoset) := HasOrdDec.Build (A+B) _.
+Next Obligation.
+  destruct x as [a|b], y as [a'|b'].
+  2,3: right ; now cbv.
+  - destruct (ord_dec a a').
+    2: right ; now cbv.
+    left.
+    assumption.
+  - destruct (ord_dec b b').
+    2: right ; now cbv.
+    left.
+    assumption.
+Qed.
+
+HB.instance Definition _ (A B : DecPoset) := _SumDec A B.
+
 (** ** Concreteness *)
 
 Program Definition _PrePreOrder_Concrete := 
@@ -487,7 +524,7 @@ Qed.
 
 HB.instance Definition _ (A : Poset) := _LiftPoset A.
 
-Definition Poset_lift (A : Poset) : Poset := HB.pack (lift A).
+Definition Poset_lift (A : Poset) : Poset := (lift A).
 
 Program Definition liftup {A : PreOrder} : Monotone A (lift A) :=
   {|

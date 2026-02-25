@@ -11,22 +11,13 @@ Require Import utils.all categories.all preord sets finsets esets.
   members of the preorder are enumerable.
   *)
 
-#[primitive]HB.mixin Record IsPreEnum (T : Type) := {
+#[primitive]HB.mixin Record IsEnum T of poset T := {
   enum : eset T ;
-}.
-
-#[short(type="PreEnum")]
-HB.structure Definition pre_enum := { T of IsPreEnum T }.
-
-#[primitive]HB.mixin Record IsEnum T of pre_enum T := {
   enumP : forall x : T, x ∈ enum ;
 }.
 
-#[short(type="EnumTy")]
-HB.structure Definition enum_ty := { T of IsPreEnum T & IsEnum T }.
-
 #[short(type="EffPoset")]
-HB.structure Definition eff_poset := { T of dec_poset T & enum_ty T}.
+HB.structure Definition eff_poset := { T of dec_poset T & IsEnum T}.
 
 (** ** Decidability *)
 
@@ -40,9 +31,7 @@ Qed.
 
 (** *** Natural numbers *)
 
-HB.instance Definition _ := IsPreEnum.Build nat (efun (fun n => Some n)).
-
-Program Definition _NatEnum := IsEnum.Build nat _.
+Program Definition _NatEnum := IsEnum.Build nat (efun (fun n => Some n)) _.
 Next Obligation.
   apply esetP.
   now eexists.
@@ -52,9 +41,7 @@ HB.instance Definition _ := _NatEnum.
 
 (** *** Terminal preorder *)
 
-HB.instance Definition _ := IsPreEnum.Build unit (single tt).
-
-Program Definition _EffUnit := IsEnum.Build unit _.
+Program Definition _EffUnit := IsEnum.Build unit (single tt) _.
 Next Obligation.
   rewrite singleP.
   ext.
@@ -64,22 +51,18 @@ HB.instance Definition _ := _EffUnit.
 
 (** *** Binary product *)
 
-HB.instance Definition _ (A B : PreEnum) := IsPreEnum.Build (A*B) (eprod enum enum).
-
-Program Definition _ProdEnum (A B:EnumTy) := IsEnum.Build (A*B) _.
+Program Definition _ProdEnum (A B:EffPoset) := IsEnum.Build (A*B) (eprod enum enum) _.
 Next Obligation.
   rewrite eprodP /=.
   split.
   all: apply enumP.
 Qed.
 
-HB.instance Definition _ (A B : EnumTy) := _ProdEnum A B.
+HB.instance Definition _ (A B : EffPoset) := _ProdEnum A B.
 
 (** *** Coproduct *)
 
-HB.instance Definition _ (A B : PreEnum) := IsPreEnum.Build (A+B) (esum enum enum).
-
-Program Definition _SumEnum (A B:EnumTy) := IsEnum.Build (A+B) _.
+Program Definition _SumEnum (A B:EffPoset) := IsEnum.Build (A+B) (esum enum enum) _.
 Next Obligation.
   destruct x.
   - rewrite esum_leftP.
@@ -88,15 +71,12 @@ Next Obligation.
     apply enumP. 
 Qed.
 
-HB.instance Definition _ (A B : EnumTy) := _SumEnum A B.
+HB.instance Definition _ (A B : EffPoset) := _SumEnum A B.
 
 (** *** Lift *)
 
-HB.instance Definition _ (A : EffPoset) :=
-  IsPreEnum.Build (lift A)
-    (eunion2 (single lift_bot) (image liftup enum)).
-
-Program Definition _LiftEnum (A : EffPoset) := IsEnum.Build (lift A) _.
+Program Definition _LiftEnum (A : EffPoset) :=
+  IsEnum.Build (lift A) (eunion2 (single lift_bot) (image liftup enum)) _.
 Next Obligation.
   rewrite eunion2P imageP singleP.
   destruct x ; cbn.

@@ -3,7 +3,7 @@ From Stdlib Require Import Arith Arith.Cantor ssreflect ssrfun List
   Relations Classes.RelationClasses Classes.Morphisms Lia.
 From HB Require Import structures.
 
-Require Import utils.all nat_isos categories.all preord sets finsets esets.
+Require Import utils.all nat_isos categories.all preord sets finsets esets colsets.
 
 Instance True_Equiv A : Equivalence (fun (_ _ : A) => True).
 Proof.
@@ -42,38 +42,40 @@ Smpl Add (apply squash_ext) : extensionality.
     specified, we will however be able to upgrade this to a proper element.
 
   *)
+
+
+(** Here we define inhabitedness of an enumerable set as an inductive
+    predicate with a single constructor.  This enables us to define
+    a constructive choice function on inhabited enumerable sets.
+  *)
+Inductive inhabited_ind {A} (P : nat -> option A) : Prop :=
+  | inhS : ((P 0 = None) -> inhabited_ind (P \o S)) -> inhabited_ind P.
+
+Lemma inhabited_indP {A: Type} (P : nat -> option A) : inhabited_ind P <-> (exists a, fun_member a P).
+Proof.
+  split.
+  - rewrite /fun_member.
+    intros Hin.
+    induction Hin as [? ? IHHin].
+    destruct (P 0) eqn: e.
+    1: now do 2 eexists.
+    destruct IHHin as (?&?&?) ; [easy|].
+    now do 2 eexists.
+  - intros [a [n H]].
+    induction n in P, H |- * ; econstructor ; solve [congruence|eauto].
+Qed.
+
+Instance Proper_inh {A} : Proper (funset_ext A ==> eq) inhabited_ind.
+Proof.
+  intros ?? e.
+  ext.
+  rewrite !inhabited_indP.
+  rewrite /funset_ext in e.
+  now setoid_rewrite e.
+Qed.
+
 Section CountableID.
-  Context {A:Type}.
-
-  (** Here we define inhabitedness of an enumerable set as an inductive
-      predicate with a single constructor.  This enables us to define
-      a constructive choice function on inhabited enumerable sets.
-    *)
-  Inductive inhabited_ind (P : nat -> option A) : Prop :=
-    | inhS : ((P 0 = None) -> inhabited_ind (P \o S)) -> inhabited_ind P.
-
-  Lemma inhabited_indP P : inhabited_ind P <-> (exists a, fun_member a P).
-  Proof.
-    split.
-    - rewrite /fun_member.
-      intros Hin.
-      induction Hin as [? ? IHHin].
-      destruct (P 0) eqn: e.
-      1: now do 2 eexists.
-      destruct IHHin as (?&?&?) ; [easy|].
-      now do 2 eexists.
-    - intros [a [n H]].
-      induction n in P, H |- * ; econstructor ; solve [congruence|eauto].
-  Qed.
-
-  Instance Proper_inh : Proper (funset_ext A ==> eq) inhabited_ind.
-  Proof.
-    intros ?? e.
-    ext.
-    rewrite !inhabited_indP.
-    rewrite /funset_ext in e.
-    now setoid_rewrite e.
-  Qed.
+  Context {A:Poset}.
 
   Definition einhabited : eset A -> Prop :=
     quot_rec inhabited_ind.
@@ -140,9 +142,10 @@ Section CountableID.
     rewrite einhabitedP.
     reflexivity.
   Qed.
+  
 End CountableID.
 
-Theorem countable_indefinite_description {A:Type} (X:eset A) :
+Theorem countable_indefinite_description {A:Poset} (X:eset A) :
   (exists x:A, x ∈ X) -> ∥ { x:A | x ∈ X } ∥.
 Proof.
   intros.
@@ -150,7 +153,7 @@ Proof.
   assumption.
 Qed.
 
-Theorem countable_definite_description {A:Type} (X:eset A) :
+Theorem countable_definite_description {A:Poset} (X:eset A) :
   (exists x:A, x ∈ X) ->
   (forall x y, x ∈ X -> y ∈ X -> x = y) ->
   { x:A | x ∈ X }.
@@ -186,7 +189,7 @@ Qed.
      countable choice is not provable in Coq.
   *)
 
-Theorem weak_countable_choice {A : EqTy} {B : Type} (R:erel A B) :
+Theorem weak_countable_choice {A : DecPoset} {B : Poset} (R:erel A B) :
   (forall a : A, ∃! (b : B), (a,b) ∈ R) ->
   { f:A -> B | forall a, (a, f a) ∈ R }.
 Proof.

@@ -30,9 +30,9 @@ Proof.
     all: first [now apply H | now apply H'].
 Qed.
 
-Definition finset (A : Poset) : Type := quot (list_ext A).
+Definition ffinset (A : Poset) : Type := quot (list_ext A).
 
-Definition finlist {A : Poset} (l : list A) : finset A := to_quot l.
+Definition ffinlist {A : Poset} (l : list A) : ffinset A := to_quot l.
 
 Instance Proper_In {A : Poset} (a : A) : Proper (list_ext A ==> eq) (In a).
 Proof.
@@ -40,18 +40,17 @@ Proof.
   intros ; now ext.
 Qed.
 
-Definition fmember {A : Poset} (a : A) : (finset A) -> Prop := quot_rec (In a).
+Definition fmember {A : Poset} (a : A) : (ffinset A) -> Prop := quot_rec (In a).
 
 Lemma ffinsetP {A : Poset} (a : A) (l : list A) :
-  fmember a (finlist l) <-> In a l.
+  fmember a (ffinlist l) <-> In a l.
 Proof.
   by rewrite /fmember quot_rec_eq.
 Qed.
 
-Lemma finset_ext {A : Poset} (f f' : finset A) :
-  (forall x, fmember x f <-> fmember x f') ->
-  f = f'.
+Lemma finset_ext : IsExtMem ffinset (@fmember).
 Proof.
+  intros A f f'.
   induction f as [l] using quot_ind.
   induction f' as [l'] using quot_ind.
   intros H.
@@ -60,17 +59,20 @@ Proof.
   by rewrite <- !ffinsetP.
 Qed.
 
-HB.instance Definition _ := IsBaseSetTheory.Build finset (@fmember) (@finset_ext).
+Definition finset : Poset -> Poset :=
+  promote_set ffinset (@fmember) finset_ext.
+
+HB.instance Definition _ : IsBaseSetTheory.axioms_ finset :=
+  SetIncl ffinset (@fmember) finset_ext.
+
+Definition finlist {A : Poset} (l : list A) : finset A := ffinlist l.
 
 Lemma finsetP {A : Poset} (X : list A) (x : A) : x ∈ (finlist X) <-> In x X.
 Proof.
   apply ffinsetP.
 Qed.
 
-Lemma fmember_fold {A : Poset} (x : A) X : fmember x X <-> x ∈ X.
-Proof.
-  reflexivity.
-Qed.
+#[global]Opaque finset.
 
 (** ** Finite sets form a set theory *)
 
@@ -164,7 +166,7 @@ Lemma funion2_incl {A} {set : SetTheory} (X X' : finset A) (Y : set A) :
 Proof.
   rewrite /incl.
   setoid_rewrite funion2P.
-  firstorder.
+  intuition.
 Qed.
 
 Fixpoint fconcat {A : Poset} (XS : list (finset A)) : finset A :=
@@ -199,7 +201,7 @@ Proof.
   now setoid_rewrite H.
 Qed.
 
-Definition funion {A : Poset} (XS : finset (set_pack finset A)) : finset A :=
+Definition funion {A : Poset} (XS : finset (finset A)) : finset A :=
   quot_rec fconcat XS.
 
 Lemma funionP {A : Poset} XS (a : A) :
@@ -276,21 +278,48 @@ Proof.
   now rewrite finsetP /= -finsetP fconsP.
 Qed.
 
+Lemma fcons_incl {A : Poset} {set : SetTheory} (X : finset A) (a : A) (Y : set A) :
+  fcons a X ⊆ Y <-> a ∈ Y /\ X ⊆ Y.
+Proof.
+  rewrite /incl.
+  setoid_rewrite fconsP.
+  intuition (subst ; auto).
+Qed.
+ 
+Program Definition fcons_mon {A : Poset} (x : A) : (finset A) → (finset A) :=
+  {| mon_map := fcons x |}.
+Next Obligation.
+  intros Y Z Hincl.
+  rewrite !set_leP in Hincl |- *.
+  intros ?.
+  rewrite !fconsP.
+  intuition eauto.
+Qed.
 
 (** *** Induction *)
 
 (** Remains of an attempt at an induction principle for finite sets, but
   the relevant version is too hard. The irrelevant version about, though,
   works fine. *)
-Class Commutative {A : Type} {B : Type} (op : A -> A -> B) := comm : forall x y, op x y = op y x.
+Class Commutative {A : Type} {B : Type} (op : A -> A -> B) :=
+  comm : forall x y, op x y = op y x.
 
 Global Hint Mode Commutative ! ! ! : typeclass_instances.
 
-Class CommutativeDep {A : Type} {B : Type} {PA : A -> Type} {PB : B -> Type}
-  (op : A -> A -> B) `{! Commutative op}
-  (op_dep : forall (x y : A), PA x -> PA y -> PB (op x y)) :=
-  comm_dep : forall x y p q,
-    (transport PB (comm x y) (op_dep x y p q)) = op_dep y x q p :> PB (op y x).
+Class Idempotent {A : Type} (op : A -> A -> A) :=
+  idem : forall x, op x x = x.
+
+Lemma finset_rec {A : Poset} (P : Type)
+  (base : P)
+  (into : A -> P)
+  (rec : P -> P -> P)
+  `{! Commutative rec} 
+  `{! Idempotent rec} :
+  finset A -> P.
+Proof.
+  unshelve eapply quot_rec.
+  1: exact (fold_right (fun a => (rec (into a))) base).
+Admitted.
 
 Instance funion2_comm {A} : Commutative (@funion2 A).
 Proof.
@@ -462,12 +491,12 @@ Proof.
 Qed.
 
 Definition finsum {A B:Poset} (P:finset A) (Q:finset B) : finset (A + B) :=
-  funion2 (image inl P) (image inr Q).
+  funion2 (image ι₁ P) (image ι₂ Q).
 
 Lemma finsum_left_elem A B (P:finset A) (Q:finset B) a : 
   inl a ∈ finsum P Q <-> a ∈ P.
 Proof.
-  rewrite /finsum funion2P !imageP.
+  rewrite /finsum funion2P !imageP /=.
   split.
   - intros [[? [? [= ->]]]|[? []]] ; intuition congruence.
   - intros.
@@ -477,7 +506,7 @@ Qed.
 Lemma finsum_right_elem A B (P:finset A) (Q:finset B) b :
   inr b ∈ finsum P Q <-> b ∈ Q.
 Proof.
-  rewrite /finsum funion2P !imageP.
+  rewrite /finsum funion2P !imageP /=.
   split.
   - intros [[? []]|[? [? [= ->]]]] ; intuition congruence.
   - intros.
@@ -548,13 +577,13 @@ End FinEqDec.
 (**  We can take the powerset of a finite set; that is, all finite
      subsets of a finite set.
   *)
-Fixpoint fpow_list {A:Poset} (l:list A) : finset (set_pack finset A) :=
+
+Fixpoint fpow_list {A:Poset} (l:list A) : finset (finset A) :=
   match l with
-  | nil => single (A := set_pack finset A) fempty
+  | nil => single (A := finset A) fempty
   | x :: xs =>
        let pow := fpow_list xs in
-          funion2 pow (image (A := set_pack finset A) (B := set_pack finset A)
-            (funion2 (single x)) pow)
+          funion2 pow (image (fcons_mon x) pow)
   end.
 
 Lemma member_fcons {A : Poset} (a : A) M x :
@@ -564,10 +593,10 @@ Proof.
   intuition.
 Qed.
 
-Lemma fpow_list_sound {A : Poset} (M : list A) (X: set_pack finset A) :
+Lemma fpow_list_sound {A : Poset} (M : list A) (X: finset A) :
   X ∈ fpow_list M -> X ⊆ (finlist M).
 Proof.
-  induction M in X |- * ; cbn -[member].
+  induction M in X |- * ; cbn.
   - rewrite fsingleP => -> ? /femptyP //.
   - move => /funion2P [|] /=.
     + move => /IHM hincl ? /hincl.
@@ -576,8 +605,8 @@ Proof.
       all: now rewrite member_fcons.
 Qed.
 
-Lemma fpow_list_complete (A : DecPoset) (M : list A) (X:set_pack finset A) :
-  X ⊆ (to_quot M :> finset A) -> X ∈ fpow_list M.
+Lemma fpow_list_complete (A : DecPoset) (M : list A) (X: finset A) :
+  X ⊆ finlist M -> X ∈ fpow_list M.
 Proof.
   induction M in X |- * ; cbn.
   - move => /incl_fempty ->.
@@ -608,14 +637,16 @@ Proof.
   intros ?? ?.
   ext.
   split => /fpow_list_sound.
-  all: rewrite /finlist ; erewrite quot_ext ; [|solve [easy|now symmetry]].
-  all: apply fpow_list_complete.
+  all: rewrite /incl ; setoid_rewrite finsetP ; intros.
+  all: apply fpow_list_complete ; rewrite /incl => *.
+  all: rewrite finsetP.
+  all: now apply H.
 Qed.
 
-Definition fpow {A : DecPoset} : finset A -> finset (set_pack finset A) :=
+Definition fpow {A : DecPoset} : finset A -> finset (finset A) :=
   quot_rec fpow_list.
 
-Lemma fpowP {A : DecPoset} (X Y : set_pack finset A) : Y ∈ fpow X <-> Y ⊆ X.
+Lemma fpowP {A : DecPoset} (X Y : finset A) : Y ∈ fpow X <-> Y ⊆ X.
 Proof.
   induction X using quot_ind.
   rewrite /fpow quot_rec_eq.
@@ -673,7 +704,7 @@ Proof.
 Qed.
 
 Lemma finsubset_dec {A : DecPoset}
-  (P:(set_pack finset A) -> Prop)
+  (P:(finset A) -> Prop)
   `{ Hdec : forall x:finset A, Decision (P x)}
   (M:finset A) :
     { exists X:finset A, X ⊆ M /\ P X} +
@@ -690,7 +721,7 @@ Proof.
 Qed.
 
 Lemma finsubset_dec' {A : DecPoset}
-  (P:set_pack finset A -> Prop)
+  (P:finset A -> Prop)
   `{ Hdec : forall x:finset A, Decision (P x)}
   (M:finset A) :
     { exists X:finset A, X ⊆ M /\ ~ P X} +
@@ -799,7 +830,7 @@ Proof.
     rewrite finsetP /=.
     intros [->|] => //.
     now apply hincl, finsetP.
-  - now rewrite -/(finlist (_::_)) fcons_cons.
+  - now rewrite -fcons_cons in hinv'.
   - intros q'.
     rewrite /x' filterP /= hM'.
     intuition.
