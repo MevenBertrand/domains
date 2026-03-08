@@ -21,7 +21,8 @@ Instance inh_dec A hf (X:finset A) : Decision (inh hf X).
 Proof.
   destruct hf; simpl; auto.
   2: now left.
-  apply (quot_rect_dec (P := fun (X : finset A) => exists x : A, x ∈ X)).
+  pattern X ; apply quot_rect_irr.
+  2: typeclasses eauto.
   clear X.
   intros [|a].
   - right. intros [? H]. by rewrite finsetP /= in H.
@@ -132,7 +133,7 @@ Qed.
   *)
 Definition directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :=
   forall (M:finset A) (Hinh:inh hf M),
-    M ⊆ X -> exists x, upper_bound x M /\ x ∈ X.
+    M ⊆ X -> ∃ x ∈ X, upper_bound x M.
 
 (**  To prove a set X is directed, it suffices (and is necessary)
      that every pair of elements in X has an upper bound in X; and that
@@ -140,7 +141,7 @@ Definition directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :=
   *)
 Lemma prove_directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :
   (if hf then True else exists x, x ∈ X) ->
-  (forall x y, x ∈ X -> y ∈ X -> exists z, x ≤ z /\ y ≤ z /\ z ∈ X) ->
+  (∀ x ∈ X, ∀ y ∈ X, exists z, x ≤ z /\ y ≤ z /\ z ∈ X) ->
   directed hf X.
 Proof.
   intros Hinh Hsup M.
@@ -174,7 +175,8 @@ Proof.
     all: intros h.
     all: rewrite funion2_incl single_incl in h.
     all: destruct IHM as (x&?&?) ; eauto.
-    all: destruct (Hsup a x) as (x'&?&?) ; eauto.
+    all: unfold set_ex.
+    all: destruct (Hsup a ltac:(eauto) x) as (x'&?&?) ; eauto.
     all: exists x'.
     all: split ; eauto.
     all: rewrite /upper_bound.
@@ -189,20 +191,20 @@ Qed.
 Program Definition directed_hf_cl {set : SetTheory} (hf:bool) : color set :=
   {| color_prop := fun A X => directed hf X |}.
 Next Obligation.
-  intros ? _ Hincl.
+  intros ? ? Hincl.
   exists a.
   rewrite incl_single in Hincl.
   rewrite /upper_bound singleP.
-  split ; [|easy].
-  now intros ? ->%Hincl.
+  split ; [easy|].
+  intros ; now apply rrefl.
 Qed.
 Next Obligation.
   intros ? ? Hincl.
   destruct (finset_sub_image _ _ _ Hincl) as [M' [??]] ; subst.
-  destruct (H M') as [x [Hub ?]]; auto.
+  destruct (H M') as [x [? Hub]]; auto.
   1: now rewrite inh_image.
   exists (f x); split; auto.
-  2: now apply imageP.
+  1: now apply imageP.
   intros ?.
   rewrite imageP.
   intros (x'&?&->).
@@ -211,20 +213,20 @@ Qed.
 Next Obligation.
   apply prove_directed.
   - destruct hf ; auto ; cbn in *.
-    destruct (H fempty) as (X&?&Hin); cbn.
+    destruct (H fempty) as (X&Hin&?); cbn.
     1-2: eauto using fempty_incl.
     specialize (H0 _ Hin).
     destruct (H0 fempty) as (x&?&?) ; cbn.
     1-2: eauto using fempty_incl.
     exists x.
     now rewrite unionP.
-  - intros x y  [X1 [??]]%unionP [X2 [??]]%unionP.
-    destruct (H (fcons X1 (fcons X2 fempty))) as [X [HXub HXin]]; auto.
+  - intros x [X1 [??]]%unionP y [X2 [??]]%unionP.
+    destruct (H (fcons X1 (fcons X2 fempty))) as [X [HXin HXub]]; auto.
     + apply elem_inh with X1; auto.
       now rewrite !fconsP.
     + rewrite !fcons_incl.
       auto using fempty_incl.
-    + destruct (H0 X HXin (fcons x (fcons y fempty))) as [z [Hzub ?]]; auto.
+    + destruct (H0 X HXin (fcons x (fcons y fempty))) as [z [? Hzub]]; auto.
       * eapply elem_inh; auto.
         now rewrite fconsP.
       * intros z.
@@ -249,66 +251,13 @@ Definition directed_cl {set : SetTheory} := directed_hf_cl (set := set) false.
      is an effective, directed preorder.
   *)
 
-Fixpoint list_max (l : list nat) :=
-  match l with
-  | nil => 0
-  | cons a l' => max a (list_max l')
-  end.
-
-Lemma list_lub l : least_upper_bound (list_max l) (finlist l).
-Proof.
-  rewrite /least_upper_bound /upper_bound /ord ; cbn. 
-  induction l.
-  - cbn.
-    split ; intros.
-    2: lia.
-    exfalso.
-    now rewrite finsetP /= in H.
-  - cbn ; split.
-    + intros x.
-      rewrite finsetP /= -finsetP.
-      intros [->| ].
-      1: lia.
-      etransitivity.
-      1: now apply IHl.
-      lia.
-    + intros b Hle.
-      apply Nat.max_lub.
-      * specialize (Hle a).
-        now rewrite finsetP /= in Hle.
-      * apply IHl.
-        intros ? Hin.
-        apply Hle.
-        now rewrite !finsetP in Hin |- * ; cbn.
-Qed.
-
-Lemma exist_ext {A B} (p q : {x : A | B x}) :
-  sval p = sval q -> p = q.
-Proof.
-  intros e.
-  destruct p as [? b], q as [? b'] ; cbn in *.
-  assert (b' = transport _ e b) as -> by ext.
-  destruct e ; cbn.
-  reflexivity.
-Qed.
-
-Smpl Add apply exist_ext : extensionality.
-
 Program Definition _NatDirected := IsDirected.Build nat _.
 Next Obligation.
-  pattern M.
-  unshelve eapply quot_rect.
-  1: exact (fun l => exist _ (list_max l) (proj1 (list_lub l))).
-  - cbn.
-    intros l l' e.
-    ext ; cbn.
-    destruct (quot_ext _ _ _) ; cbn.
-    assert (finlist l = finlist l') as e' by (now ext).
-    apply ord_antisym.
-    all: apply list_lub.
-    1: rewrite e'.
-    2: rewrite -e'.
-    all: apply list_lub.
+  eexists (finset_lub 0 Nat.max _ _ _ _ M).
+  apply finset_lub_lub.
+  Unshelve.
+  all: rewrite /= /ord /=.
+  all: lia.
 Qed.
 
 HB.instance Definition _ := _NatDirected.

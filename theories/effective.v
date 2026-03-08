@@ -22,9 +22,9 @@ HB.structure Definition eff_poset := { T of dec_poset T & IsEnum T}.
 (** ** Decidability *)
 
 #[deprecated(note="use finset_in_dec directly")]Lemma
-  eff_in_dec {A:EffPoset} (M:finset A) (x:A) : { x ∈ M } + { x ∉ M }.
+  eff_in_dec {A:EffPoset} (M:finset A) (x:A) : Decision (x ∈ M).
 Proof.
-  intros. apply finset_in_dec.
+  intros. apply: finset_in_dec.
 Qed.
 
 (** ** Instances *)
@@ -93,10 +93,10 @@ HB.instance Definition _ (A : EffPoset) := _LiftEnum A.
 
 Lemma semidec_eff (A:Type) (B : EffPoset) (P:A -> B -> Prop)
   `{forall a b, SemiDec (P a b)} a :
-  SemiDec (@ex B (P a)).
+  SemiDec (ex (P a)).
 Proof.
-  replace (exists y, _) with (exists y, y ∈ enum /\ P a y).
-  1: apply: semidec_ex.
+  replace (exists y, _) with (∃ y ∈ enum, P a y).
+  1: typeclasses eauto.
   ext.
   split ; intros [] ; repeat eexists ; eauto.
   now apply: enumP.

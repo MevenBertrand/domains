@@ -748,14 +748,9 @@ Proof.
   now rewrite einter2P !decsetP.
 Qed.
 
-(* unnecessary by propext *)
-(* Lemma semidec_iff (P Q:Prop) :
-  (P <-> Q) ->
-  SemiDec P -> SemiDec Q. *)
-
-#[refine]Instance semidec_in {A : DecPoset} (X:eset A) x : SemiDec (x ∈ X) :=
+Program Definition semidec_in {A : DecPoset} (X:eset A) x : SemiDec (x ∈ X) :=
   {| decset := image (const_mon tt) (einter2 X (single x)) ; decsetP := _|}.
-Proof.
+Next Obligation.
   rewrite imageP.
   split.
   - intros [? [Hin _]].
@@ -766,8 +761,10 @@ Proof.
     now rewrite einter2P singleP.
 Qed.
 
+Hint Extern 100 (SemiDec (_ ∈ _)) => (apply: semidec_in) : typeclass_instances. 
+
 #[refine]Instance semidec_all {A : DecPoset} (X:finset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
-  SemiDec (forall a : A, a ∈ X -> P a) :=
+  SemiDec (∀ a ∈ X, P a) :=
   {|
     decset :=
       image (const_mon tt) (finter (esingle tt)
@@ -791,7 +788,7 @@ Proof.
 Qed.
 
 #[refine]Instance semidec_ex {A : DecPoset} (X:eset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
-  SemiDec (exists a : A, a ∈ X /\ P a) :=
+  SemiDec (∃ a ∈ X, P a) :=
   {|
     decset :=
       image (const_mon tt) (union (eimage (fun a => decset (P a)) X)) ;

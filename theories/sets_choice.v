@@ -155,7 +155,7 @@ Qed.
 
 Theorem countable_definite_description {A:Poset} (X:eset A) :
   (exists x:A, x ∈ X) ->
-  (forall x y, x ∈ X -> y ∈ X -> x = y) ->
+  (∀ x ∈ X, ∀ y ∈ X, x = y) ->
   { x:A | x ∈ X }.
 Proof.
   intros ? Hunique.
@@ -200,7 +200,8 @@ Proof.
     + setoid_rewrite erel_imageP.
       edestruct H ; unfold unique in *.
       now eexists.
-    + setoid_rewrite erel_imageP.
+    + unfold set_all.
+      setoid_rewrite erel_imageP.
       intros.
       eapply unique_exists_unique.
       1: apply H.

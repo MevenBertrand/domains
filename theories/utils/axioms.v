@@ -1,6 +1,6 @@
 (** * Domains.Axioms: Axioms for the development *)
 
-Require Import basics tactics ssreflect ssrfun.
+Require Import basics tactics ssreflect ssrfun decision.
 
 (** R. Donkins' original development was all done using explicit setoids, incurring a
   high complexity overhead. We take a different approach to setoids, which is to use them
@@ -43,6 +43,30 @@ Export PropExtProofIrr.
 
 Smpl Add (apply proof_irrelevance) : extensionality.
 
+Instance Prop_ProofIrrel (P : Prop) : ProofIrrel P.
+Proof.
+  red. ext.
+Qed.
+
+(** Consequences: extensionality at other types *)
+Lemma sumbool_excluded_ext (P Q : Prop): ~ (P /\ Q) -> ProofIrrel ({P} + {Q}).
+Proof.
+  intros ? [] [].
+  all: try solve [exfalso ; intuition].
+  all: f_equal ; ext.
+Qed.
+
+Instance decision_ext P : ProofIrrel (Decision P).
+Proof.
+  apply sumbool_excluded_ext.
+  intuition.
+Qed.
+
+Corollary eqdec_refl {A : EqTy} (x : A) : eqdec x x = left eq_refl.
+Proof.
+  ext.
+Qed.
+
 (** ** Function extensionality *)
 (** Corresponds to the definition of function setoids. *)
 From Stdlib Require Export FunctionalExtensionality.
@@ -64,6 +88,25 @@ Proof.
   - now intros ->. 
 Qed.
 
+(** ** More extensionality *)
+
+Lemma exist_ext {A B} (p q : {x : A | B x}) :
+  proj1_sig p = proj1_sig q -> p = q.
+Proof.
+  intros e.
+  destruct p as [? b], q as [? b'] ; cbn in *.
+  assert (b' = transport _ e b) as -> by ext.
+  destruct e ; cbn.
+  reflexivity.
+Qed.
+
+Smpl Add apply exist_ext : extensionality.
+
+Instance ProofIrrel_prod T (P : T -> Type) `{forall (x : T), ProofIrrel (P x)} : ProofIrrel (forall x : T, P x).
+Proof.
+  intros ??.
+  ext.
+Qed.
 
 (** ** Quotients *)
 
@@ -124,17 +167,21 @@ Proof.
   by rewrite /quot_rec quot_rect_eq.
 Qed.
 
-Lemma quot_ind : forall {T : Type} {R : relation T} `{! Equivalence R},
-  forall (P : quot R -> Prop)
-  (f : forall (t : T), P (to_quot t)),
-  forall u : quot R, P u.
-Proof.
-  intros.
-  unshelve eapply quot_rect.
-  1: assumption.
-  intros.
-  ext.
+Program Definition quot_rect_irr {T : Type} {R : relation T} `{! Equivalence R}
+  (P : quot R -> Type)
+  (f : forall (t : T), P (to_quot t))
+  `{p : forall (t : T), ProofIrrel (P (to_quot t))} :
+  forall u : quot R, P u :=
+    quot_rect P f _.
+Next Obligation.
+  apply p.
 Qed.
+
+Definition quot_ind {T : Type} {R : relation T} `{! Equivalence R}
+  (P : quot R -> Prop)
+  (f : forall (t : T), P (to_quot t)) :
+  forall u : quot R, P u :=
+    quot_rect_irr P f.
 
 Instance to_quot_proper
   {A : Type} {RA : relation A} `{! Equivalence RA}
@@ -217,7 +264,6 @@ Proof.
   now rewrite !quot_rec_eq.
 Qed.
 
-
 (** *** Countable choice *)
 
 (** Quotients can always be "pushed" below a function *)
@@ -242,46 +288,3 @@ Axiom pull_quot_nat : forall {B : Type} {R : relation B} `{! Equivalence R},
 
 Axiom pull_quot_nat_eq : forall {B : Type} {R : relation B} `{! Equivalence R}
   (f : nat -> quot R), eval_quot (pull_quot_nat f) = f.
-
-(** ** Decisions *)
-
-(** Extensionality *)
-Lemma sumbool_excluded_ext (P Q : Prop) (p p' : {P} + {Q}) : ~ (P /\ Q) -> p = p'.
-Proof.
-  intros ?.
-  destruct p, p'.
-  all: try solve [exfalso ; intuition].
-  all: f_equal ; ext.
-Qed.
-
-Lemma decision_ext P (p p' : Decision P) : p = p'.
-Proof.
-  apply sumbool_excluded_ext.
-  intuition.
-Qed.
-
-Smpl Add (apply decision_ext) : extensionality.
-
-Corollary eqdec_refl {A : EqTy} (x : A) : eqdec x x = left eq_refl.
-Proof.
-  ext.
-Qed.
-
-(** Special recursions *)
-Definition quot_rect_sumbool {T : Type} {R : relation T} `{! Equivalence R} {P Q : quot R -> Prop}
-  (f : forall t : T, {P (to_quot t)} + {Q (to_quot t)})
-  (e : forall x, ~ (P (to_quot x) /\ Q (to_quot x))) :
-  forall u : quot R, {P u} + {Q u}.
-Proof.
-  eapply (quot_rect _ f).
-  intros.
-  now apply sumbool_excluded_ext.
-Qed.
-
-Definition quot_rect_dec {T : Type} {R : relation T} `{! Equivalence R} {P : quot R -> Prop}
-  (f : forall t : T, Decision (P (to_quot t))) :
-  forall u : quot R, Decision (P u).
-Proof.
-  apply quot_rect_sumbool ; tea.
-  intuition.
-Qed.

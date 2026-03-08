@@ -66,14 +66,39 @@ Qed.
 
 Smpl Add (apply: set_ext) : extensionality.
 
+
+(** *** Set quantifiers *)
+
+Definition set_ex {set : BaseSetTheory} {A : Poset} (P : A -> Prop) (X : set A) :=
+  exists x, x ∈ X /\ P x.
+
+Notation "∃ x ∈ M , P" := (set_ex (fun x => P) M)
+  (at level 10, x binder, M at level 200, P at level 200) : type_scope.
+
+Definition set_all {set : BaseSetTheory} {A : Poset} (P : A -> Prop) (X : set A) :=
+  forall x, x ∈ X -> P x.
+
+Notation "∀ x ∈ M , P" := (set_all (fun x => P) M)
+  (at level 10, x binder, M at level 200, P at level 200) : type_scope.
+
+(** *** Inclusion *)
+
 Definition incl {set set' : BaseSetTheory} {A : Poset} (X : set A) (Y : set' A) :=
-  forall a, a ∈ X -> a ∈ Y.
+  ∀ a ∈ X, a ∈ Y.
 
 Notation "X ⊆ Y" := (incl (X)%set (Y)%set) : set_scope.
 
 Lemma le_incl {set : BaseSetTheory} {A : Poset} (X Y : set A) : X ≤ Y <-> X ⊆ Y.
 Proof.
   by rewrite set_leP /incl.
+Qed.
+
+Instance incl_poset {set : BaseSetTheory} (A : Poset) :
+  RelationClasses.PreOrder (A := set A) incl.
+Proof.
+  split.
+  all: red ; cbn.
+  all: now rewrite /incl /set_all.
 Qed.
 
 (** We can always build a "canonical" set theory by using inclusion as the preorder *)
@@ -160,16 +185,17 @@ Proof.
     now exists x ; split.
 Qed.
 
-Lemma image_fun (set : SetTheory) (A B : Poset) (f:A → B) (X: set A) (x : A) :
-  x ∈ X -> f x ∈ image f X.
+Lemma image_fun (set : SetTheory) (A B : Poset) (f:A → B) (X: set A) :
+  ∀ x ∈ X, f x ∈ image f X.
 Proof.
+  intros ??.
   now rewrite !imageP.
 Qed.
 
 Lemma single_incl {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :
   (single (set := set) a) ⊆ X <-> a ∈ X.
 Proof.
-  rewrite /incl.
+  rewrite /incl /set_all.
   setoid_rewrite singleP.
   intuition (subst ; auto).
 Qed.
@@ -177,15 +203,15 @@ Qed.
 Lemma incl_single {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :
   X ⊆ (single (set := set) a) <-> forall x, x ∈ X -> x = a.
 Proof.
-  rewrite /incl.
+  rewrite /incl /set_all.
   setoid_rewrite singleP.
   intuition (subst ; auto).
 Qed.
 
 Lemma image_incl {set set' : SetTheory} {A B : Poset} (X : set A) (Y : set' B) (f : A → B) :
-  image f X ⊆ Y <-> forall x, x ∈ X -> (f x) ∈ Y.
+  image f X ⊆ Y <-> ∀ x ∈ X, (f x) ∈ Y.
 Proof.
-  rewrite /incl.
+  rewrite /incl /set_all.
   setoid_rewrite imageP.
   split.
   - intros h ? ?.
@@ -195,9 +221,9 @@ Proof.
 Qed.
 
 Lemma union_incl {set : SetTheory} {A} (X : set (set A)) (Y : set A) :
-  union X ⊆ Y <-> forall x, x ∈ X -> x ⊆ Y.
+  union X ⊆ Y <-> ∀ x ∈ X, x ⊆ Y.
 Proof.
-  rewrite /incl.
+  rewrite /incl /set_all.
   setoid_rewrite unionP.
   split.
   - intros h **.
@@ -206,14 +232,6 @@ Proof.
   - intros ? ? (?&?&?).
     eauto.
 Qed.
-
-(** ** Decidablitiy *)
-
-(**  A set has a [set_dec] if set membership is decidable. *)
-
-Record set_dec (set : BaseSetTheory) (A:Poset) :=
-  Setdec
-  { setdec :> forall (x:A) (X:set A), { x ∈ X } + { x ∉ X } }.
 
 (** ** General notions mixing order and set theory *)
 
@@ -250,3 +268,12 @@ Definition greatest_lower_bound {set : BaseSetTheory} {A : Poset}
   (glb:A) (X : set A) :=
   lower_bound glb X /\
   (forall b, lower_bound b X -> b ≤ glb).
+
+Lemma lub_unique {set : BaseSetTheory} {A : Poset} (lub lub':A) (X : set A) :
+  least_upper_bound lub X -> least_upper_bound lub' X -> lub = lub'.
+Proof.
+  intros H H'.
+  apply ord_antisym.
+  - apply H, H'.
+  - apply H', H.
+Qed.

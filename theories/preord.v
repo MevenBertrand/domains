@@ -429,6 +429,7 @@ HB.end.
 
 HB.instance Definition _ := HasOrdDec.Build nat le_dec.
 
+Hint Extern 100 (Decision (_ ≤ _)) => (apply: ord_dec) : typeclass_instances. 
 
 Lemma unit_dec (x y : unit) : Decision (x ≤ y).
 Proof.
@@ -438,17 +439,7 @@ Qed.
 
 HB.instance Definition _ := HasOrdDec.Build unit unit_dec.
 
-Program Definition _ProdDec (A B : DecPoset) := HasOrdDec.Build (A*B) _.
-Next Obligation.
-  destruct (ord_dec s1 s).
-  2: right ; intros [] ; now cbn in *.
-  destruct (ord_dec s2 s0).
-  2: right ; intros [] ; now cbn in *.
-  left.
-  now red ; cbn.
-Qed.
-
-HB.instance Definition _ (A B : DecPoset) := _ProdDec A B.
+HB.instance Definition _ (A B : DecPoset) := HasOrdDec.Build (A*B) _.
 
 Program Definition _SumDec (A B : DecPoset) := HasOrdDec.Build (A+B) _.
 Next Obligation.

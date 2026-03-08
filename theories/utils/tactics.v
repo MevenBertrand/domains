@@ -4,6 +4,11 @@ From smpl Require Export Smpl.
 
 (** ** Hints *)
 
+(** Solves the following issue: [Hint Extern]'s patterns only match syntactically:
+  contrarily to the standard [Instances] it does not try to reduce at all before
+  matching. *)
+Hint Extern 500 => (progress (cbn beta delta zeta iota)) : typeclass_instances.
+
 #[global]Hint Unfold notT: core.
 #[global] Hint Resolve eq_refl eq_sym : core.
 #[global] Hint Constructors and : core. 
@@ -55,10 +60,3 @@ Smpl Create extensionality.
 Ltac ext := intros ; repeat (smpl extensionality ; intros).
 
 Smpl Add (ltac2:(constr_ext ())) : extensionality.
-
-Lemma unit_ext p q : p = q :> unit.
-Proof.
-  destruct p, q ; reflexivity.
-Qed.
-
-Smpl Add (apply unit_ext) : extensionality.

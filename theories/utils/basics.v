@@ -1,4 +1,4 @@
-(** * Domains.Basics: basic definitions *)
+(** * domains.basics: basic definitions *)
 From Stdlib Require Import ssreflect Morphisms Relations RelationClasses.
 From smpl Require Export Smpl.
 From HB Require Import structures.
@@ -112,35 +112,12 @@ Proof.
   move=>PQ p q. apply unique_unique, PQ, unique_prop.
 Qed.
 
-(** ** Decidable predicates *)
+(** ** H-propositions *)
 
-Class Decision (P : Prop) := decide : {P} + {~P}.
-Global Hint Mode Decision ! : typeclass_instances.
-Global Arguments decide _ {_} : simpl never, assert.
+Class ProofIrrel (T : Type) := proof_irrel : forall x y : T, x = y.
+Global Hint Mode ProofIrrel ! : typeclass_instances.
 
-Instance Decision_neg P `{h : Decision P} : Decision (~ P).
-Proof.
-  destruct h ; [right|left] ; eauto.
-Qed.
-
-Lemma dec_Some {A P} {Hdec : forall x, Decision (P x)} (a x : A) :
-  ((if Hdec a then (Some a) else None) = Some x) <-> (x = a) /\ P a.
-Proof.
-  split.
-  all: destruct (Hdec a) ; intuition (eauto ; congruence).
-Qed.
-
-(** Decidable equality *)
-
-HB.mixin Record HasEqDec (T:Type) := {#[canonical=no]eqdec : forall x y:T, Decision (x = y)}.
-
-#[short(type="EqTy"),primitive]
-HB.structure Definition eqTy := {T of HasEqDec T}.
-
-Instance EqTyDec (A : EqTy) x y : Decision (x = y :> A).
-Proof.
-  apply eqdec.
-Qed.
+Smpl Add 200 (apply proof_irrel) : extensionality.
 
 (** Option *)
 
