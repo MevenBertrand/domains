@@ -9,6 +9,7 @@
 Reserved Notation "x ≈ y" (at level 70).
 Reserved Notation "x ≉ y" (at level 70).
 Reserved Notation "x ≤ y" (at level 70).
+Reserved Notation "x < y" (at level 70).
 Reserved Notation "y ≥ x" (at level 70).
 Reserved Notation "x ≰ y" (at level 70).
 Reserved Notation "y ≱ x" (at level 70).

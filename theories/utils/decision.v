@@ -13,11 +13,6 @@ Class Decision (P : Prop) := decide : {P} + {~P}.
 #[global]Hint Mode Decision ! : typeclass_instances.
 #[global]Arguments decide _ {_} : simpl never, assert.
 
-Instance Decision_neg P `{h : Decision P} : Decision (~ P).
-Proof.
-  destruct h ; [right|left] ; eauto.
-Qed.
-
 Lemma dec_Some {A P} {Hdec : forall x, Decision (P x)} (a x : A) :
   ((if Hdec a then (Some a) else None) = Some x) <-> (x = a) /\ P a.
 Proof.

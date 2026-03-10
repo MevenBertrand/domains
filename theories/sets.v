@@ -243,11 +243,11 @@ Definition upper_set {set : BaseSetTheory} {A : Poset} (X : set A) :=
 
 Definition upper_bound {set : BaseSetTheory} {A : Poset}
   (ub:A) (X : set A) :=
-  forall x, x ∈ X -> x ≤ ub.
+  ∀ x ∈ X, x ≤ ub.
 
 Definition lower_bound {set : BaseSetTheory} {A : Poset}
   (lb:A) (X : set A) :=
-  forall x, x ∈ X -> lb ≤ x.
+  ∀ x ∈ X, lb ≤ x.
 
 Definition minimal_upper_bound {set : BaseSetTheory} {A : Poset}
   (mub:A) (X : set A) :=

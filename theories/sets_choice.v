@@ -123,7 +123,7 @@ Section CountableID.
   Definition choose (P : eset A) : einhabited P -> ∥ {x : A | x ∈ P} ∥.
   Proof.
     pattern P.
-    unshelve eapply (quot_rect _ _ _ P).
+    apply quot_rect_irr.
     - clear P.
       intros P ; cbn.
       rewrite /einhabited quot_rec_eq.
@@ -132,7 +132,7 @@ Section CountableID.
       exists (choose_fun P H).
       rewrite esetP.
       apply choose_funP.
-    - cbn.
+    - intros ? ? **.
       ext.
   Qed.
 

@@ -30,6 +30,10 @@ Arguments ord {_} : simpl never.
 Notation "x ≤ y" := (ord x y) : preord_scope.
 Notation "y ≥ x" := (ord y x) (only parsing) : preord_scope.
 
+Definition lt {A : PrePreOrder} (x y : A) := x ≤ y /\ x <> y.
+
+Notation "x < y" := (lt x y) : preord_scope.
+
 #[primitive] HB.mixin Record IsPreOrder T of pre_pre_ord T := {
   ord_refl : Reflexive (ord (s := T));
   ord_trans : Transitive (ord (s := T));
@@ -138,6 +142,19 @@ Proof.
   transitivity c; auto.
 Qed.
 Arguments use_ord [A] [a] [b] [c] [d] _ _ _.
+
+Lemma lt_nle (A:Poset) (a b : A) : a < b -> ~(b ≤ a).
+Proof.
+  intros [? Hne] ?.
+  now apply Hne, ord_antisym.
+Qed.
+
+Lemma lt_le (A : PrePreOrder) (x y : A) : x < y -> x ≤ y.
+Proof.
+  now intros [].
+Qed.
+
+Hint Resolve lt_le : core.
 
 (** *** An example : natural numbers *)
 

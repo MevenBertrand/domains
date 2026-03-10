@@ -1,51 +1,44 @@
-(* Copyright (c) 2014, Robert Dockins *)
+(** * domains.plotkin: Plotkin orders and normal sets *)
 
-From Stdlib Require Import List.
+From Stdlib Require Import List ssreflect.
+From HB Require Import structures.
+Require Import utils.all categories.all preord sets finsets colsets effective directed.
 
-Require Import basics.
-Require Import preord.
-Require Import categories.
-Require Import sets.
-Require Import finsets.
-Require Import esets.
-Require Import effective.
-Require Import directed.
+(**  ** 
+  
+    A Plotkin order is a preorder where every conditionally-inhabited,
+    bounded finite set has a minimal upper bound; and where every
+    finite set has a finite MUB closure.
 
-(**  * Plotkin orders and normal sets.
+    The Plotkin orders are alternately characterized has having
+    finite normal sets.  A set X is normal if, for every z,
+    the set { x | x ∈ X ∧ x ≤ z } is h-directed.  A preorder is
+    Plotkin iff every conditionally-inhabted finite set has an
+    enclosing finite normal set.
 
-     A plotkin order is a preorder where every conditionally-inhabited,
-     bounded finite set has a minimal upper bound; and where every
-     finite set has a finite MUB closure.
- 
-     The Plotkin orders are alternately characterized has having
-     finite normal sets.  A set X is normal if, for every z,
-     the set { x | x ∈ X ∧ x ≤ z } is h-directed.  A preorder is
-     Plotkin iff every conditionally-inhabted finite set has an
-     enclosing finite normal set.
+    Demonstrating the existence of normal sets is generally easier
+    than producing finite MUB closures, so that is our preferred
+    method for demonstrating that an order is Plotkin.
 
-     Demonstrating the existence of normal sets is generally easier
-     than producing finite MUB closures, so that is our preferred
-     method for demonstrating that an order is Plotkin.
-
-     It might be better (following Gunter) to simply take the normal
-     set definition as primary and drop the MUB closure definition
-     altogether.  That might make other things more complicated,
-     I'm not sure.  Anyway, it would mean major changes to difficult
-     proofs, like those in joinable.v.
+    It might be better (following Gunter) to simply take the normal
+    set definition as primary and drop the MUB closure definition
+    altogether.  That might make other things more complicated,
+    I'm not sure.  Anyway, it would mean major changes to difficult
+    proofs, like those in joinable.v.
   *)
 
 
 (**  A preorder is MUB complete if every bounded, h-inhabited finite
      set has a least upper bound below the given bound.
   *)
-Definition is_mub_complete hf (A:preord) :=
+Definition is_mub_complete hf (A:Poset) :=
   forall (M:finset A) (x:A), inh hf M -> upper_bound x M ->
     exists mub:A, minimal_upper_bound mub M /\ mub ≤ x.
 
 (**  A set is MUB closed if it contains every MUB of every
      h-inhabited finite subset.
   *)
-Definition mub_closed hf (A:preord) (X:finset A) :=
+Definition mub_closed hf (A:Poset) (X:finset A) :=
   forall M:finset A, inh hf M -> M ⊆ X ->
     forall x:A, minimal_upper_bound x M -> x ∈ X.
 
@@ -56,9 +49,10 @@ Definition mub_closed hf (A:preord) (X:finset A) :=
      given an arbitrary MUB closure operation, we can compute the
      minimal one.
   *)
-Record plotkin_order (hf:bool) (A:preord) :=
-  PlotkinOrder
-  { mub_complete : is_mub_complete hf A
+
+#[primitive] HB.mixin Record IsPlotkin (hf : bool) (A : Type) of poset A :=
+  {
+  mub_complete : is_mub_complete hf A
   ; mub_closure : finset A -> finset A
   ; mub_clos_incl : forall M:finset A, M ⊆ mub_closure M
   ; mub_clos_mub : forall (M:finset A), mub_closed hf A (mub_closure M)
@@ -67,65 +61,68 @@ Record plotkin_order (hf:bool) (A:preord) :=
         mub_closed hf A X -> 
         mub_closure M ⊆ X
   }.
-Arguments mub_closure [hf] [A] p _.
-Arguments mub_complete [hf] [A] p _ _ _ _.
-Arguments mub_clos_incl [hf] [A] p _ _ _.
-Arguments mub_clos_mub [hf] [A] p _ _ _ _ _ _.
-Arguments mub_clos_smallest [hf] [A] p _ _ _ _ _ _.
 
+#[short(type="PlotkinPoset"),primitive]
+HB.structure Definition plotkin_poset (hf : bool) :=
+  { T of poset T & IsPlotkin hf T}.
+
+#[short(type="EffectivePlotkin"),primitive]
+HB.structure Definition effective_plotkin (hf : bool) :=
+  {T of eff_poset T & IsPlotkin hf T}.
 
 (**  MUB-closure is actually a closure operation: it is
      monotone, inclusive and idempotent.
   *)
-Lemma mub_clos_mono : forall hf A (H:plotkin_order hf A),
-  forall (M N:finset A),
-    M ⊆ N -> mub_closure H M ⊆ mub_closure H N.
+Lemma mub_clos_mono hf (A:PlotkinPoset hf) (M N:finset A) :
+    M ⊆ N -> mub_closure M ⊆ mub_closure N.
 Proof.
   intros.
   apply mub_clos_smallest; auto.
-  - apply incl_trans with finset_theory N; auto.
-    apply mub_clos_incl.
-  - apply mub_clos_mub; eauto.
+  - etransitivity ; tea.
+    now apply mub_clos_incl.
+  - now apply mub_clos_mub.
 Qed.
 
-Lemma mub_clos_idem : forall hf A (H:plotkin_order hf A), 
-  forall (M:finset A),
-    mub_closure H M ≈ mub_closure H (mub_closure H M).
+Lemma mub_clos_idem hf (A : PlotkinPoset hf) (M:finset A) :
+    mub_closure M = mub_closure (mub_closure M).
 Proof.
-  intros. split.
+  ext. split.
   - apply mub_clos_incl.
   - apply mub_clos_smallest; auto.
-    + red; auto.
-    + apply mub_clos_mub; auto.
+    1: reflexivity.
+    apply mub_clos_mub; auto.
 Qed.
 
+(** ** Instances *)
 
-(**  The empty preorder is Plotkin.
-  *)
-Program Definition empty_plotkin hf : plotkin_order hf emptypo :=
-  PlotkinOrder hf emptypo _ (fun _ => nil) _ _ _.
+(**  The empty preorder is Plotkin *)
+
+Program Definition empty_plotkin hf :=
+  IsPlotkin.Build hf False _ (fun _ => fempty) _ _ _.
 Solve Obligations of empty_plotkin with (repeat intro; simpl in *; intuition).
+
+HB.instance Definition _ hf := empty_plotkin hf.
 
 (**  The unit preorder is Plotkin.
   *)
-Program Definition unit_plotkin hf : plotkin_order hf unitpo :=
-  PlotkinOrder hf _ _ (fun M => if hf then M else (tt::nil)) _ _ _.
-Solve Obligations of unit_plotkin with (repeat intro; hnf; auto).
+Program Definition unit_plotkin hf :=
+  IsPlotkin.Build hf unit _ (fun M => if hf then M else (single tt)) _ _ _.
 Next Obligation.
   repeat intro. exists tt.
   split; hnf; auto.
 Qed.
 Next Obligation.
-  repeat intro.
+  intros [].
   destruct hf; auto.
-  destruct a. apply cons_elem; auto.
+  rewrite singleP //.
 Qed.
 Next Obligation.
-  repeat intro.
+  intros ? Hinh Hsub [].
   destruct hf.
-  - hnf in H. destruct H.
-    destruct x0. destruct x. apply H0. auto.
-  - destruct x. apply cons_elem; auto.
+  - destruct Hinh as [[]].
+    intros _.
+    now apply Hsub.
+  - rewrite singleP //.
 Qed.
 Next Obligation.
   repeat intro.
@@ -139,101 +136,34 @@ Qed.
 (**  When a preorder is effective Plotkin, it is decidable if an
      element is an upper bound or a minimal upper bound of a finite set.
   *)
-Section dec_lemmas.
-  Variable hf:bool.
-  Variable A:preord.
-  Variable Heff : effective_order A.
-  Variable Hplt : plotkin_order hf A.
 
-  Lemma upper_bound_dec : forall (M:finset A) (x:A),
-    { upper_bound x M } + { ~upper_bound x M }.
-  Proof.
-    induction M; intros.
-    - left. red. intros. destruct H as [q [??]]. elim H.
-    - destruct (IHM x).
-      + destruct (eff_ord_dec A Heff a x).
-        * left.
-          red. simpl; intros.
-          destruct H as [q [??]].
-          simpl in H. destruct H; subst.
-          ** rewrite H0; auto.
-          ** apply u. exists q; split; auto.
-        * right.
-          intro. apply n.
-          apply H.
-          exists a. split; simpl; auto.
-      + right. intro.
-        apply n.
-        red; intros.
-        apply H.
-        destruct H0 as [q[??]].
-        exists q; split; simpl; auto.
-  Qed.
-
-  Lemma mub_finset_dec : forall (M:finset A) (x:A) (Hinh:inh hf M),
-    { minimal_upper_bound x M } + { ~minimal_upper_bound x M }.
-  Proof.
-    intros M x.
-    destruct (upper_bound_dec M x).
-    - destruct (eff_in_dec Heff (mub_closure Hplt M) x).
-      + set (P b := upper_bound b M -> b ≤ x -> x ≤ b).
-        destruct (finset_find_dec' A P) with (mub_closure Hplt M).
-        * subst P; simpl; intuition.
-          rewrite <- H. apply H0.
-          ** red; intros. rewrite H. apply H1. auto.
-          ** rewrite H; auto.
-        * unfold P. simpl.
-          intro b.
-          destruct (upper_bound_dec M b).
-          ** destruct (eff_ord_dec A Heff x b); auto.
-             *** destruct (eff_ord_dec A Heff b x); auto.
-                 left; intros. contradiction.
-          ** left; intros. contradiction.
-        * destruct s.
-          destruct a.
-          red in H0.
-          subst P. simpl in H0.
-          right. intro.
-          destruct H1.
-          apply H0.
-          intros.
-          apply H2; auto.
-        * left.
-          split; auto.
-          intros.
-          destruct (mub_complete Hplt M b) as [b0 [??]]; auto.
-          transitivity b0; auto.
-          apply p; auto.
-          ** apply mub_clos_mub with M; auto.
-             apply mub_clos_incl; auto.
-          ** destruct H1; auto.
-          ** transitivity b; auto.
-      + right. intro.
-        apply n.
-        apply mub_clos_mub with M; auto.
-        apply mub_clos_incl; auto.
-    - right.
-      intro. destruct H.
-      apply n; auto.
-  Qed.
-End dec_lemmas.
-
-
-Lemma upper_bound_ok : forall A (G:finset A) (x y:A),
-  x ≈ y -> upper_bound x G -> upper_bound y G.
+Instance upper_bound_dec (hf : bool) {A : DecPoset} (M:finset A) (x:A) :
+  Decision (upper_bound x M).
 Proof.
-  unfold upper_bound; intros.
-  rewrite <- H. apply H0; auto.
+  unfold upper_bound.
+  typeclasses eauto.
 Qed.
 
-Lemma minimal_upper_bound_ok : forall A (G:finset A) (x y:A),
-  x ≈ y -> minimal_upper_bound x G -> minimal_upper_bound y G.
+Instance mub_finset_dec (hf : bool) {A : EffectivePlotkin hf} (M:finset A) (x:A) (Hinh:inh hf M) :
+  Decision (minimal_upper_bound x M).
 Proof.
-  unfold minimal_upper_bound. intros.
-  destruct H0; split.
-  - eapply upper_bound_ok; eauto.
-  - intros. rewrite <- H. apply H1; auto.
-    rewrite H; auto.
+  replace (minimal_upper_bound x M) with
+    (upper_bound x M /\ (∀ b ∈ mub_closure M, upper_bound b M -> b ≤ x -> x ≤ b)).
+  1: typeclasses eauto.
+  unfold minimal_upper_bound.
+  f_equal.
+  unfold set_all.
+  ext.
+  split.
+  2: easy.
+  intros Hall b Hub Hle.
+  destruct (mub_complete M b) as [b' [Hmub ?]]; auto.
+  transitivity b' => //.
+  apply Hall => //.
+  3: now etransitivity.
+  2: now apply Hmub.
+  apply: mub_clos_mub ; eauto.
+  apply mub_clos_incl.
 Qed.
 
 (**  We introduce the alternate characterization of Plotkin orders
@@ -242,20 +172,14 @@ Qed.
      involved.
   *)
 Section normal_sets.
-  Variable A:preord.
-  Variable Heff: effective_order A.
-  Variable hf:bool.
+  Context (hf:bool) (A:EffPoset).
 
   (**  A set X is normal if it is h-inhabited and, for abitrary z,
        the intersection of X with { x | x ≤ z } is directed.
     *)
   Definition normal_set (X:finset A) :=
     (inh hf X) /\
-    forall z, directed hf 
-      (finsubset A 
-        (fun x => x ≤ z) 
-        (fun x => eff_ord_dec A Heff x z)
-        X).
+    forall z, directed hf (finsubset (fun x => x ≤ z) X).
 
   (**  A preorder "has" normal sets if every h-inhabited set is inclosed in
        some finite normal set.
@@ -263,507 +187,277 @@ Section normal_sets.
   Definition has_normals :=
     forall (X:finset A) (Hinh:inh hf X),
       { Z:finset A | X ⊆ Z /\ normal_set Z }.
-    
 
-  (**  Plotkin orders have normal sets.
-    *)
-  Section plt_normal.
-    Hypothesis Hplt : plotkin_order hf A.
+End normal_sets.
 
-    Lemma plt_has_normals : has_normals.
-    Proof.
-      red. intros X Xinh.
-      exists (mub_closure Hplt X).
-      split.
-      - apply mub_clos_incl.
-      - red; intros.
-        split.
-        + apply inh_sub with X; auto.
-          apply mub_clos_incl.
-        + red; simpl; intros.
-          destruct (mub_complete Hplt M z); auto.
-          * red; intros.
-            apply H in H0.
-            apply finsubset_elem in H0.
-            ** destruct H0; auto.
-            ** intros. rewrite <- H2; auto.
-          * destruct H0.
-            exists x. split; auto.
-            ** destruct H0; auto.
-            ** apply finsubset_elem.
-               *** intros. rewrite <- H2; auto.
-               *** split; auto.
-                   apply (mub_clos_mub Hplt X) with M; auto.
-                   red; intros.
-                   apply H in H2.
-                   apply finsubset_elem in H2.
-                   **** destruct H2; auto.
-                   **** intros. rewrite <- H4; auto.
-    Qed.
-  End plt_normal.
+Arguments normal_set _ {_} _.
 
-  (**  Given a finite subset X of a normal set Q, we can compute the (finite) set of
-       all upper bounds of X that lie in Q.  Furthermore, for each upper bound of X,
-       there is some upper bound of X below it in Q.
-    *)
-  Lemma normal_has_ubs Q :
-    normal_set Q ->
-    forall (X:finset A) (Hinh:inh hf X), X ⊆ Q ->
-      { Y:finset A | Y ⊆ Q /\
-        (forall y, y ∈ Y -> upper_bound y X) /\
-        (forall z, upper_bound z X -> exists m, m ≤ z /\ m ∈ Y /\ upper_bound m X) }.
-  Proof.
-    intros. red in H.
-    set (Y := finsubset A (fun x => upper_bound x X) (fun x => upper_bound_dec A Heff X x) Q).
-    exists Y. split.
-    - unfold Y.
-      red. intros.
-      apply finsubset_elem in H1.
-      + destruct H1; auto.
-      + apply upper_bound_ok.
-    - split.
-      + intros.
-        unfold Y in H1.
-        apply finsubset_elem in H1.
-        * destruct H1; auto.
-        * apply upper_bound_ok.
-      + intros z Hz.
-        destruct H as [HQ H].
-        destruct (H z X); auto.
-        * red; intros.
-          apply finsubset_elem.
-          ** intros. rewrite <- H2; auto.
-          ** split.
-             *** apply H0; auto.
-             *** apply Hz. auto.
-        * destruct H1.
-          apply finsubset_elem in H2.
-          ** destruct H2.
-             exists x. intuition.
-             unfold Y.
-             apply finsubset_elem.
-             *** apply upper_bound_ok.
-             *** split; auto.
-          ** intros. rewrite <- H4. auto.
-  Qed.
+(**  Plotkin orders have normal sets. *)
+
+Lemma plt_has_normals (hf : bool) (A : EffectivePlotkin hf) : has_normals hf A.
+Proof.
+  red. intros X Xinh.
+  exists (mub_closure X).
+  split.
+  1: now apply: mub_clos_incl.
+  split.
+  + apply inh_sub with X; auto.
+    now apply: mub_clos_incl.
+  + red; simpl; intros ??? Hsub.
+    destruct (mub_complete M z) as (x& [Hmin]); auto ; cbn in *.
+    1: now eapply incl_finsubset.
+    exists x. split; auto.
+    2: apply Hmin.
+    rewrite finsubsetP ; split ; try easy.
+    apply (mub_clos_mub X) with M; auto ; cbn.
+    rewrite -> Hsub.
+    now apply: finsubset_incl.
+Qed.
 
   (**  Moreover, under the same conditions, we can calculate the set
        of minimal upper bounds of X.
     *)
-  Section normal_mubs.
-    Variable Q:finset A.
-    Hypothesis H : normal_set Q.
-    
-    Variable X:finset A.
-    Variable Hinh : inh hf X.
-    Hypothesis H0 : X ⊆ Q.
+Section normal_mubs.
+  Context (hf : bool) {A : EffPoset} (Q:finset A) (HQ : normal_set hf Q)
+    (X:finset A) (Hinh : inh hf X) (Hincl : X ⊆ Q).
 
-    Let Y := proj1_sig (normal_has_ubs Q H X Hinh H0).
-    Let H1 := proj1 (proj2_sig (normal_has_ubs Q H X Hinh H0)).
-    Let H2 := proj2 (proj2_sig (normal_has_ubs Q H X Hinh H0)).
+  (**  Given a finite subset X of a normal set Q, we can compute the (finite) set of
+       all upper bounds of X that lie in Q.  Furthermore, for each upper bound of X,
+       there is some upper bound of X below it in Q.
+      *)
 
-    Let P (x y:A) := (y ≤ x /\ x ≰ y).
-    
-    Lemma normal_mubs' : forall x, { z | z ∈ Y /\ P x z } + { forall z, z ∈ Y -> ~P x z }.
-    Proof.
-      intro x.
-      apply (finset_find_dec A (P x)).
-      - clear; unfold P; intros.
-        rewrite <- H. auto.
-      - unfold P.
-        intro y.
-        destruct (eff_ord_dec A Heff y x).
-        + destruct (eff_ord_dec A Heff x y).
-          * right. intros [??]. apply H4; auto.
-          * left. split; auto.
-        + right. intros [??]. apply n; auto.
-    Qed.
+  Lemma normal_has_ubs z : upper_bound z X -> ∃ m ∈ Q, upper_bound m X /\ m ≤ z.
+  Proof.
+    destruct HQ as [HQ' Hdir].
+    intros Hz.
+    destruct (Hdir z X) as [x [[]%finsubsetP]]; auto.
+    - move => x Hx.
+      rewrite finsubsetP.
+      eauto.
+    - now exists x.
+  Qed.
 
-    Lemma normal_sub_mub_dec : forall x, { minimal_upper_bound x X }+{~minimal_upper_bound x X}.
-    Proof.
-      intro x.
-      destruct (normal_mubs' x).
-      - destruct s as [m [??]].
-        red in H4.
-        right. intro.
-        destruct H4.
-        apply H6.
-        apply H5; auto.
-        destruct H2.
-        + apply H2. auto.
-      - destruct (upper_bound_dec A Heff X x).
-        + left. red; intros.
-          split; auto.
+  Lemma normal_all_mubs z : upper_bound z X ->
+    forall m, minimal_upper_bound m X -> m ≤ z -> m ∈ Q.
+  Proof.
+    intros Hub m [? Hleast] Hle.
+    destruct (normal_has_ubs m) as (m'&?&?);auto.
+    enough (m = m') as -> by easy.
+    apply ord_antisym.
+    2: easy.
+    now apply Hleast.
+  Qed.
+
+  Instance normal_sub_mub_dec x : Decision (minimal_upper_bound x X).
+  Proof.
+    destruct (decide (∃ y ∈ Q, upper_bound y X /\ y < x)) as [s|n].
+    - right.
+      destruct s as (m&?&?&?).
+      intros [_ Hlub].
+      now eapply lt_nle.
+    - assert (∀ y ∈ Q, upper_bound y X -> y ≤ x -> y = x) as Heq.
+      {
+       intros y ???.
+       apply (dec_stable _).
+       intros ?.
+       apply n.
+       eexists ; now repeat split.
+      }
+      clear n.
+      destruct (decide (upper_bound x X)).
+      2: right ; intros [??] ; contradiction.
+      left.
+      red; intros.
+      split; auto.
+      intros.
+      edestruct (normal_has_ubs b) as (m&?&?&?); auto.
+      etransitivity ; tea.
+      erewrite Heq ; eauto.
+      1:reflexivity.
+      now etransitivity.
+  Qed.
+
+  Let Y' := (finsubset (fun x => minimal_upper_bound x X) Q).
+
+  Lemma normal_has_mubs z :
+    upper_bound z X -> ∃ m ∈ Q, m ≤ z /\ minimal_upper_bound m X.
+  Proof.
+    intros Hz.
+    destruct (normal_has_ubs z) as (m&Hm) ; auto.
+    cut (forall (Y1 Y2:finset A), funion2 Y1 Y2 = (finsubset (fun x => upper_bound x X) Q)
+          -> ∀ m ∈ Y2,
+              (∀ y ∈ Y1, y ≤ m -> m ≤ y) ->
+                m ≤ z -> exists m', m' ∈ Y2 /\ m' ≤ z /\ minimal_upper_bound m' X).
+    { intros Hend.
+      destruct (Hend fempty (finsubset (fun x => upper_bound x X) Q)) with m as (x&?%finsubsetP&?&?); auto.
+      - ext.
+        rewrite funion2P femptyP ; intuition.
+      - rewrite finsubsetP ; intuition.
+      - now intros ? ?%femptyP.
+      - eexists ; intuition eauto.
+    }
+    clear m Hm.
+    intros Y1 Y2.
+    revert Y1.
+    induction Y2 as [|a Y2 IH] using finset_ind ; simpl; intros Y1 Hunion m Hin HY1 Hle.
+    1: by apply femptyP in Hin.
+    destruct (decide (a ≤ m)) as [|Hnle] ; cycle -1.
+    - destruct (IH (fcons a Y1)) with m as [m'] ; auto.
+      + rewrite -Hunion.
+        ext.
+        rewrite !funion2P.
+        intuition.
+      + rewrite fconsP in Hin.
+        destruct Hin as [->|] ; tea.
+        now destruct Hnle.
+      + intros ? [->|]%fconsP.
+        all: intuition.
+      + exists m'.
+        intuition.
+        now rewrite fconsP.
+    - destruct (decide (∃ y ∈ (finsubset (fun x => upper_bound x X) Q), y < a))
+        as [(m'&Hinm'&?&Hne)|] ; cycle -1.
+      + exists a.
+        split.
+        1: now rewrite fconsP.
+        split.
+        1: now etransitivity.
+        split.
+        1: enough (a ∈ finsubset (fun x => upper_bound x X) Q) as ?%finsubsetP by easy.
+        1: now rewrite -Hunion funion2P fconsP.
+        * intros.
+          apply (dec_stable _).
+          intros Hnle.
+          apply n.
+          destruct (normal_has_ubs b) as (b'&?&?&?); auto.
+          exists b'.
+          split.
+          1: now rewrite finsubsetP.
+          split.
+          1: now etransitivity.
+          intros ->.
+          intuition.
+      + assert (m' ∈ Y2).
+        {
+          rewrite -Hunion funion2P fconsP in Hinm'.
+          destruct Hinm' as [|[->|]].
+          2-3: now intuition.
+          exfalso.
+          apply Hne, ord_antisym;auto.
+          etransitivity ; tea.
+          apply HY1;auto.
+          now etransitivity.
+        }
+        destruct (IH (fcons a Y1)) with m' ; auto.
+        * rewrite -Hunion.
+          ext.
+          rewrite !funion2P.
+          intuition.
+        * intros ? [->|]%fconsP; auto.
           intros.
-          destruct H2.
-          destruct (H6 b) as [m [?[??]]]; auto.
-          destruct (eff_ord_dec A Heff x b); auto.
-          elim (n m); auto.
-          red. split; auto.
-          transitivity b; auto.
-          red; intros.
-          apply n0.
-          transitivity m; auto.
-        + right. intros [??]. contradiction.
-    Qed.
+          etransitivity ; tea.
+          etransitivity ; tea.
+          apply HY1 ; tea.
+          repeat (etransitivity ; tea).
+        * repeat (etransitivity ; tea).
+        * exists x.
+          rewrite fconsP.
+          intuition.
+  Qed.
 
-    Lemma normal_has_mubs :
-        { Y:finset A | Y ⊆ Q /\
-          (forall y, y ∈ Y -> minimal_upper_bound y X) /\
-          forall z, upper_bound z X -> exists m, m ≤ z /\ m ∈ Y /\ minimal_upper_bound m X }.
-    Proof.
-      exists (finsubset A (fun x => minimal_upper_bound x X) normal_sub_mub_dec Y).
-      split.
-      - red; intros.
-        apply finsubset_elem in H3.
-        + destruct H3.
-          apply H1; auto.
-        + apply minimal_upper_bound_ok.
-      - split; intros.
-        + apply finsubset_elem in H3.
-          * destruct H3; auto.
-          * apply minimal_upper_bound_ok.
-        + destruct H2.
-          destruct (H5 z) as [m [?[??]]]; auto.    
-          cut (forall (Y1 Y2:finset A), (Y1++Y2)%list = Y -> forall m,
-                    (forall y, y ∈ Y1 -> y ≤ m -> m ≤ y) ->
-                    m ∈ Y2 -> m ≤ z -> exists m', m' ∈ Y2 /\ m' ≤ z /\ minimal_upper_bound m' X).
-          { intros.
-            destruct (H9 nil Y) with m; auto.
-            intros. destruct H10 as [?[??]]. elim H10.
-            exists x. intuition.
-            apply finsubset_elem.
-            apply minimal_upper_bound_ok.
-            split; auto.
-          }
-          clear m H6 H7 H8.
-          intros Y1 Y2. revert Y1. induction Y2; simpl; intros.
-          * rewrite <- app_nil_r in H6.
-            destruct H8 as [?[??]].
-            elim H8.
-          * destruct (eff_ord_dec A Heff a m).
-            ** destruct (normal_mubs' a).
-               *** destruct s as [m' [??]].
-                   destruct H11.
-                   assert (m' ∈ (Y2:finset A)).
-                   { destruct H10 as [q [??]].
-                     rewrite <- H6 in H10.
-                     apply in_app_or in H10.
-                     destruct H10.
-                     - elim H12.
-                       transitivity m; auto.
-                       apply H7; auto.
-                       exists q; split; auto.
-                       transitivity a; auto.
-                     - destruct H10.
-                       subst q.
-                       elim H12. rewrite H13. auto.
-                       exists q; split; auto.
-                   } 
-                   destruct (IHY2 (Y1 ++ a::nil)%list) with m'.
-                   **** rewrite <- app_assoc.
-                        simpl. auto.
-                   **** intros.
-                        destruct H14 as [p [??]].
-                        apply List.in_app_or in H14.
-                        destruct H14.
-                        ***** transitivity a; auto.
-                              transitivity m; auto.
-                              apply H7; auto.
-                              ****** exists p; split; auto.
-                              ****** transitivity m'; auto.
-                                     transitivity a; auto.
-                        ***** simpl in H14. intuition subst.
-                              rewrite H16; auto.
-                   **** auto.
-                   **** transitivity m; auto.
-                        transitivity a; auto.
-                   **** exists x.
-                        intuition.
-                        destruct H2 as [p [??]].
-                        exists p; split; simpl; auto.
-               *** exists a. split.
-                   exists a; split; simpl; auto. split; auto.
-                   transitivity m; auto.
-                   split.
-                   **** apply H2.
-                        fold Y.
-                        rewrite <- H6.
-                        exists a; split; simpl; auto.
-                        apply List.in_or_app; auto.
-                        right; simpl; auto.
-                   **** intros.
-                        destruct (eff_ord_dec A Heff a b); auto.
-                        destruct (H5 b) as [q [??]]; auto.
-                        destruct H13.
-                        elim (n q); auto.
-                        split; auto.
-                        ***** transitivity b; auto.
-                        ***** intro.
-                              apply n0.
-                              transitivity q; auto.
-            ** destruct (IHY2 (Y1++(a::nil))%list) with m.
-               *** rewrite <- H6.
-                   rewrite <- List.app_assoc; auto.
-               *** intros.
-                   destruct H10 as [p [??]].
-                   apply List.in_app_or in H10.
-                   destruct H10.
-                   **** apply H7; auto.
-                        exists p; split; auto.
-                   **** simpl in H10; intuition subst.
-                        elim n. rewrite <- H12. auto.
-               *** destruct H8 as [?[??]].
-                   destruct H8. subst a.
-                   elim n. destruct H10; auto.
-                   exists x; split; auto.
-               *** auto.
-               *** exists x; intuition.
-                   destruct H2 as [p [??]]. 
-                   exists p; split; simpl; auto.
-    Qed.    
-  End normal_mubs.
+End normal_mubs.
 
   (**  We can decide if a finite subset of a normal set is MUB closed.
     *)
-  Lemma normal_sub_mub_closed_dec Q : normal_set Q ->
-    forall (M:finset A), M ⊆ Q -> { mub_closed hf A M }+{ ~mub_closed hf A M }.
+  Lemma normal_sub_mub_closed_dec (hf : bool) (A : EffPoset) Q : normal_set hf Q ->
+    forall (M:finset A), M ⊆ Q -> Decision (mub_closed hf A M).
   Proof.
     intros HQ M HM. 
     unfold mub_closed.
-    set (P' (N:finset A) := inh hf N -> N ⊆ M -> forall x, minimal_upper_bound x N -> x ∈ M).
-    assert (forall x y, x ≈ y -> P' x -> P' y).
-    { clear. unfold P'. intros.
-      apply H0.
-      - apply inh_eq with y; auto.
-      - rewrite H. auto.
-      - destruct H3. split.
-        + red; intros. apply H3.
-          rewrite <- H; auto.
-        + intros. apply H4.
-          * red; intros. apply H5.
-            rewrite H; auto.
-          * auto.
-    }
-    destruct (finsubset_dec' A (OrdDec A (eff_ord_dec A Heff)) P') with M; auto.
-    - intro x.
-      unfold P'.
-      destruct (inh_dec A hf x).
-      + destruct (finset_find_dec' A
-          (fun p:A => p ∈ M)) with x; simpl.
-        * intros. rewrite <- H0; auto.
-        * intros. apply finset_in_dec. 
-          constructor. apply eff_ord_dec. auto.
-        * left. intros Hx ?.
-          destruct s.
-          destruct a.
-          apply H0 in H1. elim H2; auto.
-        * destruct (normal_has_mubs Q HQ x) as [MUBS [?[??]]]; auto.
-          ** red; intros. apply HM. apply m. auto.
-          ** destruct (finset_find_dec' A (fun p => p ∈ M)) with MUBS; simpl.
-             *** intros. rewrite <- H3; auto.
-             *** intros. apply finset_in_dec. 
-                 constructor. apply eff_ord_dec. auto.
-             *** right. intro.
-                 destruct s. destruct a. apply H5.
-                 apply H3; auto.
-             *** left. intros _. intros.
-                 apply m0.
-                 destruct (H2 x0) as [x0' [?[??]]].
-                 **** destruct H4; auto.
-                 **** apply member_eq with x0'; auto.
-                      split; auto.
-                      destruct H4.
-                      apply H8; auto.
-                      destruct H7; auto.
-      + left; intro. contradiction.
-    - left.
-      intros. 
-      unfold P' in p.
-      apply p with M0; auto.
-    - right. intro.
-      destruct e as [X [??]].
-      apply H2.
-      red. intros.
-      apply H0 with X; auto.
+    replace (forall X : finset A, _) with
+      (forall X:finset A, X ⊆ M -> inh hf X -> X ⊆ M -> forall x, minimal_upper_bound x X -> x ∈ M).
+    2: ext ; now split.
+
+    apply: finsubset_dec'.
+    intros X. 
+    destruct (decide (inh hf X)) as [Hinh|].
+    2: now left; intro; contradiction.
+    destruct (decide (X ⊆ M)) as [Hincl'|].
+    2: now left ; intro ; contradiction.
+    assert (X ⊆ Q) as Hincl by now etransitivity.
+    pose proof (normal_sub_mub_dec _ Q HQ X Hinh Hincl).
+    destruct (decide (∀ x ∈ (finsubset (fun x => minimal_upper_bound x X) Q), x ∈ M)) as [Hall|Hnall].
+    + left.
+      intros _ _ x Hx.
+      edestruct (normal_has_mubs hf Q HQ X Hinh Hincl x) as (x'&?&?&?&?).
+      1: now destruct Hx.
+      enough (x = x') as -> by now apply Hall, finsubsetP.
+      apply ord_antisym ; tea.
+      now apply Hx.
+    + right.
+      move => /(_ Hinh Hincl') Hall.
+      apply Hnall.
+      rewrite /set_all.
+      now setoid_rewrite finsubsetP.
   Qed.    
  
-  (** We can caluclate the (finite) set of all MUB closed finite subsets
+  (** We can calculate the (finite) set of all MUB closed finite subsets
       of a normal set.
     *)
-  Lemma normal_set_mub_closed_sets Q : normal_set Q ->
+  Lemma normal_set_mub_closed_sets (hf : bool) {A : EffPoset} Q  : normal_set hf Q ->
     { CLS : finset (finset A) | 
       forall X, X ∈ CLS <-> (inh hf X /\ X ⊆ Q /\ mub_closed hf A X) }.
-  Proof.        
+  Proof.
     intros.
-    set (SUBS := list_finsubsets Q).    
-    assert (forall X, X ∈ SUBS -> X ⊆ Q).
-    { intros.
-      unfold SUBS in H0.
-      apply list_finsubsets_correct; auto.
-    } 
-    assert { XS:finset (finset A) | XS ⊆ SUBS /\ 
-      forall X, X ∈ XS <-> (inh hf X /\ X ∈ SUBS /\ mub_closed hf A X) }.
-    { 
-      revert H0.
-      generalize SUBS.
-      clear SUBS.
-      induction SUBS; intros.
-      - exists nil. split.
-        + red; auto.
-        + intuition.
-          * destruct H1 as [?[??]]. elim H1.
-          * destruct H1 as [?[??]]. elim H1.
-      - destruct IHSUBS as [XS [??]].
-        + intros. apply H0.
-          destruct H1 as [q [??]]. exists q; split; simpl; auto.
-        + destruct (inh_dec A hf a).
-          * destruct (normal_sub_mub_closed_dec Q H a); auto.
-            ** apply H0. exists a; split; simpl; auto.
-            ** exists (a::XS)%list.
-               split.
-               *** red; intros.
-                   destruct H3 as [q [??]].
-                   destruct H3.
-                   **** subst q.
-                        exists a; split; simpl; auto.
-                   **** destruct (H1 a0).
-                        ***** exists q; split; simpl; auto.
-                        ***** destruct H5. exists x; split; simpl; auto.
-               *** split; intros.
-                   **** destruct H3 as [q [??]].
-                        destruct H3.
-                        ***** subst q.
-                              split; [ apply inh_eq with a; auto |].
-                              split.
-                              ****** exists a; split; simpl; auto.
-                              ****** red. intros.
-                                     rewrite H4. 
-                                     apply (m M); auto.
-                                     rewrite <- H4; auto.
-                         ***** assert (X ∈ XS).
-                               { exists q; split; simpl; auto. }
-                               apply H2 in H5.
-                               destruct H5; split; auto.
-                               destruct H6; split; auto.
-                               destruct H6 as [q' [??]].
-                               exists q'; split; simpl; auto.
-                   **** destruct H3 as [HQ [??]].
-                        destruct H3 as [q [??]].
-                        destruct H3.
-                        ***** subst q.
-                              exists a; split; simpl; auto.
-                        ***** assert (X ∈ XS).
-                              { apply H2.
-                                split; auto.
-                                split; auto.
-                                exists q; split; simpl; auto.
-                              } 
-                              destruct H6 as [q' [??]].
-                              exists q'; split; simpl; auto.
-            ** exists XS.
-               split.
-               *** red; intros.
-                   apply H1 in H3.
-                   destruct H3 as [q [??]]. exists q; split; simpl; auto.
-               *** split; intros.
-                   **** rewrite H2 in H3.
-                        destruct H3 as [HQ [??]]; split; auto. split; auto.
-                        destruct H3 as [q [??]]. exists q; split; simpl; auto.
-                   **** destruct H3 as [HQ [??]].
-                        destruct H3 as [q [??]].
-                        destruct H3.
-                        ***** subst q.
-                              elim n; auto.
-                              red; intros.
-                              red in H4.
-                              rewrite <- H5.
-                              apply (H4 M); auto.
-                              rewrite H5; auto.
-                        ***** rewrite H2. split; auto.
-                              split; auto.
-                              exists q; split; simpl; auto.
-          * exists XS.
-            split.
-            ** red; intros.
-               apply H1 in H3.
-               destruct H3 as [q [??]].
-               exists q; split; simpl; auto.
-            ** split; intros.
-               *** rewrite H2 in H3.
-                   destruct H3 as [HQ [??]]; split; auto. split; auto.
-                   destruct H3 as [q [??]]. exists q; split; simpl; auto.
-               *** destruct H3 as [HQ [??]].
-                   destruct H3 as [q [??]].
-                   destruct H3.
-                   **** subst q.
-                        elim n; auto.
-                        apply inh_eq with X; auto.
-                   **** rewrite H2. split; auto.
-                        split; auto.
-                        exists q; split; simpl; auto.
+    assert (forall X : (finset A), X ∈ (finsubset (fun (X : finset A) => inh hf X) (fpow Q)) -> Decision (mub_closed hf A X)) as Hdec.
+    {
+      intros ? ?%finsubsetP.
+      eapply normal_sub_mub_closed_dec ; tea.
+      now rewrite -fpowP.
     }
-    destruct X as [XS [??]].
-    exists XS.
-    intro X; split; intros.
-    apply H2 in H3.
-    destruct H3. split; auto.
-    destruct H4; split; auto.
-    destruct H3 as [?[??]].
-    apply H2; split; auto. split; auto.
-    apply list_finsubsets_complete; auto.
-    constructor. apply (eff_ord_dec A Heff).
+    exists (finsubset_dep _ _ Hdec).
+    intros X.
+    rewrite finsubset_depP finsubsetP fpowP.
+    intuition.
   Qed.
-
-  Let OD := (OrdDec A (eff_ord_dec A Heff)).
 
   (**  The intersection of any two MUB closed sets is itself MUB closed.
     *)
-  Lemma mub_closed_intersect : forall (X Y:finset A),
+  Lemma mub_closed_intersect (hf : bool) (A : EffPoset) (X Y:finset A) :
     mub_closed hf A X -> mub_closed hf A Y ->
-    mub_closed hf A (fin_intersect A OD X Y).
+    mub_closed hf A (finter2 X Y).
   Proof.
-    repeat intro.
-    apply fin_intersect_elem.
+    move => HX HY ? ? /finter2_incl Hincl x Hx.
+    rewrite finter2P.
     split.
-    - apply (H M); auto.
-      red; intros.
-      apply H2 in H4.
-      apply fin_intersect_elem in H4.
-      destruct H4; auto.
-    - apply (H0 M); auto.
-      red; intros.
-      apply H2 in H4.
-      apply fin_intersect_elem in H4.
-      destruct H4; auto.
+    - now apply: HX.
+    - now apply: HY.
   Qed.
 
   (**  Any normal set is mub closed.
     *)
-  Lemma normal_set_mub_closed Q : normal_set Q -> mub_closed hf A Q.
+  Lemma normal_set_mub_closed (hf : bool) (A : EffPoset) Q : normal_set hf Q -> mub_closed hf A Q.
   Proof.
-    repeat intro.
-    destruct (normal_has_mubs Q H M H0) as [MUBS [?[??]]]; auto.
-    destruct (H5 x) as [m [?[??]]].
-    - destruct H2; auto.
-    - apply H3.
-      apply member_eq with m; auto.
-      split; auto.
-      destruct H2. apply H9; auto.
-      destruct H8; auto.
+    intros ? M ?? x Hmub.
+    unshelve edestruct (normal_has_mubs hf Q H M) as (MUBS&?&?&Hmub'); auto.
+    1: apply Hmub.
+    enough (x = MUBS) by now subst.
+    apply ord_antisym ; tea.
+    apply Hmub ; tea.
+    apply Hmub'.
   Qed.
 
   (**  Given an h-inhabited finite subset of a normal set, we can compute
        the smallest MUB-closed superset.  This is done by taking the
-       intersection of all the MUB-closed subsetsets of X that lie in Q.
+       intersection of all the MUB-closed subsets of X that lie in Q.
     *)
-  Lemma normal_set_mub_closure Q : normal_set Q ->
+  Lemma normal_set_mub_closure  (hf : bool) (A : EffPoset) Q : normal_set hf Q ->
     forall (M:finset A) (Minh : inh hf M), M ⊆ Q ->
       { CL:finset A | M ⊆ CL /\ mub_closed hf A CL /\
           forall CL':finset A, M ⊆ CL' -> mub_closed hf A CL' -> CL ⊆ CL' }.
   Proof.
     intros.
-    destruct (normal_set_mub_closed_sets Q H) as [CLS ?]; auto.
+    destruct (normal_set_mub_closed_sets hf Q H) as [CLS ?]; auto.
     assert (Hsubdec : forall X:finset A, {M⊆X}+{~(M ⊆ X)}).
     { intros.
       destruct (finset_find_dec' A (fun z => z ∈ X)) with M; simpl.

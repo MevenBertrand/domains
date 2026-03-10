@@ -14,7 +14,7 @@ Require Import utils.all categories.all preord sets finsets colsets effective.
      unpointed domains.
   *)
 
-Definition inh {A:Poset} (hf:bool) (X:finset A) := 
+Definition inh {set : SetTheory} {A:Poset} (hf:bool) (X:set A) := 
   if hf then exists x, x ∈ X else True.
 
 Instance inh_dec A hf (X:finset A) : Decision (inh hf X).
@@ -121,7 +121,7 @@ Lemma choose_ub (I:Directed) (i j:I) :
   { k | i ≤ k /\ j ≤ k }.
 Proof.
   destruct (choose_ub_set (funion2 (fsingle i) (fsingle j))) as [x hx] ; cbn in *.
-  rewrite /upper_bound /= in hx.
+  rewrite /upper_bound /= /set_all in hx.
   setoid_rewrite funion2P in hx.
   setoid_rewrite fsingleP in hx.
   exists x.
@@ -196,7 +196,7 @@ Next Obligation.
   rewrite incl_single in Hincl.
   rewrite /upper_bound singleP.
   split ; [easy|].
-  intros ; now apply rrefl.
+  intros ? ?; now apply rrefl.
 Qed.
 Next Obligation.
   intros ? ? Hincl.
