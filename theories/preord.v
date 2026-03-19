@@ -195,18 +195,12 @@ Qed.
 
 (** ** Poset is initialised. *)
 
-HB.instance Definition _ := IsPrePreOrder.Build False (fun _ _ => False).
-HB.instance Definition _ := IsPreOrder.Build False (fun x => except x) (fun x _ _ _ _ => except x).
+HB.instance Definition _ := IsPrePreOrder.Build void (fun _ _ => False).
+HB.instance Definition _ := IsPreOrder.Build void (fun x => of_void _ x) (fun x _ _ _ _ => of_void _ x).
+HB.instance Definition _ := IsPoset.Build void (fun _ _ _ _ => empty_ext _ _).
 
-Lemma empty_ext (x y : False) : x = y.
-Proof (except x).
-
-Smpl Add (apply empty_ext) : extensionality.
-
-HB.instance Definition _ := IsPoset.Build False (fun _ _ _ _ => empty_ext _ _).
-
-Program Definition _PreInitPoset := IsPreInitialised.Build Poset False
-  (fun P => {| mon_map := fun x => False_rect _ x ; mon_mon := _ |} ).
+Program Definition _PreInitPoset := IsPreInitialised.Build Poset void
+  (fun P => {| mon_map := fun x => of_void _ x ; mon_mon := _ |} ).
 Next Obligation.
   by intros ? ?.
 Qed.
@@ -250,8 +244,11 @@ Qed.
 
 HB.instance Definition _ (A B : Poset) := _ProdPoset A B.
 
-Program Definition _PreHasProdsPoset := PreHasProds.Build Poset
-  (fun A B => HB.pack (A*B))
+Definition _PreHasProdsPoset := PreHasProds.Build Poset (fun A B => HB.pack (A*B)).
+
+HB.instance Definition _ := _PreHasProdsPoset.
+
+Program Definition _HasProjsPoset := HasProjs.Build Poset
   (fun p q => {| mon_map := fst ; mon_mon := _|})
   (fun p q => {| mon_map := snd ; mon_mon := _|})
   (fun p q x f g => {| mon_map := fun x => (f x,g x) ; mon_mon := _|}).
@@ -266,7 +263,7 @@ Next Obligation.
   all: now apply: mon_mon.
 Qed.
 
-HB.instance Definition _ := _PreHasProdsPoset.
+HB.instance Definition _ := _HasProjsPoset.
 
 Program Definition _HasProdsPoset := HasProds.Build Poset _ _ _.
 Next Obligation.
@@ -384,8 +381,11 @@ Qed.
 
 HB.instance Definition _ (A B : Poset) := _SumPoset A B.
 
-Program Definition _PreHasSumsPoset := PreHasSums.Build Poset
-  (fun A B => HB.pack (A+B)%type)
+Definition _PreHasSumsPoset := PreHasSums.Build Poset (fun A B => HB.pack (A+B)%type).
+
+HB.instance Definition _ := _PreHasSumsPoset.
+
+Program Definition _HasInjsPoset := HasInjs.Build Poset
   (fun p q => {| mon_map := inl ; mon_mon := _|})
   (fun p q => {| mon_map := inr ; mon_mon := _|})
   (fun p q x f g => {|
@@ -402,7 +402,7 @@ Next Obligation.
   all: now apply mon_mon.
 Qed.
 
-HB.instance Definition _ := _PreHasSumsPoset.
+HB.instance Definition _ := _HasInjsPoset.
 
 Program Definition _HasSumsPoset := HasSums.Build Poset _ _ _.
 Next Obligation.
@@ -419,10 +419,10 @@ Qed.
 
 HB.instance Definition _ := _HasSumsPoset.
 
-(**  Preorders with decidable ordering *)
+(** ** Preorders with decidable ordering *)
 
 #[primitive]HB.mixin Record HasOrdDec T of poset T := {
-  ord_dec : forall x y:T, Decision (x ≤ y)
+  #[canonical=no]ord_dec : forall x y:T, Decision (x ≤ y)
 }.
 
 #[short(type="DecPoset")]
@@ -444,9 +444,24 @@ HB.instance Definition _ := HasEqDec.Build P ord_dec_eq_dec.
 
 HB.end.
 
+Lemma lt_le_eq {A : DecPoset} (x y : A) : (~ (x < y)) <-> (x ≤ y -> x = y).
+Proof.
+  ext.
+  split.
+  - intros Hneg ?.
+    apply (dec_stable _).
+    intros ?.
+    apply Hneg.
+    now constructor.
+  - intros ? [? Hneg].
+    intuition.
+Qed.
+
+(** *** Instances *)
+
 HB.instance Definition _ := HasOrdDec.Build nat le_dec.
 
-Hint Extern 100 (Decision (_ ≤ _)) => (apply: ord_dec) : typeclass_instances. 
+Hint Extern 100 (Decision (_ ≤ _)) => (apply: ord_dec) : typeclass_instances.
 
 Lemma unit_dec (x y : unit) : Decision (x ≤ y).
 Proof.
@@ -454,9 +469,18 @@ Proof.
   now left.
 Qed.
 
+Lemma void_dec (x y : void) : Decision (x ≤ y).
+Proof.
+  now eapply of_void.
+Qed.
+
 HB.instance Definition _ := HasOrdDec.Build unit unit_dec.
+HB.instance Definition _ := HasOrdDec.Build void void_dec.
 
 HB.instance Definition _ (A B : DecPoset) := HasOrdDec.Build (A*B) _.
+
+Definition _PreHasProdsOrdDec := PreHasProds.Build DecPoset (fun A B => HB.pack (A*B)).
+HB.instance Definition _ := _PreHasProdsOrdDec.
 
 Program Definition _SumDec (A B : DecPoset) := HasOrdDec.Build (A+B) _.
 Next Obligation.
@@ -473,6 +497,9 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ (A B : DecPoset) := _SumDec A B.
+
+Definition _PreHasSumsOrdDec := PreHasSums.Build DecPoset (fun A B => HB.pack (A+B)).
+HB.instance Definition _ := _PreHasSumsOrdDec.
 
 (** ** Concreteness *)
 
@@ -500,8 +527,12 @@ Definition lift A := option A.
 
 Definition lift_bot {A} : lift A := None.
 
+Definition lift_ord (A:PrePreOrder) (x:option A) (y:option A) : Prop :=
+   match x with None => True | Some x' =>
+     match y with None => False | Some y' => x' ≤ y' end end.
+
 HB.instance Definition _ (A:PrePreOrder) :=
-  IsPrePreOrder.Build (lift A) (option_rel ord).
+  IsPrePreOrder.Build (lift A) (lift_ord A).
 
 Definition PrePreOrder_lift (A : PrePreOrder) : PrePreOrder := HB.pack (lift A).
 
@@ -613,7 +644,7 @@ Proof.
   - now destruct (ord_dec x y) ; [left |right].
   - right.
     now cbv.
-  - right.
+  - left.
     now cbv.
   - now left.
 Qed.

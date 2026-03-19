@@ -30,7 +30,7 @@ HB.structure Definition eqTy := {T of HasEqDec T}.
 (** This is better than an instance [EqTyDec (A : EqTy) x y : Decision (x = y :> A)] because
   it will also fire if the carrier type is richer than [EqTy], in which case [apply:] will
   trigger canonical resolution *)
-Hint Extern 100 (Decision (_ = _)) => (apply: eqdec) : typeclass_instances. 
+Hint Extern 100 (Decision (_ = _)) => solve [apply: eqdec] : typeclass_instances. 
 
 (** ** Decidable properties *)
 

@@ -131,51 +131,54 @@ Qed.
     they are initialized and have all binary coproducts.
   *)
 
-(* #[primitive] HB.mixin Record IsSum {C : PreCat} (a b : C) (t : C) := {
-    sum_inlU : a → t ;
-    sum_inrU : b → t ;
-    eitherU : forall x, a → x -> b → x -> t → x ;
-    inlK : forall x f g, (eitherU x f g) ∘ sum_inlU = f ; 
-    inrK : forall x f g, (eitherU x f g) ∘ sum_inrU = g ;
-    sumU : forall x f g h, h ∘ sum_inlU = f -> h ∘ sum_inrU = g -> h = eitherU x f g
-  }.
-#[short(type="Sum"),primitive]
-HB.structure Definition sum {C : PreCat} (a b : C) := { t of IsSum C a b t}. *)
-
-#[primitive] HB.mixin Record PreHasSums C of precat C := {
+#[primitive] HB.mixin Record PreHasSums C := {
   cat_sum : C -> C -> C ;
+}.
+
+#[short(type="PreHasSums"),primitive]
+HB.structure Definition pre_has_sums := {
+    C of PreHasSums C}.
+
+Notation "A + B" := (cat_sum A B) : cat_scope.
+Notation "A +[ X ] B" := (@cat_sum X A B) (only parsing) : cat_scope.
+
+Arguments cat_sum : simpl never.
+
+#[primitive] HB.mixin Record HasInjs C of precat C & pre_has_sums C := {
   sum_inl : forall {a b : C}, a → cat_sum a b ;
   sum_inr : forall {a b : C}, b → cat_sum a b ;
   either : forall {a b x : C}, a → x -> b → x -> cat_sum a b → x ;
 }.
 
-#[short(type="PreHasSums"),primitive]
-HB.structure Definition pre_has_sums := {
-    C of precat C & PreHasSums C}.
+#[short(type="HasInjs"),primitive]
+HB.structure Definition has_injs := {
+    C of precat C & pre_has_sums C & HasInjs C}.
 
-Notation "A + B" := (cat_sum A B) : cat_scope.
-Notation "A +[ X ] B" := (@cat_sum X A B) (only parsing) : cat_scope.
 Notation "'ι₁'" := (sum_inl _ _) : cat_scope.
 Notation "'ι₂'" := (sum_inr _ _) : cat_scope.
 Arguments either {_ _ _ _} _ _.
 
-#[primitive] HB.mixin Record HasSums C of precat C & pre_has_sums C := {
+Definition sum_map {X:HasInjs} {a b c d: X}
+  (f:a → b) (g:c → d) : a + c →[X] b + d := either (ι₁ ∘ f) (ι₂ ∘ g).
+
+#[primitive] HB.mixin Record HasSums C of cat C & has_injs C := {
   inlK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₁ = f ; 
   inrK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₂ = g ;
   sumU : forall {a b x : C} {f : a → x} {g : b → x} {h : cat_sum a b → x},
     h ∘[C] ι₁ = f -> h ∘[C] ι₂ = g -> h = either f g
-}. 
+}.
 
-#[short(type="CoCartesian"),primitive]
-HB.structure Definition cocartesian := {
-    C of cat C & initialised C & pre_has_sums C & HasSums C}.
+#[short(type="HasSums"),primitive]
+HB.structure Definition has_sums := {
+    C of cat C & has_injs C & HasSums C}.
 
 Arguments inlK {_ _ _ _} _ _.
 Arguments inrK {_ _ _ _} _ _.
 Arguments sumU : clear implicits.
 
-Definition sum_map {X:CoCartesian} {a b c d: X}
-  (f:a → b) (g:c → d) : a + c →[X] b + d := either (ι₁ ∘ f) (ι₂ ∘ g).
+#[short(type="CoCartesian"),primitive]
+HB.structure Definition cocartesian := {
+    C of cat C & initialised C & has_sums C}.
 
 (** ** Finite products
 
@@ -188,53 +191,57 @@ Definition sum_map {X:CoCartesian} {a b c d: X}
   they are finalized and have all binary products.
 *)
 
-(* #[primitive] HB.mixin Record IsProd {C : PreCat} (a b : C) (t : C) := {
-    prod_projlU : t → a ;
-    prod_projrU : t → b ;
-    pairingU : forall x, x → a -> x → b -> x → t ;
-    projlK : forall x f g, prod_projlU ∘ (pairingU x f g) = f ; 
-    projrK : forall x f g, prod_projrU ∘ (pairingU x f g) = g ; 
-    prodU : forall x f g h, prod_projlU ∘ h = f -> prod_projrU ∘ h = g -> h = pairingU x f g
-  }.
-
-#[short(type="Prod"),primitive]
-HB.structure Definition prod {C : PreCat} (a b : C) := { t of IsProd C a b t}. *)
-
-#[primitive] HB.mixin Record PreHasProds C of precat C := {
+#[primitive] HB.mixin Record PreHasProds C := {
   cat_prod : C -> C -> C ;
+}.
+
+#[short(type="PreHasProds"),primitive]
+HB.structure Definition pre_has_prods := {
+    C of PreHasProds C}.
+
+Notation "A × B" := (cat_prod A B) : cat_scope.
+Notation "A ×[ X ] B" := (@cat_prod X A B) (only parsing): cat_scope.
+Arguments cat_prod : simpl never.
+
+#[primitive] HB.mixin Record HasProjs C of quiver C & pre_has_prods C := {
   prod_projl : forall {a b : C}, cat_prod a b → a ;
   prod_projr : forall {a b : C}, cat_prod a b → b ;
   pairing : forall {a b x : C}, x → a -> x → b -> x → cat_prod a b ;
 }.
 
-#[short(type="PreHasProds"),primitive]
-HB.structure Definition pre_has_prods := {
-    C of precat C & PreHasProds C}.
+#[short(type="HasProjs"),primitive]
+HB.structure Definition has_projs := {
+    C of precat C & pre_has_prods C & HasProjs C}.
 
-Notation "A × B" := (cat_prod A B) : cat_scope.
-Notation "A ×[ X ] B" := (@cat_prod X A B) (only parsing): cat_scope.
-Notation "'π₁'" := (prod_projl  _ _) : cat_scope.
+Notation "'π₁'" := (prod_projl _ _) : cat_scope.
 Notation "'π₂'" := (prod_projr _ _) : cat_scope.
 Notation "⟨ f , g ⟩" := (pairing _ _ _ f g) : cat_scope.
 
-#[primitive] HB.mixin Record HasProds C of precat C & pre_has_prods C := {
+Arguments prod_projl : simpl never.
+Arguments prod_projr : simpl never.
+
+Definition prod_map {X:HasProjs} {a b c d: X}
+  (f:a → b) (g:c → d) : a×c →[X] b×d :=
+    ⟨ (f ∘ (π₁ : a × c →[X] a)) , (g ∘ (π₂ : a × c →[X] c)) ⟩.
+
+#[primitive] HB.mixin Record HasProds C of cat C & has_projs C := {
   projlK : forall (a b x : C) (f : x → a) (g : x → b), π₁ ∘[C] ⟨f,g⟩ = f ; 
   projrK : forall (a b x : C) (f : x → a) (g : x → b), π₂ ∘[C] ⟨f,g⟩ = g ; 
   prodU : forall (a b x : C) (f : x → a) (g : x → b) (h : x → cat_prod a b),
     π₁ ∘[C] h = f -> π₂ ∘[C] h = g -> h = ⟨f,g⟩
 }.
 
-#[short(type="Cartesian"),primitive]
-HB.structure Definition cartesian := {
-    C of cat C & terminated C & pre_has_prods C & HasProds C}.
+#[short(type="HasProds"),primitive]
+HB.structure Definition has_prods := {
+    C of cat C & has_projs C & HasProds C}.
 
 Arguments projlK {_ _ _ _} _ _.
 Arguments projrK {_ _ _ _} _ _.
 Arguments prodU : clear implicits.
 
-Definition prod_map {X:Cartesian} {a b c d: X}
-  (f:a → b) (g:c → d) : a×c →[X] b×d :=
-    ⟨ (f ∘ (π₁ : a × c →[X] a)) , (g ∘ (π₂ : a × c →[X] c)) ⟩.
+#[short(type="Cartesian"),primitive]
+HB.structure Definition cartesian := {
+    C of cat C & terminated C & has_prods C}.
 
 (**  ** Distributive category
 

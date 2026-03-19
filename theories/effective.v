@@ -39,6 +39,10 @@ Qed.
 
 HB.instance Definition _ := _NatEnum.
 
+(** *** Initial preorder *)
+
+HB.instance Definition _ := IsEnum.Build void eempty (fun x => of_void _ x).
+
 (** *** Terminal preorder *)
 
 Program Definition _EffUnit := IsEnum.Build unit (single tt) _.
@@ -59,6 +63,9 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ (A B : EffPoset) := _ProdEnum A B.
+
+Definition _PreHasProdsEff := PreHasProds.Build EffPoset (fun A B => HB.pack (A*B)).
+HB.instance Definition _ := _PreHasProdsEff.
 
 (** *** Coproduct *)
 
@@ -88,6 +95,9 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ (A : EffPoset) := _LiftEnum A.
+
+Definition _PreHasSumsEff := PreHasSums.Build EffPoset (fun A B => HB.pack (A+B)).
+HB.instance Definition _ := _PreHasSumsEff.
 
 (** ** Semi-decidability of effective existentials *)
 

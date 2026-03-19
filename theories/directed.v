@@ -14,7 +14,7 @@ Require Import utils.all categories.all preord sets finsets colsets effective.
      unpointed domains.
   *)
 
-Definition inh {set : SetTheory} {A:Poset} (hf:bool) (X:set A) := 
+Definition inh {set : SetTheory} {A:Poset} (hf:bool) (X:set A) : Prop := 
   if hf then exists x, x ∈ X else True.
 
 Instance inh_dec A hf (X:finset A) : Decision (inh hf X).
@@ -25,19 +25,31 @@ Proof.
   2: typeclasses eauto.
   clear X.
   intros [|a].
-  - right. intros [? H]. by rewrite finsetP /= in H.
+  - right. now intros [? ?%femptyP].
   - left. exists a. now rewrite finsetP /=.
 Qed.
 
+Lemma not_inh A hf (X : finset A) : ~(inh hf X) ->  (X = fempty /\ hf = true).
+Proof.
+  intros H.
+  destruct hf ; cbn in * ; try tauto.
+  split ; [|easy].
+  ext.
+  rewrite femptyP.
+  split ; try tauto.
+  intros ?.
+  now apply H.
+Qed.
+
 Lemma inh_image {A B : Poset} hf (X:finset A) (f:A → B) :
-  inh hf X <-> inh hf (image f X).
+  inh hf (image f X) <-> inh hf X.
 Proof.
   destruct hf; simpl.
   2: easy.
   setoid_rewrite imageP.
   split.
-  - intros [] ; now repeat eexists.
   - intros (?&?&?) ; now eexists.
+  - intros [] ; now repeat eexists.
 Qed.
 
 Lemma inh_sub A hf (X Y:finset A) :
@@ -66,40 +78,44 @@ Qed.
 (**  A subset of the image of a function is equal to the image
      of some subset of the set X.
   *)
-Lemma finset_sub_image {A B : Poset} {set : SetTheory} 
+Lemma incl_image {A B : Poset} {set : SetTheory} 
   (f:A → B) (X: set A) (M : finset B) :
-  M ⊆ image f X ->
+  M ⊆ image f X <->
   exists (M' : finset A), M = image f M' /\ M' ⊆ X.
 Proof.
-  induction M as [|b ? IHM] using finset_ind.
-  - exists fempty ; split.
-    2: apply fempty_incl.
-    ext.
-    rewrite imageP femptyP. setoid_rewrite femptyP.
-    intuition.
-  - intros Hincl.
-    destruct IHM as [M' [??]].
-    + intros x Hx.
-      apply Hincl.
-      now rewrite funion2P.
-    + subst.
-      assert (b ∈ image f X) as Hb.
-      { apply Hincl.
-        now rewrite funion2P fsingleP.
-      }
-      rewrite imageP in Hb.
-      destruct Hb as [a [??]] ; subst.
-      exists (funion2 (fsingle a) M').
-      split.
-      2: intros x ; rewrite funion2P fsingleP ; intuition (subst ; auto).
+  split ; cycle -1.
+  - intros (M'& -> & Hincl).
+    move => ? /imageP [x [? ->]].
+    rewrite imageP.
+    now eexists.
+  - induction M as [|b ? IHM] using finset_ind.
+    + exists fempty ; split.
+      2: apply fempty_incl.
       ext.
-      rewrite funion2P fsingleP !imageP.
-      setoid_rewrite funion2P.
-      setoid_rewrite fsingleP.
-      split.
-      * intros [->|(?&?&->)].
-        all: now eexists.
-      * intros (?&[->|]&->).
+      rewrite imageP femptyP. setoid_rewrite femptyP.
+      intuition.
+    + intros Hincl.
+      destruct IHM as [M' [??]].
+      * intros x Hx.
+        apply Hincl.
+        now rewrite funion2P.
+      * subst.
+        assert (b ∈ image f X) as Hb.
+        { apply Hincl.
+          now rewrite funion2P fsingleP.
+        }
+        rewrite imageP in Hb.
+        destruct Hb as [a [??]] ; subst.
+        exists (funion2 (fsingle a) M').
+        split.
+        2: intros x ; rewrite funion2P fsingleP ; intuition (subst ; auto).
+        ext.
+        rewrite funion2P fsingleP !imageP.
+        setoid_rewrite funion2P.
+        setoid_rewrite fsingleP.
+        split.
+        1: intros [->|(?&?&->)] ; now eexists.
+        intros (?&[->|]&->).
         1: now left.
         right.
         now eexists.
@@ -153,22 +169,14 @@ Proof.
     now apply ub_emp.
   - intros _.
     destruct hf.
-    1: destruct (decide (inh true M)).
+    1: destruct (decide (inh true M)) as [|[-> _]%not_inh].
     2:{
-      assert (M = fempty) as ->.
-      {
-        ext.
-        rewrite femptyP -neg_false.
-        intros ?.
-        apply n.
-        now eexists.
-      }
       rewrite funion2_incl single_incl.
       exists a.
       rewrite /upper_bound.
       split ; eauto.
       intros x.
-      rewrite funion2P singleP femptyP.
+      rewrite fconsP femptyP.
       now intros [->|].
     }
     2: specialize (IHM I).
@@ -188,9 +196,9 @@ Qed.
 
 (**  Directeness forms a set color. *)
 
-Program Definition directed_hf_cl {set : SetTheory} (hf:bool) : color set :=
-  {| color_prop := fun A X => directed hf X |}.
-Next Obligation.
+Lemma directed_single {set : SetTheory} (hf:bool) {A : Poset} (a : A) :
+  directed (set := set) hf (single a).
+Proof.
   intros ? ? Hincl.
   exists a.
   rewrite incl_single in Hincl.
@@ -198,11 +206,13 @@ Next Obligation.
   split ; [easy|].
   intros ? ?; now apply rrefl.
 Qed.
-Next Obligation.
-  intros ? ? Hincl.
-  destruct (finset_sub_image _ _ _ Hincl) as [M' [??]] ; subst.
-  destruct (H M') as [x [? Hub]]; auto.
-  1: now rewrite inh_image.
+
+Lemma directed_image {set : SetTheory} (hf : bool) {A B : Poset} (f : A → B) (X : set A) :
+ directed hf X -> directed hf (image f X).
+Proof.
+  move => Hdir ? ? /incl_image [M' [??]] ; subst.
+  destruct (Hdir M') as [x [? Hub]]; auto.
+  1: now rewrite -inh_image.
   exists (f x); split; auto.
   1: now apply imageP.
   intros ?.
@@ -210,23 +220,29 @@ Next Obligation.
   intros (x'&?&->).
   now apply mon_mon, Hub.
 Qed.
-Next Obligation.
+
+Lemma directed_union {set : SetTheory} (hf : bool) {A : Poset} (XS : set (set A)) :
+  (directed hf XS) ->
+  (forall X : set A, X ∈ XS -> directed hf X) ->
+  directed hf (∪ XS).
+Proof.
+  intros Hdir Hdir'.
   apply prove_directed.
   - destruct hf ; auto ; cbn in *.
-    destruct (H fempty) as (X&Hin&?); cbn.
+    destruct (Hdir fempty) as (X&Hin&?); cbn.
     1-2: eauto using fempty_incl.
-    specialize (H0 _ Hin).
-    destruct (H0 fempty) as (x&?&?) ; cbn.
+    specialize (Hdir' _ Hin).
+    destruct (Hdir' fempty) as (x&?&?) ; cbn.
     1-2: eauto using fempty_incl.
     exists x.
     now rewrite unionP.
   - intros x [X1 [??]]%unionP y [X2 [??]]%unionP.
-    destruct (H (fcons X1 (fcons X2 fempty))) as [X [HXin HXub]]; auto.
+    destruct (Hdir (fcons X1 (fcons X2 fempty))) as [X [HXin HXub]]; auto.
     + apply elem_inh with X1; auto.
       now rewrite !fconsP.
     + rewrite !fcons_incl.
       auto using fempty_incl.
-    + destruct (H0 X HXin (fcons x (fcons y fempty))) as [z [? Hzub]]; auto.
+    + destruct (Hdir' X HXin (fcons x (fcons y fempty))) as [z [? Hzub]]; auto.
       * eapply elem_inh; auto.
         now rewrite fconsP.
       * intros z.
@@ -243,9 +259,28 @@ Next Obligation.
         all: now rewrite !fconsP.
 Qed.
 
+Definition directed_hf_cl {set : SetTheory} (hf:bool) : color set :=
+  {|
+    color_prop := fun A => directed hf ; 
+    color_single := @directed_single set hf ;
+    color_image := @directed_image set hf ; 
+    color_union := @directed_union set hf
+  |}.
+
 Definition semidirected_cl {set : SetTheory} := directed_hf_cl (set := set) true.
 Definition directed_cl {set : SetTheory} := directed_hf_cl (set := set) false.
 
+Lemma directed_subset (hf : bool) {A : Poset} {P : A -> Prop} `{! forall x, Decision (P x)}
+  (X : finset A) :
+  (forall x (M : finset A), (∀ y ∈ M, P y) -> upper_bound x M -> P x) ->
+  directed hf X ->
+  directed hf (finsubset P X).
+Proof.
+  move => ? Hdir M Hinh /incl_finsubset [] ??.
+  edestruct Hdir as (?&?&?); tea.
+  eexists ; split ; tea.
+  now rewrite finsubsetP.
+Qed.
 
 (**  The preorder of natural numbers with their arithmetic ordering
      is an effective, directed preorder.

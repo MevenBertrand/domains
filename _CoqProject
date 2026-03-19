@@ -25,7 +25,7 @@ theories/sets_choice.v
 
 theories/effective.v
 theories/directed.v
-# theories/plotkin.v
+theories/plotkin.v
 # theories/cusl.v
 # theories/cont_functors.v
 # theories/cpo.v

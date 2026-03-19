@@ -38,7 +38,7 @@ Delimit Scope set_scope with set.
 
 #[primitive] HB.mixin Record IsBaseSetTheory (set : Poset -> Poset) := {
   member {A : Poset} : A -> set A -> Prop ;
-  _set_leP T (X Y : set T) : X ≤ Y <-> (forall t, member t X -> member t Y) ;
+  #[canonical=no]_set_leP T (X Y : set T) : X ≤ Y <-> (forall t, member t X -> member t Y) ;
   }.
 
 #[short(type="BaseSetTheory"),primitive]
@@ -185,11 +185,32 @@ Proof.
     now exists x ; split.
 Qed.
 
-Lemma image_fun (set : SetTheory) (A B : Poset) (f:A → B) (X: set A) :
+Lemma image_fun {set : SetTheory} {A B : Poset} (f:A → B) (X: set A) :
   ∀ x ∈ X, f x ∈ image f X.
 Proof.
   intros ??.
   now rewrite !imageP.
+Qed.
+
+Lemma image_all {set : SetTheory} {A B : Poset} {P : B -> Prop} (f:A → B) (X: set A) :
+  (∀ x ∈ image f X, P x) <-> ∀ x ∈ X, P (f x).
+Proof.
+  rewrite /set_all.
+  setoid_rewrite imageP.
+  intuition eauto.
+  now destruct H0 as (?&?&->).
+Qed.
+
+Lemma image_ex {set : SetTheory} {A B : Poset} {P : B -> Prop} (f:A → B) (X: set A) :
+  (∃ x ∈ image f X, P x) <-> ∃ x ∈ X, P (f x).
+Proof.
+  rewrite /set_ex.
+  setoid_rewrite imageP.
+  split.
+  - intros (?&(?&?&->)&?).
+    now eexists. 
+  - intros (?&?&?).
+    repeat (eexists ; tea).
 Qed.
 
 Lemma single_incl {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :

@@ -1,5 +1,5 @@
 (** * domains.basics: basic definitions *)
-From Stdlib Require Import ssreflect Morphisms Relations RelationClasses.
+From Stdlib Require Import ssreflect ssrfun Morphisms Relations RelationClasses.
 From smpl Require Export Smpl.
 From HB Require Import structures.
 Require Import notations tactics.
@@ -167,9 +167,15 @@ Definition option_bind {A B} (f : A -> option B) : option A -> option B :=
   | Some a => f a
   end.
 
-(** Unit *)
+(** Extensionality *)
 
 Lemma unit_ext (x y : unit) : x = y.
 Proof (match x, y with | tt, tt => eq_refl end).
 
 Smpl Add (apply unit_ext) : extensionality.
+
+
+Lemma empty_ext (x y : void) : x = y.
+Proof (of_void _ x).
+
+Smpl Add (apply empty_ext) : extensionality.

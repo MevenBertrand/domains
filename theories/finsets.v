@@ -219,6 +219,16 @@ HB.instance Definition _ :=
 HB.instance Definition _ :=
   IsSetTheory.Build finset (@fsingleP) (@fimageP) (@funionP).
 
+
+Lemma image_fempty (X Y : Poset) (f : X → Y) : image f fempty = fempty.
+Proof.
+  ext.
+  rewrite imageP.
+  setoid_rewrite femptyP.
+  intuition.
+Qed.
+
+
 (** ** Decidability *)
 
 Instance list_in_dec (A:EqTy) (X : list A) (x : A) : Decision (In x X).
@@ -258,12 +268,6 @@ Lemma fconsP {A:Poset} (a:A) (X:finset A) (x:A) :
 Proof.
   rewrite /fcons funion2P fsingleP.
   intuition.
-Qed.
-
-Lemma fcons_subset (X:Poset) (x:X) (xs ys:finset X) :
-  x ∈ ys -> xs ⊆ ys -> fcons x xs ⊆ ys.
-Proof.
-  now intros ? ? ? [->|]%fconsP.
 Qed.
 
 Lemma ub_fcons (X:Poset) (x:X) (xs:finset X) (a:X) :
@@ -497,11 +501,11 @@ Section FinsetRec.
 End FinsetRec.
 
 Definition finset_rec
-  {A B : Poset} (base : B) (op : B -> B -> B) (into : A → B)
+  {A B : Poset} (base : B) (op : B -> B -> B) (into : A -> B)
     (Hcom : forall x y, op x y = op y x)
     (Hass : forall x y z, op x (op y z) = op (op x y) z)
     (Hidm : forall x, op x x = x) :
-  finset A -> B := fun X => finset_fold base op Hcom Hass Hidm (image into X).
+  finset A -> B := fun X => finset_fold base op Hcom Hass Hidm (fimage into X).
 
 (** *** Filter + map *)
 
@@ -585,14 +589,14 @@ End FilterMap.
 
 Existing Instance filter_Proper.
 
-Lemma transp_lemma {A B C} (f : A -> B) {P : B -> Type} (F : forall x : A, P (f x) -> C)
+#[local]Definition transp_lemma {A B C} (f : A -> B) {P : B -> Type} (F : forall x : A, P (f x) -> C)
   (x y : A) (e : f x = f y) (p : P (f y)) :
   (transport _ e (F x)) p = F x (transport _ (eq_sym e) p).
 Proof.
   now destruct e.
 Qed.
 
-Lemma transp_lemma' {A B C} {P : A -> B -> Type} (b b' : B) (e : b = b') 
+#[local]Definition transp_lemma' {A B C} {P : A -> B -> Type} (b b' : B) (e : b = b') 
   (F : forall x : A, P x b -> C)
   (a : A) (p : P a b') :
   transport _ e F a p = F a (transport _ (eq_sym e) p).
@@ -677,14 +681,23 @@ Section FinSubset.
     - intros ; eexists ; intuition eauto.
   Qed.
 
+  Lemma finsubset_fempty : finsubset fempty = fempty.
+  Proof.
+    ext.
+    rewrite finsubsetP !femptyP ; intuition.
+  Qed.
+
   Lemma finsubset_incl (X : finset A) : finsubset X ⊆ X.
   Proof.
     move => ? /finsubsetP [] //.
   Qed.
 
-  Lemma incl_finsubset (X Y : finset A) : Y ⊆ finsubset X -> ∀ x ∈ Y, P x.
+  Lemma incl_finsubset (X Y : finset A) : Y ⊆ finsubset X <-> (Y ⊆ X) /\ ∀ x ∈ Y, P x.
   Proof.
-    move => Hincl x /Hincl /finsubsetP [] //.
+    rewrite /incl /set_all.
+    setoid_rewrite finsubsetP.
+    intuition eauto.
+    all: now edestruct H.
   Qed.
   
 End FinSubset.
@@ -789,6 +802,24 @@ Proof.
   all: by rewrite ?finsum_right_elem ?finsum_left_elem ?left_finsetP ?right_finsetP.
 Qed.
 
+Lemma incl_finsum {A B : Poset} (X X' : finset A) (Y Y' : finset B) :
+  finsum X Y ⊆ finsum X' Y' <-> X ⊆ X' /\ Y ⊆ Y'.
+Proof.
+  rewrite /incl /set_all.
+  split.
+  - intros Hsum.
+    split.
+    + move => x.
+      specialize (Hsum (inl x)).
+      now rewrite !finsum_left_elem in Hsum.
+    + move => x.
+      specialize (Hsum (inr x)).
+      now rewrite !finsum_right_elem in Hsum.
+  - move => [Hl Hr] [a|b].
+    + now rewrite !finsum_left_elem.
+    + now rewrite !finsum_right_elem.
+Qed.
+
 Section FinEqDec.
   Context {A : DecPoset}.
 
@@ -805,12 +836,13 @@ Section FinEqDec.
     intuition.
   Qed.
 
-  Lemma finter2_incl (X Y Z : finset A) : X ⊆ finter2 Y Z -> X ⊆ Y /\ X ⊆ Z.
+  Lemma finter2_incl (X Y Z : finset A) : X ⊆ finter2 Y Z <-> X ⊆ Y /\ X ⊆ Z.
   Proof.
-    intros Hincl.
-    rewrite /incl /set_all in Hincl.
-    setoid_rewrite finter2P in Hincl.
-    rewrite /incl /set_all ; split ; apply Hincl.
+    rewrite /incl /set_all.
+    setoid_rewrite finter2P.
+    split.
+    - intros H ; split ; intros ; now apply H.
+    - intuition.
   Qed.
 
   Fixpoint finter_list (X : finset A) (XS : list (finset A)) : finset A :=
@@ -848,6 +880,20 @@ Section FinEqDec.
     rewrite /finter quot_rec_eq finter_listP /set_all.
     setoid_rewrite finsetP.
     reflexivity.
+  Qed.
+
+
+  Lemma finter_incl (X Y : finset A) (Z : finset (finset A)) :
+    X ⊆ finter Y Z <-> (X ⊆ Y /\ ∀ z ∈ Z, X ⊆ z).
+  Proof.
+    rewrite /incl /set_all.
+    setoid_rewrite finterP.
+    rewrite /set_all.
+    split.
+    - intros H ; split.
+      + now intros ? ?%H.
+      + intros ; now apply H.  
+    - intuition.
   Qed.
 
 (**  We can remove an element from a finite set if the elements have
@@ -994,13 +1040,22 @@ Section FinPredDec.
 
 End FinPredDec.
 
-#[global] Instance finset_find_dec {A : Poset} (P : A -> Prop)
+#[global] Instance finset_find_dec {A : Poset} {P : A -> Prop}
   (M: finset A) `{forall x, Decision (P x)}: Decision (∃ z ∈ M, P z).
 Proof.
   now apply finset_find_dec_dep.
 Qed.
 
-Lemma finset_all_dec_dep  {A : Poset} (P : A -> Prop)
+(* #[global] Instance finset_find_sum {A : Poset} (P : A -> Prop)
+  (M: finset A) `{forall x, Decision (P x)} : Decision (∃ z ∈ M, P z).
+Proof.
+  apply DecisionDecSum.
+  1: now apply finset_find_dec_dep.
+  intros Hneg ???.
+  apply Hneg ; now eexists.
+Qed. *)
+
+Lemma finset_all_dec_dep  {A : Poset} {P : A -> Prop}
   (M : finset A) (Hdec : forall x, x ∈ M -> Decision (P x)) :
   Decision (∀ z ∈ M, P z).
 Proof.
@@ -1017,10 +1072,48 @@ Proof.
   now eexists.
 Qed.
 
-#[global]Instance finset_all_dec {A : Poset} (P : A -> Prop) `{forall x, Decision (P x)} (M: finset A)
+#[global]Instance finset_all_dec {A : Poset} {P : A -> Prop} `{forall x, Decision (P x)} (M: finset A)
   : Decision (∀ z ∈ M, P z).
 Proof.
   now apply finset_all_dec_dep.
+Qed.
+
+(* #[global] Instance finset_all_sum {A : Poset} (P : A -> Prop)
+  (M: finset A) `{forall x, Decision (P x)} : DecSum (∀ z ∈ M, P z) (∃ z ∈ M, ~ P z).
+Proof.
+  apply DecisionDecSum.
+  1: typeclasses eauto.
+  intros Hneg.
+  apply (dec_stable _).
+  intros Hneg'.
+  apply Hneg.
+  intros ??.
+  apply (dec_stable _).
+  intros ?.
+  apply Hneg'.
+  now eexists.
+Qed. *)
+
+Lemma finset_not_ex {A : Poset} {P : A -> Prop} `{forall x, Decision (P x)} (M: finset A)
+  : ~ (∃ z ∈ M, P z) -> (∀ z ∈ M, ~ P z).
+Proof.
+  intros Hneg z Hz HP.
+  apply Hneg.
+  now eexists.
+Qed.
+
+Lemma finset_not_all {A : Poset} (P : A -> Prop) `{forall x, Decision (P x)} (M: finset A)
+  : ~ (∀ z ∈ M, P z) -> (∃ z ∈ M, ~ P z).
+Proof.
+  intros Hneg.
+  apply (dec_stable _).
+  intros Hneg'.
+  apply Hneg.
+  intros ??.
+  apply (dec_stable _).
+  intros ?.
+  apply Hneg'.
+  now eexists.
 Qed.
 
 #[global]Instance fin_incl_dec {A : DecPoset} (X Y : finset A)
@@ -1041,6 +1134,19 @@ Proof.
   intros e.
   change (In a nil).
   now rewrite -finsetP -/fempty -e finsetP /=.
+Qed.
+
+Lemma finset_not_empty  {A : Poset} (M : finset A) :
+  (M <> fempty) -> (exists x, x ∈ M).
+Proof.
+  pattern M.
+  apply quot_rect_irr.
+  2: typeclasses eauto.
+  intros [|] ; cbn.
+  1: now intros [].
+  intros _.
+  eexists.
+  now rewrite finsetP /=.
 Qed.
 
 Instance finsubset_dec {A : DecPoset}
