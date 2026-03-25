@@ -57,3 +57,9 @@ theories/directed.v
 # theories/examples/skiy.v
 # theories/examples/st_lam.v
 # theories/examples/st_lam_fix.v
+
+theories/examples/findom.v
+
+theories/autosubst/core.v
+theories/autosubst/fintype.v
+theories/examples/syntax.v
