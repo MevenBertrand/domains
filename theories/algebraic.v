@@ -21,7 +21,7 @@ Section algebraic.
   Record mixin_of
     (ord:preord) (basis:preord) :=
     Mixin
-    { basis_inj : basis → ord
+    { basis_inj : basis ⤳ ord
     ; basis_dec : forall x y:basis, {x ≤ y}+{x ≰ y}
     ; basis_enum : eset basis
     ; basis_enum_complete :

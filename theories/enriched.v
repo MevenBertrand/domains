@@ -23,8 +23,8 @@ Section Monoidal.
   Section axioms.
     Variable tensor : ob -> ob -> ob.
     Variable unit : ob.
-    Variable tensor_map : forall (A B C D:ob) (f:A → B) (g:C → D),
-      tensor A C → tensor B D.
+    Variable tensor_map : forall (A B C D:ob) (f:A ⤳ B) (g:C ⤳ D),
+      tensor A C ⤳ tensor B D.
     Arguments tensor_map [A B C D] f g.
 
     Variable assoc : forall (A B C:ob), tensor (tensor A B) C ↔ tensor A (tensor B C).
@@ -33,7 +33,7 @@ Section Monoidal.
 
     Record axioms :=
       Axioms
-      { tensor_map_respects : forall A B C D (f f':A → C) (g g':B → D),
+      { tensor_map_respects : forall A B C D (f f':A ⤳ C) (g g':B ⤳ D),
            f ≈ f' -> g ≈ g' -> tensor_map f g ≈ tensor_map f' g'
 
       ; tensor_map_id : forall (A B:ob),
@@ -43,13 +43,13 @@ Section Monoidal.
             (f:hom A B) (g:hom A' B') (h:hom B C) (i:hom B' C'),
             tensor_map h i ∘ tensor_map f g ≈ tensor_map (h ∘ f) (i ∘ g)
 
-      ; unitor1_natural : forall (A B:ob) (x:A → B),
+      ; unitor1_natural : forall (A B:ob) (x:A ⤳ B),
            unitor1 B ∘ tensor_map id x ≈ x ∘ unitor1 A
 
-      ; unitor2_natural : forall (A B:ob) (x:A → B),
+      ; unitor2_natural : forall (A B:ob) (x:A ⤳ B),
            unitor2 B ∘ tensor_map x id ≈ x ∘ unitor2 A
 
-      ; assoc_natural : forall (A A' B B' C C':ob) (f:A→A') (g:B → B') (h:C → C'),
+      ; assoc_natural : forall (A A' B B' C C':ob) (f:A⤳A') (g:B ⤳ B') (h:C ⤳ C'),
            assoc A' B' C' ∘ tensor_map (tensor_map f g) h
            ≈
            tensor_map f (tensor_map g h) ∘ assoc A B C
@@ -103,7 +103,7 @@ Canonical Structure Monoidal.category.
 Coercion Monoidal.category : monoidal >-> category.
 
 Canonical Structure monoidal_eq (X:monoidal) (A B:ob X) :=
-  Eq.Pack (A → B) (Monoidal.eq X A B).
+  Eq.Pack (A ⤳ B) (Monoidal.eq X A B).
 
 Definition tensor (X:monoidal) : ob X -> ob X -> ob X:=
   Monoidal.tensor _ _ _ _ _ (Monoidal.mixin X).
@@ -115,7 +115,7 @@ Arguments tensor [X] A B.
 Notation "A ⊗ B" := (@tensor _ A B) : category_ob_scope.
 Notation "1" := (munit _) : category_ob_scope.
 
-Definition tensor_map (X:monoidal) (A B C D:ob X) (f:A → B) (g:C → D) : A⊗C → B⊗D :=
+Definition tensor_map (X:monoidal) (A B C D:ob X) (f:A ⤳ B) (g:C ⤳ D) : A⊗C ⤳ B⊗D :=
   Monoidal.tensor_map _ _ _ _ _ (Monoidal.mixin X) A B C D f g.
 
 Definition associator (X:monoidal) (A B C:ob X) : (A⊗B)⊗C ↔ A⊗(B⊗C) :=
@@ -134,7 +134,7 @@ Arguments unitor2 [X] A.
 
 
 Lemma tensor_map_respects (X:monoidal) : 
-  forall (A B C D:ob X) (f f':A → C) (g g':B → D),
+  forall (A B C D:ob X) (f f':A ⤳ C) (g g':B ⤳ D),
     f ≈ f' -> g ≈ g' -> tensor_map f g ≈ tensor_map f' g'.
 
 Proof (@Monoidal.tensor_map_respects _ _ _ _ _ _ _ _ _ _ _
@@ -155,26 +155,26 @@ Proof (@Monoidal.tensor_map_id _ _ _ _ _ _ _ _ _ _ _
           (@Monoidal.monoidal_axioms _ _ _ _ _ (Monoidal.mixin X))).
 
 Lemma tensor_map_compose (X:monoidal) : forall (A A' B B' C C':ob X) 
-            (f:A → B) (g:A' → B') (h:B → C) (i:B' → C'),
+            (f:A ⤳ B) (g:A' ⤳ B') (h:B ⤳ C) (i:B' ⤳ C'),
             tensor_map h i ∘ tensor_map f g ≈ tensor_map (h ∘ f) (i ∘ g).
 
 Proof (@Monoidal.tensor_map_compose _ _ _ _ _ _ _ _ _ _ _
           (@Monoidal.monoidal_axioms _ _ _ _ _ (Monoidal.mixin X))).
 
-Lemma unitor1_natural (X:monoidal) : forall (A B:ob X) (x:A → B),
+Lemma unitor1_natural (X:monoidal) : forall (A B:ob X) (x:A ⤳ B),
            unitor1 B ∘ tensor_map id x ≈ x ∘ unitor1 A.
 
 Proof (@Monoidal.unitor1_natural _ _ _ _ _ _ _ _ _ _ _
           (@Monoidal.monoidal_axioms _ _ _ _ _ (Monoidal.mixin X))).
 
-Lemma unitor2_natural (X:monoidal) : forall (A B:ob X) (x:A → B),
+Lemma unitor2_natural (X:monoidal) : forall (A B:ob X) (x:A ⤳ B),
            unitor2 B ∘ tensor_map x id ≈ x ∘ unitor2 A.
 
 Proof (@Monoidal.unitor2_natural _ _ _ _ _ _ _ _ _ _ _
           (@Monoidal.monoidal_axioms _ _ _ _ _ (Monoidal.mixin X))).
 
 Lemma assoc_natural (X:monoidal) : 
-  forall (A A' B B' C C':ob X) (f:A→A') (g:B → B') (h:C → C'),
+  forall (A A' B B' C C':ob X) (f:A⤳A') (g:B ⤳ B') (h:C ⤳ C'),
            associator A' B' C' ∘ tensor_map (tensor_map f g) h
            ≈
            tensor_map f (tensor_map g h) ∘ associator A B C.
@@ -227,8 +227,8 @@ Section Enriched.
   Section axioms.
     Variable Ob:Type.
     Variable Hom:Ob -> Ob -> M.
-    Variable compose : forall (A B C:Ob), Hom B C ⊗ Hom A B → Hom A C.
-    Variable identity : forall (A:Ob), 1 → Hom A A.
+    Variable compose : forall (A B C:Ob), Hom B C ⊗ Hom A B ⤳ Hom A C.
+    Variable identity : forall (A:Ob), 1 ⤳ Hom A A.
 
     Record axioms :=
     Axioms
@@ -249,13 +249,13 @@ Section Enriched.
   Enriched
   { Ob :> Type
   ; Hom : Ob -> Ob -> M
-  ; compose : forall (A B C:Ob), Hom B C ⊗ Hom A B → Hom A C
-  ; identity : forall (A:Ob), 1 → Hom A A
+  ; compose : forall (A B C:Ob), Hom B C ⊗ Hom A B ⤳ Hom A C
+  ; identity : forall (A:Ob), 1 ⤳ Hom A A
   ; enriched_axioms : axioms Ob Hom compose identity
   }.
   Notation comp E := (compose E _ _ _).
 
-  Lemma compose_assoc' (X:enriched) (Z1 Z2:M) (A B C D:Ob X) (f:Z1 → _) (g: Z2 → _) :
+  Lemma compose_assoc' (X:enriched) (Z1 Z2:M) (A B C D:Ob X) (f:Z1 ⤳ _) (g: Z2 ⤳ _) :
     compose X A B D ∘ ((compose X B C D ∘ g) ⋆ f) ≈
     compose X A C D ∘ (id ⋆ compose X A B C) ∘ α ∘ (g ⋆ f).
   Proof.
@@ -269,7 +269,7 @@ Section Enriched.
   Record functor (X Y:enriched) :=
   Functor
   { ob_map :> Ob X -> Ob Y
-  ; hom_map : forall (A B:Ob X), Hom X A B → Hom Y (ob_map A) (ob_map B)
+  ; hom_map : forall (A B:Ob X), Hom X A B ⤳ Hom Y (ob_map A) (ob_map B)
 
   ; respect_compose : forall (A B C:Ob X),
         hom_map A C ∘ comp X ≈ comp Y ∘ (hom_map B C ⋆ hom_map A B)
@@ -318,7 +318,7 @@ Section Enriched.
 
   Record nt (X Y:enriched) (F G:functor X Y) :=
   NT
-  { transform :> forall A:Ob X, 1 → Hom Y (F A) (G A)
+  { transform :> forall A:Ob X, 1 ⤳ Hom Y (F A) (G A)
   ; nt_axiom : forall (A B:Ob X),
        comp Y ∘ (hom_map G A B ⋆ transform A) ∘ λ⁻¹
        ≈
@@ -327,7 +327,7 @@ Section Enriched.
 
 Check unitor1_natural.
 
-  Lemma unitor1_natural' (A B:M) (x:A → B) :
+  Lemma unitor1_natural' (A B:M) (x:A ⤳ B) :
     id ⋆ x ∘ ρ⁻¹ ≈ iso_hom (ρ⁻¹) ∘ x.
   Proof.
     transitivity (iso_hom ρ⁻¹ ∘ (x ∘ ρ) ∘ ρ⁻¹).
@@ -345,7 +345,7 @@ Check unitor1_natural.
     apply cat_ident1.    
   Qed.    
 
-  Lemma unitor2_natural' (A B:M) (x:A → B) :
+  Lemma unitor2_natural' (A B:M) (x:A ⤳ B) :
     x ⋆ id ∘ λ⁻¹ ≈ iso_hom (λ⁻¹) ∘ x.
   Admitted.
 

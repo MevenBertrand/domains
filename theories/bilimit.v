@@ -543,7 +543,7 @@ Section bilimit.
       limord_univ_commute
       limord_univ_uniq.
 
-  Program Definition ep_set : dir_preord I → (PLT.hom_ord hf bilimit bilimit) :=
+  Program Definition ep_set : dir_preord I ⤳ (PLT.hom_ord hf bilimit bilimit) :=
     Preord.Hom _ _ 
         (fun i => embed (embed_ep_pair (limset_spoke i)) ∘
                   project (embed_ep_pair (limset_spoke i))) 
@@ -595,7 +595,7 @@ Section bilimit.
   Qed.
 
   Lemma bilimit_cpo_colimit1 :
-    id(bilimit) ≤ ∐(image ep_set Iset).
+    id(bilimit) ≤ ⊔(image ep_set Iset).
   Proof.
     hnf. intros [x y] ?.
     simpl in H.
@@ -619,7 +619,7 @@ Section bilimit.
   Qed.
 
   Lemma bilimit_cpo_colimit2 :
-    id(bilimit) ≈ ∐(image ep_set Iset).
+    id(bilimit) ≈ ⊔(image ep_set Iset).
   Proof.
     split. apply bilimit_cpo_colimit1.
     apply CPO.sup_is_least.

@@ -9,10 +9,10 @@ Require Import utils.all categories.
 (** ** Monomorphisms *)
 (**  A monomorphism is a morphism which cancels on the left. *)
 
-Definition isMono {C: PreCat} [x y: C] (f : x → y) :=
-  forall z (g1 g2 : z → x), f ∘ g1 = f ∘ g2 -> g1 = g2.
+Definition isMono {C: PreCat} [x y: C] (f : x ⤳ y) :=
+  forall z (g1 g2 : z ⤳ x), f ∘ g1 = f ∘ g2 -> g1 = g2.
 
-#[primitive] HB.mixin Record IsMono {C: PreCat} (x y: C) (f : x → y) :=
+#[primitive] HB.mixin Record IsMono {C: PreCat} (x y: C) (f : x ⤳ y) :=
   { #[canonical=no] mono_prop: isMono f}.
 #[short(type="Mono"),primitive]
 HB.structure Definition mono {C: PreCat} (x y: C)
@@ -21,7 +21,7 @@ Notation "a ↣ b" := (Mono _ a b) : cat_scope.
 Notation "a ↣[ C ] b" := (Mono C a b) (only parsing) : cat_scope.
 Arguments Mono {_}.
 
-Definition pack_mono {C: PreCat} [x y: C] (f : x → y)
+Definition pack_mono {C: PreCat} [x y: C] (f : x ⤳ y)
   (mono_f: isMono f): x ↣ y :=
   HB.pack f (IsMono.Build _ _ _ f mono_f).
 
@@ -36,24 +36,24 @@ Proof.
   by do 2 apply mono_prop in eq.
 Qed.
 
-Lemma IsMono_decomp {C: Cat} [a b c : C] (m: a → b) (n: b → c):
+Lemma IsMono_decomp {C: Cat} [a b c : C] (m: a ⤳ b) (n: b ⤳ c):
   isMono (n ∘ m) -> isMono m.
 Proof.
   intros mono D f g eq. apply mono.
   by rewrite compoA eq -compoA.
 Qed.
 
-Definition joint_mono {C: Cat} [a b c: C] (f: c → a) (g: c → b) :=
-  forall d (x y: d → c), f ∘ x = f ∘ y -> g ∘ x = g ∘ y -> x = y.
+Definition joint_mono {C: Cat} [a b c: C] (f: c ⤳ a) (g: c ⤳ b) :=
+  forall d (x y: d ⤳ c), f ∘ x = f ∘ y -> g ∘ x = g ∘ y -> x = y.
 
 
 (** ** Epimorphisms *)
 (**  An epimorphism is a morphism which cancels on the right. *)
 
-Definition isEpi {C: PreCat} [x y: C] (f : x → y) :=
-  forall z (g1 g2 : y → z), g1 ∘ f = g2 ∘ f -> g1 = g2.
+Definition isEpi {C: PreCat} [x y: C] (f : x ⤳ y) :=
+  forall z (g1 g2 : y ⤳ z), g1 ∘ f = g2 ∘ f -> g1 = g2.
 
-#[primitive] HB.mixin Record IsEpi {C: PreCat} (x y: C) (f : x → y) :=
+#[primitive] HB.mixin Record IsEpi {C: PreCat} (x y: C) (f : x ⤳ y) :=
   { #[canonical=no] epi_prop: isEpi f}.
 #[short(type="Epi"),primitive]
 HB.structure Definition epi {C: PreCat} [x y: C]
@@ -68,7 +68,7 @@ HB.instance Definition _morphop_mono {C: PreCat} (x y: C) (f : x ↣ y)
 HB.instance Definition _morphop_epi {C: PreCat} (x y: C) (f : x ↠ y)
   := IsMono.Build C^op y x (morphop f) ( @epi_prop _ _ _ f).
 
-Definition pack_epi {C: PreCat} [x y: C] (f : x → y)
+Definition pack_epi {C: PreCat} [x y: C] (f : x ⤳ y)
   (epi_f: isEpi f): x ↠ y :=
   HB.pack f (IsEpi.Build _ _ _ f epi_f).
 
@@ -79,19 +79,19 @@ Lemma IsEpi_comp {C: Cat} [a b c : C] (f: a ↠ b) (g: b ↠ c):
   isEpi (g ∘ f).
 Proof. exact: (IsMono_comp (C := C^op) (morphop g) (morphop f)). Qed.
 
-Lemma IsEpi_decomp {C: Cat} [a b c: C] (f: a → b) (e: b → c):
+Lemma IsEpi_decomp {C: Cat} [a b c: C] (f: a ⤳ b) (e: b ⤳ c):
   isEpi (e ∘ f) -> isEpi e.
 Proof. exact (IsMono_decomp (C := C^op) e f). Qed.
 
 (** ** Isomorphisms *)
 (** *** Definitions *)
 
-(* #[primitive]HB.mixin Record AreInv {C: PreCat} [a b: C] (i: a → b) (j : b → a) :=
+(* #[primitive]HB.mixin Record AreInv {C: PreCat} [a b: C] (i: a ⤳ b) (j : b ⤳ a) :=
   { #[canonical=no] _isoK: i ∘ j = idmap;
     #[canonical=no] _isoK': j ∘ i = idmap }. *)
 
-#[primitive] HB.mixin Record IsIso {C: PreCat} [a b: C] (i: a → b) :=
-  { #[canonical=no] inverse: b → a; 
+#[primitive] HB.mixin Record IsIso {C: PreCat} [a b: C] (i: a ⤳ b) :=
+  { #[canonical=no] inverse: b ⤳ a; 
     #[canonical=no] _isoK: i ∘ inverse = idmap;
     #[canonical=no] _isoK': inverse ∘ i = idmap }.
 
@@ -110,9 +110,9 @@ Notation "f '¹'" := (forward f).
 Notation "f '⁻¹'" := (inverse f).
 
 (** forging isomorphisms *)
-Definition pack_iso {C: Cat} [a b: C] (i : a → b) (Hi: isIso i): a ↔ b :=
+Definition pack_iso {C: Cat} [a b: C] (i : a ⤳ b) (Hi: isIso i): a ↔ b :=
   HB.pack i Hi.
-Definition pack_iso2 {C: Cat} [a b: C] (i : a → b) (j: b → a)
+Definition pack_iso2 {C: Cat} [a b: C] (i : a ⤳ b) (j: b ⤳ a)
   (ij: i ∘ j = idmap) (ji: j ∘ i = idmap): a ↔ b :=
   pack_iso i (IsIso.Build _ _ _ i j ij ji).
 

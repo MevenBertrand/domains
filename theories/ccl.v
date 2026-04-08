@@ -91,8 +91,8 @@ Fixpoint tydom (τ:ty) : PLT :=
      The denotation of each combinator is a straightforward interpretation of the
      usual lambda term into the operations of a cartesian closed category.
   *)
-Fixpoint denote (τ₁ τ₂:ty) (m:term τ₁ τ₂) : tydom τ₁ → tydom τ₂ :=
-  match m in term τ₁ τ₂ return tydom τ₁ → tydom τ₂ with
+Fixpoint denote (τ₁ τ₂:ty) (m:term τ₁ τ₂) : tydom τ₁ ⤳ tydom τ₂ :=
+  match m in term τ₁ τ₂ return tydom τ₁ ⤳ tydom τ₂ with
 
   | tbool σ b => disc_elem b ∘ PLT.terminate false (tydom σ)
 
@@ -201,7 +201,7 @@ Inductive eval : forall τ₁ τ₂, term τ₁ τ₂ -> term τ₁ τ₂ -> Pro
 
 
 (* FIXME: move to profinite.v *)
-Lemma plt_terminate_univ : forall (A:PLT) (f:A → PLT.unit false),
+Lemma plt_terminate_univ : forall (A:PLT) (f:A ⤳ PLT.unit false),
   f ≈ PLT.terminate false A.
 Proof.
   intros. split.
@@ -217,7 +217,7 @@ Qed.
 (*FIXME: move to discrete.v *)
 Lemma disc_cases_elem'
      : forall (X : fintype) (A B C : PLT) 
-       (f : X -> A → B) (g: C → PLT.unit false) (x : X) (h : C → A),
+       (f : X -> A ⤳ B) (g: C ⤳ PLT.unit false) (x : X) (h : C ⤳ A),
        disc_cases f ∘ PLT.pair h (disc_elem x ∘ g) ≈ f x ∘ h.
 Proof.
   split; intros a H. destruct a.
@@ -307,8 +307,8 @@ Notation semapp a b := (PLT.app ∘ (PLT.pair a b)).
 (**  Now we define the logical relation.  It is defined by induction
      on the structure of types, in a standard way.
   *)
-Fixpoint LR Γ (τ₂:ty) : term Γ τ₂ -> (tydom Γ → tydom τ₂) -> Prop :=
-  match τ₂ as τ' return term Γ τ' -> (tydom Γ → tydom τ') -> Prop
+Fixpoint LR Γ (τ₂:ty) : term Γ τ₂ -> (tydom Γ ⤳ tydom τ₂) -> Prop :=
+  match τ₂ as τ' return term Γ τ' -> (tydom Γ ⤳ tydom τ') -> Prop
   with
 
   | ty_unit => fun m h => True
@@ -504,7 +504,7 @@ Fixpoint lrsyn Γ (ts:list ty) : Type :=
 Fixpoint lrsem Γ (ts:list ty) : Type :=
   match ts with
   | nil => unit
-  | t::ts' => prod (lrsem Γ ts') (tydom Γ → tydom t)
+  | t::ts' => prod (lrsem Γ ts') (tydom Γ ⤳ tydom t)
   end.
 
 Fixpoint lrhyps Γ (ls:list ty) : lrsyn Γ ls -> lrsem Γ ls -> Prop :=
@@ -525,9 +525,9 @@ Fixpoint lrapp Γ σ (ls:list ty) : term Γ (lrtys σ ls) -> lrsyn Γ ls -> term
   end.
 
 Fixpoint lrsemapp Γ σ (ls:list ty) :
-  (tydom Γ → tydom (lrtys σ ls)) -> lrsem Γ ls -> (tydom Γ → tydom σ) :=
+  (tydom Γ ⤳ tydom (lrtys σ ls)) -> lrsem Γ ls -> (tydom Γ ⤳ tydom σ) :=
   match ls as ls' return
-    (tydom Γ → tydom (lrtys σ ls')) -> lrsem Γ ls' -> (tydom Γ → tydom σ)
+    (tydom Γ ⤳ tydom (lrtys σ ls')) -> lrsem Γ ls' -> (tydom Γ ⤳ tydom σ)
   with
   | nil => fun h _ => h
   | t::ts => fun h ys => lrsemapp Γ σ ts (semapp h (snd ys)) (fst ys)

@@ -144,8 +144,8 @@ Notation term_subst := (ENV.tm_subst term).
 (**  The terms in environment [Γ] with type [τ] are interpreted
      as PLT-homs from [cxt Γ] to [U (tydom τ)].
   *)
-Fixpoint denote (Γ:env) (τ:ty) (m:term Γ τ) : cxt Γ → U (tydom τ) :=
-  match m in term _ τ' return cxt Γ → U (tydom τ') with
+Fixpoint denote (Γ:env) (τ:ty) (m:term Γ τ) : cxt Γ ⤳ U (tydom τ) :=
+  match m in term _ τ' return cxt Γ ⤳ U (tydom τ') with
   | tvar _ x σ IN => castty IN ∘ proj Γ x
 
   | tbool _ b => flat_elem' b
@@ -601,7 +601,7 @@ Lemma alpha_cong_denote (Γ₁ Γ₂:env) τ (m:term Γ₁ τ) (n:term Γ₂ τ)
   alpha_cong Γ₁ Γ₂ τ m n -> 
 
   forall A
-    (h₁:A → cxt Γ₁) (h₂:A → cxt Γ₂),
+    (h₁:A ⤳ cxt Γ₁) (h₂:A ⤳ cxt Γ₂),
 
   (forall a b τ (IN1:inenv Γ₁ a τ) (IN2:inenv Γ₂ b τ),
     var_cong Γ₁ Γ₂ a b ->
@@ -1765,8 +1765,8 @@ Qed.
      on the structure of types, in a standard way.  Note that
      alpha congruence is explicitly built-in.
   *)
-Fixpoint LR (τ:ty) : term nil τ -> (cxt nil → U (tydom τ)) -> Prop :=
-  match τ as τ' return term nil τ' -> (cxt nil → U (tydom τ')) -> Prop
+Fixpoint LR (τ:ty) : term nil τ -> (cxt nil ⤳ U (tydom τ)) -> Prop :=
+  match τ as τ' return term nil τ' -> (cxt nil ⤳ U (tydom τ')) -> Prop
   with
   | ty_bool => fun m h =>
         exists b:bool, m = tbool nil b /\ h ≈ flat_elem' b
@@ -1821,7 +1821,7 @@ Qed.
      there exists some value denotation in the set.
   *)
 Lemma semvalue_sup (B:∂PLT) (XS:dirset (PLT.homset_cpo _ (cxt nil) (U B))) : 
-  semvalue (∐XS) -> exists x, x ∈ XS /\ semvalue x.
+  semvalue (⊔XS) -> exists x, x ∈ XS /\ semvalue x.
 Proof.
   intros.
   destruct (H ENV.empty_cxt_inh) as [q ?].
@@ -1847,8 +1847,8 @@ Qed.
   *)
 Lemma LR_admissible τ : 
   forall m (XS:dirset (PLT.homset_cpo _ _ (U (tydom τ)))),
-  semvalue (∐XS) ->
-  (forall x, x ∈ XS -> semvalue x -> LR τ m x) -> LR τ m (∐XS).
+  semvalue (⊔XS) ->
+  (forall x, x ∈ XS -> semvalue x -> LR τ m x) -> LR τ m (⊔XS).
 Proof.
   induction τ; simpl. intros.
 
@@ -1923,9 +1923,9 @@ Proof.
 
   simpl; intros.
   set (g := (postcompose _ strict_app' ∘ pair_left (U (tydom (τ1 ⇒ τ2))) h')).
-  assert (strict_app' ∘ PLT.pair (∐XS) h' ≈ g (∐XS)).
+  assert (strict_app' ∘ PLT.pair (⊔XS) h' ≈ g (⊔XS)).
   simpl; auto.
-  assert (strict_app' ∘ PLT.pair (∐XS) h' ≈ ∐(image g XS)).
+  assert (strict_app' ∘ PLT.pair (⊔XS) h' ≈ ⊔(image g XS)).
   rewrite H5.
   apply CPO.continuous_sup'.
   apply continuous_sequence.
@@ -1957,7 +1957,7 @@ Proof.
   apply semvalue_app_out1' in H8. auto.
   destruct (H0 q H7 H9 n h' H1 H2 H3 H8) as [z1 [z2 [?[??]]]].
   exists z1. exists z2. split; auto. split; auto.
-  cut (LR τ2 z2 (∐(image g XS))).
+  cut (LR τ2 z2 (⊔(image g XS))).
   apply LR_equiv; auto.
   apply IHτ2; auto.
   rewrite <- H6. auto.
@@ -1986,7 +1986,7 @@ Qed.
      This lemma is the linchpin of the adequacy proof.
   *)
 Lemma fundamental_lemma : forall Γ τ (m:term Γ τ) 
-  (VAR:ENV.varmap term Γ nil) (VARh : cxt nil → cxt Γ),
+  (VAR:ENV.varmap term Γ nil) (VARh : cxt nil ⤳ cxt Γ),
   (forall a σ (H:inenv Γ a σ), 
        semvalue (castty H ∘ proj Γ a ∘ VARh) ->
        exists z,
@@ -2198,7 +2198,7 @@ Proof.
   apply ENV.empty_cxt_inh.
 
   intros.
-  assert (∐XS ∘ VARh ≈ ∐(image (precompose _ VARh) XS)).
+  assert (⊔XS ∘ VARh ≈ ⊔(image (precompose _ VARh) XS)).
   destruct (CPO.continuous_sup' _ _ _ (precompose (U (tydom σ)) VARh)).
   apply H3. apply (precompose_continuous false _ _ (U (tydom σ)) VARh).
   rewrite H3 in H2.
@@ -2209,7 +2209,7 @@ Proof.
   rewrite H6 in H5.
   destruct (H0 q' H4 VAR VARh H1 H5) as [z [??]].
   exists z. split; auto.
-  cut (LR σ z (∐(image (precompose (U (tydom σ)) VARh) XS))).
+  cut (LR σ z (⊔(image (precompose (U (tydom σ)) VARh) XS))).
   apply LR_equiv. auto.
   apply LR_admissible; auto.
   intros. apply image_axiom2 in H9.

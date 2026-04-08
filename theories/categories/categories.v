@@ -22,14 +22,14 @@ HB.structure Definition quiver := { C of IsQuiver C }.
 Bind Scope cat_scope with Quiver.
 Bind Scope cat_scope with hom.
 Arguments hom {_}.
-Notation "a → b" := (hom a b) : cat_scope.
-Notation "a →[ C ] b" := (@hom C a b) (only parsing) : cat_scope.
+Notation "a ⤳ b" := (hom a b) : cat_scope.
+Notation "a ⤳[ C ] b" := (@hom C a b) (only parsing) : cat_scope.
 Notation bare f := (f: hom _ _).
 
 (** precategories: quivers + id and comp *)
 #[primitive] HB.mixin Record IsPreCat (T : Type) of quiver T := {
-  #[canonical=no] idmap : forall (a : T), a → a;
-  #[canonical=no] comp : forall (a b c : T), (a → b) -> (b → c) -> (a → c);
+  #[canonical=no] idmap : forall (a : T), a ⤳ a;
+  #[canonical=no] comp : forall (a b c : T), (a ⤳ b) -> (b ⤳ c) -> (a ⤳ c);
 }.
 
 #[short(type="PreCat"),primitive]
@@ -44,9 +44,9 @@ Notation "f \; g" := (comp f g) (only parsing): cat_scope.
 
 (** categories: precategories + laws *)
 #[primitive]HB.mixin Record IsCat (T : Type) of precat T := {
-  #[canonical=no] comp1o : forall (a b : T) (f : a → b), idmap \; f = f;
-  #[canonical=no] compo1 : forall (a b : T) (f : a → b), f \; idmap = f;
-  #[canonical=no] compoA : forall (a b c d : T) (f : a → b) (g : b → c) (h : c → d), f \; (g \; h) = (f \; g) \; h
+  #[canonical=no] comp1o : forall (a b : T) (f : a ⤳ b), idmap \; f = f;
+  #[canonical=no] compo1 : forall (a b : T) (f : a ⤳ b), f \; idmap = f;
+  #[canonical=no] compoA : forall (a b c d : T) (f : a ⤳ b) (g : b ⤳ c) (h : c ⤳ d), f \; (g \; h) = (f \; g) \; h
 }.
 #[short(type="Cat"),primitive]
 HB.structure Definition cat := { C of precat C & IsCat C}.
@@ -69,9 +69,9 @@ Arguments compoA {_ _ _ _ _}.
 
 #[primitive] HB.mixin Record IsConcrete (T : Type) of precat T := {
   #[canonical=no] carrier :> T -> Type ;
-  #[canonical=no] carrierF : forall {a b : T}, (a → b) -> carrier a -> carrier b ;
+  #[canonical=no] carrierF : forall {a b : T}, (a ⤳ b) -> carrier a -> carrier b ;
   #[canonical=no] carrier1: forall (a : T), carrierF (idmap (a := a)) = idfun ;
-  #[canonical=no] carriero: forall (a b c : T) (f : a → b) (g : b → c),
+  #[canonical=no] carriero: forall (a b c : T) (f : a ⤳ b) (g : b ⤳ c),
     carrierF (g ∘ f) = fun x => (carrierF g (carrierF f x))
 }.
 
@@ -115,14 +115,14 @@ HB.instance Definition _ (C : PreCat) :=
   IsPreCat.Build (C^op) (fun _ => idmap) (fun _ _ _ f g => g \; f).
 HB.instance Definition _ (C : Cat) := IsCat.Build (C^op)
   (fun _ _ => compo1) (fun _ _ => comp1o) (fun _ _ _ _ _ _ _ => eq_sym (compoA _ _ _)).
-Definition morphop {C: Quiver} [x y: C] (f: x → y): y →[C^op] x := f.
+Definition morphop {C: Quiver} [x y: C] (f: x ⤳ y): y ⤳[C^op] x := f.
 
 (** *** Product *)
 (**  The product category. *)
 
 Definition Prod C D : Type := (C * D)%type.
 Definition Prod_hom {C D : Quiver} (s : Prod C D) (t : Prod C D) : Type :=
-  (fst s → fst t) * (snd s → snd t).
+  (fst s ⤳ fst t) * (snd s ⤳ snd t).
 
 HB.instance Definition _ (C D : Quiver) :=
   IsQuiver.Build (Prod C D) (Prod_hom (C := C) (D := D)).

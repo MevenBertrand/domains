@@ -72,8 +72,8 @@ Definition forgetPLT_ob (X:ob PLT) : ob ∂PLT :=
     (PLT.effective X)
     (plotkin_forget _ (PLT.effective X) (PLT.plotkin X))).
 
-Program Definition forgetPLT_map (X Y:ob PLT) (f:X → Y) 
-  : forgetPLT_ob X → forgetPLT_ob Y :=
+Program Definition forgetPLT_map (X Y:ob PLT) (f:X ⤳ Y) 
+  : forgetPLT_ob X ⤳ forgetPLT_ob Y :=
 
   PLT.Hom _ (forgetPLT_ob X) (forgetPLT_ob Y) 
     (@PLT.hom_rel _ X Y f) (PLT.hom_order _ X Y f) _.
@@ -140,8 +140,8 @@ Proof.
     split; split; auto.
 Qed.  
 
-Program Definition liftPPLT_map (X Y:ob ∂PLT) (f:X → Y) 
-  : liftPPLT_ob X → liftPPLT_ob Y :=
+Program Definition liftPPLT_map (X Y:ob ∂PLT) (f:X ⤳ Y) 
+  : liftPPLT_ob X ⤳ liftPPLT_ob Y :=
 
   PLT.Hom _ (liftPPLT_ob X) (liftPPLT_ob Y)
      (liftPPLT_rel (PLT.ord X) (PLT.ord Y) (PLT.effective X) (@PLT.hom_rel _ X Y f))
@@ -378,7 +378,7 @@ Proof.
 Qed.
 
 Program Definition adj_unit_hom (X:ob PLT) 
-  : X → (liftPPLT (forgetPLT X))
+  : X ⤳ (liftPPLT (forgetPLT X))
 
   := PLT.Hom _ X (liftPPLT (forgetPLT X)) (adj_unit_rel (PLT.ord X) (PLT.effective X)) _ _.
 Next Obligation.
@@ -483,7 +483,7 @@ Proof.
     + elim H.
 Qed.
 
-Program Definition adj_counit_hom Y : forgetPLT (liftPPLT Y) → Y :=
+Program Definition adj_counit_hom Y : forgetPLT (liftPPLT Y) ⤳ Y :=
   PLT.Hom _ (forgetPLT (liftPPLT Y)) Y (adj_counit_rel Y) _ _.
 Next Obligation.
   intros.
@@ -557,7 +557,7 @@ Next Obligation.
     + apply adj_counit_rel_elem. auto.
 Qed.
 
-Program Definition adj_counit_inv_hom Y : Y → forgetPLT (liftPPLT Y) :=
+Program Definition adj_counit_inv_hom Y : Y ⤳ forgetPLT (liftPPLT Y) :=
   PLT.Hom _ Y (forgetPLT (liftPPLT Y)) (adj_unit_rel (PLT.ord Y) (PLT.effective Y)) _ _.
 Next Obligation.
   intros.
@@ -651,7 +651,7 @@ Proof.
 Qed.
 
 
-Lemma adj_inv_eq : forall A B (f:A → liftPPLT B),
+Lemma adj_inv_eq : forall A B (f:A ⤳ liftPPLT B),
   (forall a, exists b, (a, Some b) ∈ PLT.hom_rel f) ->
   adj_counit_inv_hom B ∘ adj_counit B ∘ forgetPLT·f ≈ forgetPLT·f.
 Proof.
@@ -676,7 +676,7 @@ Proof.
       * apply adj_unit_rel_elem. hnf. auto.
 Qed.
 
-Lemma adj_inv_eq_converse : forall A B (f:A → liftPPLT B),
+Lemma adj_inv_eq_converse : forall A B (f:A ⤳ liftPPLT B),
   adj_counit_inv_hom B ∘ adj_counit B ∘ forgetPLT·f ≥ forgetPLT·f ->
   (forall a, exists b, (a, Some b) ∈ PLT.hom_rel f).
 Proof.
@@ -764,10 +764,10 @@ Notation ε := (adj_counit _).
 Notation η := (adj_unit _).
 Notation γ := (adj_counit_inv_hom _).
 
-Definition plt_hom_adj (X:PLT) (Y:∂PLT) (f:X → U Y) : L X → Y 
+Definition plt_hom_adj (X:PLT) (Y:∂PLT) (f:X ⤳ U Y) : L X ⤳ Y 
   := ε ∘ L·f.
  
-Definition plt_hom_adj' (X:PLT) (Y:∂PLT) (f:L X → Y) : X → U Y
+Definition plt_hom_adj' (X:PLT) (Y:∂PLT) (f:L X ⤳ Y) : X ⤳ U Y
   := U·f ∘ η.
 
 Arguments plt_hom_adj [X Y] f.
@@ -776,7 +776,7 @@ Arguments plt_hom_adj' [X Y] f.
 Notation Ψ := plt_hom_adj.
 Notation "Ψ⁻¹" := plt_hom_adj'.
 
-Lemma plt_hom_adj1 (X:PLT) (Y:∂PLT) (f:X → U Y) : Ψ⁻¹ (Ψ f) ≈ f.
+Lemma plt_hom_adj1 (X:PLT) (Y:∂PLT) (f:X ⤳ U Y) : Ψ⁻¹ (Ψ f) ≈ f.
 Proof.
   unfold plt_hom_adj, plt_hom_adj'.
   rewrite (Functor.compose U) ; [ | reflexivity ].
@@ -787,7 +787,7 @@ Proof.
   rewrite H. apply cat_ident2.
 Qed.
 
-Lemma plt_hom_adj2 (X:PLT) (Y:∂PLT) (f:L X → Y) : Ψ (Ψ⁻¹ f) ≈ f.
+Lemma plt_hom_adj2 (X:PLT) (Y:∂PLT) (f:L X ⤳ Y) : Ψ (Ψ⁻¹ f) ≈ f.
 Proof.
   unfold plt_hom_adj, plt_hom_adj'.
   rewrite (Functor.compose L); [ | reflexivity ].
@@ -798,7 +798,7 @@ Proof.
   rewrite H. apply cat_ident1.
 Qed.
 
-Lemma U_mono : forall (X Y:ob ∂PLT) (f f':X → Y),
+Lemma U_mono : forall (X Y:ob ∂PLT) (f f':X ⤳ Y),
   f ≤ f' -> U·f ≤ U·f'.
 Proof.
   repeat intro; simpl in *.
@@ -810,7 +810,7 @@ Proof.
   exists a. exists b. split; auto.
 Qed.  
 
-Lemma U_reflects : forall (X Y:ob ∂PLT) (f f':X → Y),
+Lemma U_reflects : forall (X Y:ob ∂PLT) (f f':X ⤳ Y),
   U·f ≤ U·f' -> f ≤ f'.
 Proof.
   repeat intro; simpl in *.
@@ -830,19 +830,19 @@ Proof.
     split; split; auto.
 Qed.
 
-Lemma L_mono : forall (X Y:ob PLT) (f f':X → Y),
+Lemma L_mono : forall (X Y:ob PLT) (f f':X ⤳ Y),
   f ≤ f' -> L·f ≤ L·f'.
 Proof.
   auto.
 Qed.
 
-Lemma L_reflects : forall (X Y:ob PLT) (f f':X → Y),
+Lemma L_reflects : forall (X Y:ob PLT) (f f':X ⤳ Y),
   L·f ≤ L·f' -> f ≤ f'.
 Proof.
   auto.
 Qed.
 
-Lemma Psi_mono (X:PLT) (Y:∂PLT) (f g:X → U Y) :
+Lemma Psi_mono (X:PLT) (Y:∂PLT) (f g:X ⤳ U Y) :
   f ≤ g -> Ψ f ≤ Ψ g.
 Proof.
   unfold plt_hom_adj. intros.
@@ -850,7 +850,7 @@ Proof.
 Qed.
 
 
-Lemma Psi_inv_mono (X:PLT) (Y:∂PLT) (f g:L X → Y) :
+Lemma Psi_inv_mono (X:PLT) (Y:∂PLT) (f g:L X ⤳ Y) :
   f ≤ g -> Ψ⁻¹ f ≤ Ψ⁻¹ g.
 Proof.
   unfold plt_hom_adj'. intros.
@@ -858,7 +858,7 @@ Proof.
   apply U_mono. auto.
 Qed.
 
-Lemma Psi_reflects (X:PLT) (Y:∂PLT) (f g:X → U Y) :
+Lemma Psi_reflects (X:PLT) (Y:∂PLT) (f g:X ⤳ U Y) :
   Ψ f ≤ Ψ g -> f ≤ g.
 Proof.
   intros.
@@ -867,7 +867,7 @@ Proof.
   apply Psi_inv_mono; auto.
 Qed.
 
-Lemma Psi_inv_reflects (X:PLT) (Y:∂PLT) (f g:L X → Y) :
+Lemma Psi_inv_reflects (X:PLT) (Y:∂PLT) (f g:L X ⤳ Y) :
   Ψ⁻¹ f ≤ Ψ⁻¹ g -> f ≤ g.
 Proof.
   intros.
@@ -876,7 +876,7 @@ Proof.
   apply Psi_mono; auto.
 Qed.
 
-Lemma U_bottom_least (X:PLT) (Y:∂PLT) (f:X → U Y) :
+Lemma U_bottom_least (X:PLT) (Y:∂PLT) (f:X ⤳ U Y) :
   Ψ⁻¹ ⊥ ≤ f.
 Proof.
   intros.
@@ -891,7 +891,7 @@ Qed.
   ; bottom_least := U_bottom_least X Y
   }.
 
-Program Definition lift_unit : 1 → L 1
+Program Definition lift_unit : 1 ⤳ L 1
   := PLT.Hom true 1 (L 1) (ident_rel effective_unit) _ _.
 Next Obligation.        
   intros. eapply ident_ordering; eauto.
@@ -900,7 +900,7 @@ Next Obligation.
   intros. apply ident_image_dir.
 Qed.
  
-Program Definition lift_unit' : L 1 → 1
+Program Definition lift_unit' : L 1 ⤳ 1
   := PLT.Hom true (L 1) 1 (ident_rel effective_unit) _ _.
 Next Obligation.        
   intros. eapply ident_ordering; eauto.
@@ -929,7 +929,7 @@ Proof.
   split; simpl; apply ident_elem; auto.
 Qed.
 
-Program Definition lift_prod (A B:PLT) : (L A ⊗ L B) → L (A × B)
+Program Definition lift_prod (A B:PLT) : (L A ⊗ L B) ⤳ L (A × B)
   := PLT.Hom true (L A ⊗ L B) (L (A × B))
           (ident_rel (effective_prod (PLT.effective A) (PLT.effective B)))
           _ _.
@@ -940,7 +940,7 @@ Next Obligation.
   intros. apply ident_image_dir.
 Qed.
 
-Program Definition lift_prod' (A B:PLT) : L (A × B) → L A ⊗ L B 
+Program Definition lift_prod' (A B:PLT) : L (A × B) ⤳ L A ⊗ L B 
   := PLT.Hom true (L (A × B)) (L A ⊗ L B)
           (ident_rel (effective_prod (PLT.effective A) (PLT.effective B)))
           _ _.
@@ -983,7 +983,7 @@ Qed.
 
 Local Transparent PLT.pair.
 
-Lemma lift_prod_pair C A B (f:C → A) (g:C → B) :
+Lemma lift_prod_pair C A B (f:C ⤳ A) (g:C ⤳ B) :
   lift_prod A B ∘ 《L·f, L·g》 ≈ L·〈f, g〉.
 Proof.
   split; hnf; intros.
@@ -1003,7 +1003,7 @@ Proof.
     simpl. apply ident_elem. auto.
 Qed.
 
-Lemma lift_prod_pair' C A B (f:C → A) (g:C → B) :
+Lemma lift_prod_pair' C A B (f:C ⤳ A) (g:C ⤳ B) :
   《L·f, L·g》 ≈ lift_prod' A B ∘ L·〈f, g〉.
 Proof.
   split; hnf; intros.
@@ -1027,7 +1027,7 @@ Proof.
     + eapply (PLT.hom_order _ _ _ g); eauto.
 Qed.
 
-Lemma lift_prod_natural A B C D (f:A → B) (g:C → D) :
+Lemma lift_prod_natural A B C D (f:A ⤳ B) (g:C ⤳ D) :
   lift_prod B D ∘ PLT.pair_map (L·f) (L·g) ≈ L·(PLT.pair_map f g) ∘ lift_prod A C.
 Proof.
   split; hnf; intros.
@@ -1050,7 +1050,7 @@ Proof.
     + simpl. apply ident_elem. auto.
 Qed.
 
-Lemma lift_prod'_natural (A B C D:PLT) (f:A → B) (g:C → D) :
+Lemma lift_prod'_natural (A B C D:PLT) (f:A ⤳ B) (g:C ⤳ D) :
    PLT.pair_map (L·f) (L·g) ∘ lift_prod' A C ≈ lift_prod' B D ∘ L·(PLT.pair_map f g).
 Proof.
   split; hnf; intros.
@@ -1079,9 +1079,9 @@ Arguments lift_prod' {A B}.
 
 Section strictify.
   Variables X Y:ob ∂PLT.
-  Variable f: U X → U Y.  
+  Variable f: U X ⤳ U Y.  
 
-  Definition strictify : X → Y := ε ∘ L·f ∘ γ.
+  Definition strictify : X ⤳ Y := ε ∘ L·f ∘ γ.
 
   Lemma f_explode : U·(ε ∘ L·f) ∘ η ≈ f.
   Proof.
@@ -1137,7 +1137,7 @@ Section strictify.
   Qed.
 End strictify.
 
-Lemma U_hom_rel (A B:∂PLT) (f:A → B) (a:U A) (b:U B) :
+Lemma U_hom_rel (A B:∂PLT) (f:A ⤳ B) (a:U A) (b:U B) :
   (a,b) ∈ PLT.hom_rel (U·f) <->
   (b = None \/ exists a' b', (a',b') ∈ PLT.hom_rel f /\ a = Some a' /\ b = Some b').
 Proof.
@@ -1162,7 +1162,7 @@ Proof.
       right. eauto.
 Qed.
 
-Lemma L_hom_rel (A B:PLT) (f:A → B) (a:L A) (b:L B) :
+Lemma L_hom_rel (A B:PLT) (f:A ⤳ B) (a:L A) (b:L B) :
   (a,b) ∈ PLT.hom_rel (L·f) <-> (a,b) ∈ PLT.hom_rel f.
 Proof.
   split; auto.
@@ -1171,10 +1171,10 @@ Qed.
 Definition lift (X:PLT) : PLT := U (L X).
 Definition colift (X:∂PLT) : ∂PLT := L (U X).
 
-Definition smash_prod (A B:∂PLT) : U A × U B → U (A ⊗ B)
+Definition smash_prod (A B:∂PLT) : U A × U B ⤳ U (A ⊗ B)
   := U·(PLT.pair_map ε ε ∘ lift_prod') ∘ η.
 
-Definition unsmash_prod (A B:∂PLT) : U (A ⊗ B) → U A × U B
+Definition unsmash_prod (A B:∂PLT) : U (A ⊗ B) ⤳ U A × U B
   := 〈 U·π₁, U·π₂ 〉.
 
 

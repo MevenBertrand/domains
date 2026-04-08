@@ -28,22 +28,22 @@ Require Import flat.
   *)
 
 Definition strict_app (A B:∂PLT) 
-  : U (A ⊸ B) × U A → U B
+  : U (A ⊸ B) × U A ⤳ U B
 
   := U·(apply ∘ PLT.pair_map ε ε ∘ lift_prod') ∘ η.
 
 Definition strict_curry (Γ:PLT) (A B:∂PLT)
-  (f:Γ×U A → U B) : Γ → U (A ⊸ B) 
+  (f:Γ×U A ⤳ U B) : Γ ⤳ U (A ⊸ B) 
 
   := U·(Λ( ε ∘ L·f ∘ lift_prod ∘ PLT.pair_map id γ)) ∘ η.
   
 Definition strict_app' (A B:∂PLT) 
-  : U (colift (A ⊸ B)) × U A → U B 
+  : U (colift (A ⊸ B)) × U A ⤳ U B 
 
   := strict_app A B ∘ PLT.pair_map (U·ε) id.
 
 Definition strict_curry' (Γ:PLT) (A B:∂PLT)
-  (f:Γ × U A → U B) : Γ → U (colift (A ⊸ B))
+  (f:Γ × U A ⤳ U B) : Γ ⤳ U (colift (A ⊸ B))
 
   := η ∘ strict_curry Γ A B f.
 
@@ -53,11 +53,11 @@ Arguments strict_curry [Γ A B] f.
 Arguments strict_app' {A B}.
 Arguments strict_curry' [Γ A B] f.
 
-Definition semvalue (Γ:PLT) (A:∂PLT) (f:Γ → U A) :=
+Definition semvalue (Γ:PLT) (A:∂PLT) (f:Γ ⤳ U A) :=
   forall g, exists a, (g,Some a) ∈ PLT.hom_rel f.
 Arguments semvalue [Γ A] f.
 
-Lemma semvalue_le : forall Γ A (f f':Γ → U A),
+Lemma semvalue_le : forall Γ A (f f':Γ ⤳ U A),
   f ≤ f' -> semvalue f -> semvalue f'.
 Proof.
   repeat intro.
@@ -65,7 +65,7 @@ Proof.
   apply H. auto.
 Qed.
 
-Lemma semvalue_equiv : forall Γ A (f f':Γ → U A),
+Lemma semvalue_equiv : forall Γ A (f f':Γ ⤳ U A),
   f ≈ f' -> semvalue f -> semvalue f'.
 Proof.
   intros Γ A f f' H. apply semvalue_le; auto.
@@ -79,7 +79,7 @@ Proof.
   intros. split; apply semvalue_equiv; auto.
 Qed.
 
-Lemma eta_semvalue A B (f:A → B) :
+Lemma eta_semvalue A B (f:A ⤳ B) :
   semvalue (η ∘ f).
 Proof.
   repeat intro.
@@ -97,7 +97,7 @@ Qed.
 
 (**  Bottom is not a semantic value. *)
 Lemma plt_semvalue_bot (Γ:PLT) (A:∂PLT) (x:Γ) :
-  semvalue (⊥ : Γ → U A) -> False.
+  semvalue (⊥ : Γ ⤳ U A) -> False.
 Proof.  
   intros.
   red in H.
@@ -118,7 +118,7 @@ Proof.
 Qed.
 
 Lemma strict_curry_app2 D (Γ:PLT) (A B:∂PLT) 
-  (f : Γ×U A → U B) (g : D → U A) (h:D → Γ)
+  (f : Γ×U A ⤳ U B) (g : D ⤳ U A) (h:D ⤳ Γ)
   (Hg : semvalue g) :
 
   strict_app ∘ 〈strict_curry f ∘ h, g〉 ≈ f ∘ 〈h, g〉.
@@ -198,8 +198,8 @@ Qed.
 
 
 Lemma strict_curry_app_converse (Γ:PLT) (A:∂PLT) 
-  (g : Γ → U A) :
-  (forall B (f : Γ×U A → U B),
+  (g : Γ ⤳ U A) :
+  (forall B (f : Γ×U A ⤳ U B),
     strict_app ∘ 〈strict_curry f, g〉 ≈ f ∘ 〈id, g〉) ->
   semvalue g.
 Proof.
@@ -263,7 +263,7 @@ Qed.
   
 
 Lemma strict_curry_app (Γ:PLT) (A B:∂PLT) 
-  (f : Γ×U A → U B) (g : Γ → U A)
+  (f : Γ×U A ⤳ U B) (g : Γ ⤳ U A)
   (Hg: semvalue g) :
   strict_app ∘ 〈strict_curry f, g〉 ≈ f ∘ 〈id, g〉.
 Proof.
@@ -272,7 +272,7 @@ Proof.
 Qed.
 
 Lemma strict_curry_app2' D (Γ:PLT) (A B:∂PLT) 
-  (f : Γ×U A → U B) (g : D → U A) (h:D → Γ) 
+  (f : Γ×U A ⤳ U B) (g : D ⤳ U A) (h:D ⤳ Γ) 
   (Hg : semvalue g) :
 
   strict_app' ∘ 〈strict_curry' f ∘ h, g〉 ≈ f ∘ 〈h, g〉.
@@ -291,7 +291,7 @@ Proof.
 Qed.
 
 Lemma strict_curry_app' (Γ:PLT) (A B:∂PLT) 
-  (f : Γ×U A → U B) (g : Γ → U A) (Hg : semvalue g) :
+  (f : Γ×U A ⤳ U B) (g : Γ ⤳ U A) (Hg : semvalue g) :
 
   strict_app' ∘ 〈strict_curry' f, g〉 ≈ f ∘ 〈id, g〉.
 Proof.
@@ -299,7 +299,7 @@ Proof.
   rewrite (cat_ident1 PLT). auto.
 Qed.
 
-Lemma strict_curry_monotone Γ A B (f f':Γ×U A → U B) :
+Lemma strict_curry_monotone Γ A B (f f':Γ×U A ⤳ U B) :
   f ≤ f' -> strict_curry f ≤ strict_curry f'.
 Proof.
   intros. unfold strict_curry.
@@ -311,7 +311,7 @@ Proof.
   apply PLT.compose_mono; auto.
 Qed.
 
-Lemma strict_curry'_monotone Γ A B (f f':Γ×U A → U B) :
+Lemma strict_curry'_monotone Γ A B (f f':Γ×U A ⤳ U B) :
   f ≤ f' -> strict_curry' f ≤ strict_curry' f'.
 Proof.
   intros. unfold strict_curry'.
@@ -319,13 +319,13 @@ Proof.
   apply strict_curry_monotone. auto.
 Qed.
 
-Lemma strict_curry_eq Γ A B (f f':Γ×U A → U B) :
+Lemma strict_curry_eq Γ A B (f f':Γ×U A ⤳ U B) :
   f ≈ f' -> strict_curry f ≈ strict_curry f'.
 Proof.
   intros [??]; split; apply strict_curry_monotone; auto.
 Qed.
 
-Lemma strict_curry'_eq Γ A B (f f':Γ×U A → U B) :
+Lemma strict_curry'_eq Γ A B (f f':Γ×U A ⤳ U B) :
   f ≈ f' -> strict_curry' f ≈ strict_curry' f'.
 Proof.
   intros [??]; split; apply strict_curry'_monotone; auto.
@@ -364,7 +364,7 @@ Proof.
 Qed.  
 
 
-Lemma strict_curry_compose_commute Γ Γ' A B (f:Γ×U A → U B) (h:Γ' → Γ) :
+Lemma strict_curry_compose_commute Γ Γ' A B (f:Γ×U A ⤳ U B) (h:Γ' ⤳ Γ) :
   strict_curry f ∘ h ≈ strict_curry (f ∘ PLT.pair_map h id).
 Proof.
   unfold strict_curry.
@@ -400,7 +400,7 @@ Proof.
     rewrite (cat_ident2 ∂PLT). auto.
 Qed.
 
-Lemma strict_curry_compose_commute' Γ Γ' A B (f:Γ×U A → U B) (h:Γ' → Γ) :
+Lemma strict_curry_compose_commute' Γ Γ' A B (f:Γ×U A ⤳ U B) (h:Γ' ⤳ Γ) :
   strict_curry' f ∘ h ≈ strict_curry' (f ∘ PLT.pair_map h id).
 Proof.
   unfold strict_curry'.
@@ -410,8 +410,8 @@ Proof.
 Qed.
 
 
-Lemma plt_strict_compose : forall (A B C:∂PLT) (f:B → C),
-  f ∘ (⊥: A → B) ≈ ⊥.
+Lemma plt_strict_compose : forall (A B C:∂PLT) (f:B ⤳ C),
+  f ∘ (⊥: A ⤳ B) ≈ ⊥.
 Proof.
   intros. split. 2: apply bottom_least.
   hnf. intros.
@@ -423,7 +423,7 @@ Proof.
   apply empty_elem in H. elim H.
 Qed.
 
-Lemma strict_app_bot (Γ:PLT) (A B:∂PLT) (f:Γ → U (A ⊸ B)) :
+Lemma strict_app_bot (Γ:PLT) (A B:∂PLT) (f:Γ ⤳ U (A ⊸ B)) :
   strict_app ∘ 〈f,⊥〉 ≈ ⊥.
 Proof.
   unfold strict_app.
@@ -460,7 +460,7 @@ Proof.
   - auto.
 Qed.
 
-Lemma strict_app_bot' (Γ:PLT) (A B:∂PLT) (f:Γ → U (colift (A ⊸ B))) :
+Lemma strict_app_bot' (Γ:PLT) (A B:∂PLT) (f:Γ ⤳ U (colift (A ⊸ B))) :
   strict_app' ∘ 〈f, ⊥〉 ≈ ⊥.
 Proof.
   unfold strict_app'.
@@ -479,7 +479,7 @@ Proof.
   apply eta_semvalue.
 Qed.
 
-Lemma strict_curry'_semvalue2 Γ A B C f (g:C → Γ) :
+Lemma strict_curry'_semvalue2 Γ A B C f (g:C ⤳ Γ) :
   semvalue (@strict_curry' Γ A B f ∘ g).
 Proof.
   unfold strict_curry'.
@@ -487,7 +487,7 @@ Proof.
   apply eta_semvalue.
 Qed.
 
-Lemma semvalue_strict_app_out1 A B C (f:C → U (A ⊸ B)) (x:C → U A) :
+Lemma semvalue_strict_app_out1 A B C (f:C ⤳ U (A ⊸ B)) (x:C ⤳ U A) :
   semvalue (strict_app ∘ 〈f, x〉) ->
   semvalue f.
 Proof.
@@ -522,7 +522,7 @@ Proof.
   - elim H1.
 Qed.
 
-Lemma semvalue_strict_app_out2 A B C (f:C → U (A ⊸ B)) (x:C → U A) :
+Lemma semvalue_strict_app_out2 A B C (f:C ⤳ U (A ⊸ B)) (x:C ⤳ U A) :
   semvalue (strict_app ∘ 〈f, x〉) ->
   semvalue x.
 Proof.
@@ -557,7 +557,7 @@ Proof.
   elim H8.
 Qed.
 
-Lemma semvalue_app_out1' A B C (f:C → U (colift (A ⊸ B))) (x:C → U A) :
+Lemma semvalue_app_out1' A B C (f:C ⤳ U (colift (A ⊸ B))) (x:C ⤳ U A) :
   semvalue (strict_app' ∘ 〈f, x〉) ->
   semvalue f.
 Proof.
@@ -576,7 +576,7 @@ Proof.
   exists x0. auto.
 Qed.
 
-Lemma semvalue_app_out2' A B C (f:C → U (colift (A ⊸ B))) (x:C → U A) :
+Lemma semvalue_app_out2' A B C (f:C ⤳ U (colift (A ⊸ B))) (x:C ⤳ U A) :
   semvalue (strict_app' ∘ 〈f, x〉) ->
   semvalue x.
 Proof.
@@ -590,18 +590,18 @@ Qed.
 
 (**  Lift the case analysis and element function for flat domains into PLT.
   *)
-Definition flat_cases' (X:enumtype) (Γ:PLT) (B:∂PLT) (f:X -> Γ → U B)
-  : (Γ × U (flat X))%plt → U B
+Definition flat_cases' (X:enumtype) (Γ:PLT) (B:∂PLT) (f:X -> Γ ⤳ U B)
+  : (Γ × U (flat X))%plt ⤳ U B
   := U·(flat_cases (fun x => ε ∘ L·(f x)) ∘ PLT.pair_map id ε ∘ lift_prod') ∘ η.
 Arguments flat_cases' [X Γ B] f.
 
-Definition flat_elem' (X:enumtype) (Γ:PLT) (x:X) : Γ → U (flat X)
+Definition flat_elem' (X:enumtype) (Γ:PLT) (x:X) : Γ ⤳ U (flat X)
   := U·(flat_elem x ∘ PLT.terminate _ _) ∘ η.
 Arguments flat_elem' [X Γ] x.
 
 
 Lemma flat_cases_elem' (X:enumtype) (Γ D:PLT) (B:∂PLT) 
-  (f:X -> Γ → U B) (x:X) (h:D → Γ) :
+  (f:X -> Γ ⤳ U B) (x:X) (h:D ⤳ Γ) :
   flat_cases' f ∘ 〈h, flat_elem' x〉 ≈ f x ∘ h.
 Proof.
   unfold flat_cases'.
@@ -639,7 +639,7 @@ Proof.
 Qed.
 
 Lemma flat_cases'_strict (X:enumtype) (Γ:PLT) (B:∂PLT) 
-  (f:X -> Γ → U B) a x b :
+  (f:X -> Γ ⤳ U B) a x b :
   (a,x,b) ∈ PLT.hom_rel (flat_cases' f) -> x = None -> b = None.
 Proof.
   intros.
@@ -689,7 +689,7 @@ Proof.
 Qed.
   
 Lemma flat_cases'_semvalue (X:enumtype) A (Γ:PLT) (B:∂PLT) 
-  (f:X -> Γ → U B) (g : A → Γ) h :
+  (f:X -> Γ ⤳ U B) (g : A ⤳ Γ) h :
   semvalue (flat_cases' f ∘ 〈g,h〉) ->
   semvalue h.
 Proof.
@@ -712,8 +712,8 @@ Proof.
 Qed.
 
 
-Lemma flat_cases_univ' (X:enumtype) (A:PLT) (B:∂PLT) (f:X -> A → U B) 
-  (q: A × U (flat X) → U B) :
+Lemma flat_cases_univ' (X:enumtype) (A:PLT) (B:∂PLT) (f:X -> A ⤳ U B) 
+  (q: A × U (flat X) ⤳ U B) :
   (forall a x b, (a,x,b) ∈ PLT.hom_rel q -> x = None -> b = None) ->
   (forall x, f x ≈ q ∘ 〈 id, flat_elem' x 〉) ->
   flat_cases' f ≈ q.
@@ -863,7 +863,7 @@ Proof.
 Qed.
 
 Lemma flat_cases_commute : forall (X : enumtype) (A C : PLT) (B:∂PLT)
-  (f : X -> A → U B) (g:C → A) (h:C → U (flat X)),
+  (f : X -> A ⤳ U B) (g:C ⤳ A) (h:C ⤳ U (flat X)),
   flat_cases' f ∘ 〈g, h〉 ≈ flat_cases' (fun x => f x ∘ g) ∘ 〈id, h〉.
 Proof.
   intros.
@@ -898,7 +898,7 @@ Proof.
       rewrite flat_cases_elem'. auto.
 Qed.
 
-Lemma flat_elem'_ignores_arg (X:enumtype) A B (x:X) (h:A → B) : 
+Lemma flat_elem'_ignores_arg (X:enumtype) A B (x:X) (h:A ⤳ B) : 
   flat_elem' x ≈ flat_elem' x ∘ h.
 Proof.
   unfold flat_elem'.
@@ -952,7 +952,7 @@ Proof.
     + simpl. apply single_axiom. auto.
 Qed.
 
-Lemma flat_elem_canon : forall (X:enumtype) (g:1 → U (flat X)),
+Lemma flat_elem_canon : forall (X:enumtype) (g:1 ⤳ U (flat X)),
   semvalue g -> exists x, g ≈ flat_elem' x.
 Proof.
   intros. destruct (H tt).
@@ -1066,7 +1066,7 @@ Proof.
   hnf in H5. auto.
 Qed.
 
-Lemma flat_cases_eq' (X:enumtype) Γ B (f g: X -> Γ → U B) :
+Lemma flat_cases_eq' (X:enumtype) Γ B (f g: X -> Γ ⤳ U B) :
   (forall x, f x ≈ g x) ->
   flat_cases' f ≈ flat_cases' g.
 Proof.

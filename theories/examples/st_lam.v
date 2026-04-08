@@ -139,7 +139,7 @@ Notation term_subst := (ENV.tm_subst term).
 (**  The terms in environment [Γ] with type [τ] are interpreted
      as PLT-homs from [cxt Γ] to [tydom τ].
   *)
-Definition dom (Γ:env) (τ:ty) : Type := cxt Γ → tydom τ.
+Definition dom (Γ:env) (τ:ty) : Type := cxt Γ ⤳ tydom τ.
 
 Fixpoint denote (Γ:env) (τ:ty) (m:term Γ τ) : dom Γ τ :=
   match m in term _ τ' return dom Γ τ' with
@@ -513,7 +513,7 @@ Qed.
 Lemma alpha_cong_denote (Γ₁ Γ₂:env) τ (m:term Γ₁ τ) (n:term Γ₂ τ) :
   alpha_cong Γ₁ Γ₂ τ m n -> 
 
-  forall A (h₁:A → cxt Γ₁) (h₂:A → cxt Γ₂),
+  forall A (h₁:A ⤳ cxt Γ₁) (h₂:A ⤳ cxt Γ₂),
 
   (forall a b τ (IN1:inenv Γ₁ a τ) (IN2:inenv Γ₂ b τ),
     var_cong Γ₁ Γ₂ a b ->
@@ -1323,8 +1323,8 @@ Qed.
      on the structure of types, in a standard way.  Note that
      alpha congruence is explicitly built-in.
   *)
-Fixpoint LR (τ:ty) : term nil τ -> (cxt nil → tydom τ) -> Prop :=
-  match τ as τ' return term nil τ' -> (cxt nil → tydom τ') -> Prop
+Fixpoint LR (τ:ty) : term nil τ -> (cxt nil ⤳ tydom τ) -> Prop :=
+  match τ as τ' return term nil τ' -> (cxt nil ⤳ tydom τ') -> Prop
   with
   | ty_bool => fun m h =>
         exists b:bool, m = tbool nil b /\ 
@@ -1361,7 +1361,7 @@ Qed.
      This lemma is the linchpin of the adequacy proof.
   *)
 Lemma fundamental_lemma : forall Γ τ (m:term Γ τ) 
-  (VAR:ENV.varmap term Γ nil) (VARh : cxt nil → cxt Γ),
+  (VAR:ENV.varmap term Γ nil) (VARh : cxt nil ⤳ cxt Γ),
   (forall a σ H, (VAR a σ H) ↓ /\
        LR σ (VAR a σ H) (castty H ∘ proj Γ a ∘ VARh)) ->
   exists z1 z2,

@@ -448,7 +448,7 @@ Section Ydefn.
 
   Definition Ybody
     : U (colift (tydom (σ₁ ⇒ σ₂) ⊸ tydom (σ₁ ⇒ σ₂)))
-       → PLT.exp (U (tydom (σ₁ ⇒ σ₂))) (U (tydom (σ₁ ⇒ σ₂)))
+       ⤳ PLT.exp (U (tydom (σ₁ ⇒ σ₂))) (U (tydom (σ₁ ⇒ σ₂)))
 
        (*w : U (colift (tydom (σ₁ ⇒ σ₂) ⊸ tydom (σ₁ ⇒ σ₂))) *)
     := PLT.curry (*x:U (tydom (σ₁ ⇒ σ₂)))*) (strict_curry' (*y:U tydom σ₁ *)
@@ -458,8 +458,8 @@ Section Ydefn.
        ).
 
   Lemma Ybody_unroll : forall Γ 
-    (f:Γ → U (tydom ((σ₁ ⇒ σ₂) ⇒ (σ₁ ⇒ σ₂))))
-    (x:Γ → U (tydom σ₁)),
+    (f:Γ ⤳ U (tydom ((σ₁ ⇒ σ₂) ⇒ (σ₁ ⇒ σ₂))))
+    (x:Γ ⤳ U (tydom σ₁)),
 
     semvalue x ->
 
@@ -492,7 +492,7 @@ Section Ydefn.
   Qed.
 
   Definition Ysem Γ 
-    : Γ → U (tydom (((σ₁ ⇒ σ₂) ⇒ (σ₁ ⇒ σ₂)) ⇒ (σ₁ ⇒ σ₂)))
+    : Γ ⤳ U (tydom (((σ₁ ⇒ σ₂) ⇒ (σ₁ ⇒ σ₂)) ⇒ (σ₁ ⇒ σ₂)))
     := strict_curry' (fixes Ybody ∘ π₂).
 End Ydefn.
 
@@ -503,8 +503,8 @@ Notation "'Λ' f" := (strict_curry' f) : ski_scope.
      usual lambda term into the strict lambda and strict application 
      denotation functions.
   *)
-Fixpoint denote (τ:ty) (m:term τ) : 1 → U (tydom τ) :=
-  match m in term τ return 1 → U (tydom τ) with
+Fixpoint denote (τ:ty) (m:term τ) : 1 ⤳ U (tydom τ) :=
+  match m in term τ return 1 ⤳ U (tydom τ) with
   | tbool b => flat_elem' b
   | tapp m₁ m₂ => strict_app' ∘ 〈〚m₁〛,〚m₂〛〉
   | tI σ => Λ(π₂)
@@ -533,7 +533,7 @@ Lemma value_inert_semvalue : forall n,
   (forall σ x,
     tmsize _ x = n ->
     eval σ x x -> semvalue 〚x〛) /\
-  (forall σ₁ σ₂ x (y:1 → U (tydom σ₁)),
+  (forall σ₁ σ₂ x (y:1 ⤳ U (tydom σ₁)),
     tmsize _ x = n ->
     value x ->
     inert σ₁ σ₂ x ->
@@ -762,9 +762,9 @@ Qed.
     by induction on the structure of types, in a standard way.    
   *)
 Fixpoint LR (τ:ty) : 
-  term τ -> (1 → U (tydom τ)) -> Prop :=
+  term τ -> (1 ⤳ U (tydom τ)) -> Prop :=
   match τ as τ' return 
-    term τ' -> (1 → U (tydom τ')) -> Prop
+    term τ' -> (1 ⤳ U (tydom τ')) -> Prop
   with
   | ty_bool => fun m h => exists b:bool,
         m = tbool b /\ h ≈ flat_elem' b
@@ -815,7 +815,7 @@ Fixpoint lrsyn (ts:list ty) : Type :=
 Fixpoint lrsem (ts:list ty) : Type :=
   match ts with
   | nil => unit
-  | t::ts' => prod (lrsem ts') (1 → U (tydom t))
+  | t::ts' => prod (lrsem ts') (1 ⤳ U (tydom t))
   end.
 
 Fixpoint lrhyps (ls:list ty) : lrsyn ls -> lrsem ls -> Prop :=
@@ -833,9 +833,9 @@ Fixpoint lrapp (ls:list ty) z : lrsyn ls -> term (lrtys ls z) -> term z :=
   end.
 
 Fixpoint lrsemapp (ls:list ty) z :
-  lrsem ls -> (1 → U (tydom (lrtys ls z))) -> (1 → U (tydom z)) :=
+  lrsem ls -> (1 ⤳ U (tydom (lrtys ls z))) -> (1 ⤳ U (tydom z)) :=
   match ls as ls' return
-    lrsem ls' -> (1 → U (tydom (lrtys ls' z)))  -> (1 → U (tydom z))
+    lrsem ls' -> (1 ⤳ U (tydom (lrtys ls' z)))  -> (1 ⤳ U (tydom z))
   with
   | nil => fun _ h => h
   | t::ts => fun ys h => lrsemapp ts _ (fst ys) (strict_app' ∘ 〈h, snd ys〉)
@@ -880,7 +880,7 @@ Qed.
   *)
 Lemma LR_under_apply ls :
    forall (τ : ty) (m z0 : term (lrtys ls τ)) (xs : lrsyn ls) 
-     (ys : lrsem ls) (h : 1 → U (tydom (lrtys ls τ))),
+     (ys : lrsem ls) (h : 1 ⤳ U (tydom (lrtys ls τ))),
    eval (lrtys ls τ) m z0 ->
    lrhyps ls xs ys ->
    semvalue (lrsemapp ls τ ys h) ->
@@ -912,7 +912,7 @@ Qed.
      set is a semantic value.
   *)
 Lemma semvalue_sup (B:∂PLT) (XS:dirset (PLT.homset_cpo _ 1 (U B))) : 
-  semvalue (∐XS) -> exists x, x ∈ XS /\ semvalue x.
+  semvalue (⊔XS) -> exists x, x ∈ XS /\ semvalue x.
 Proof.
   intros.
   destruct (H tt) as [q ?].
@@ -932,8 +932,8 @@ Qed.
   *)
 Lemma LR_admissible τ : 
   forall m (XS:dirset (PLT.homset_cpo _ 1 (U (tydom τ)))),
-  semvalue (∐XS) ->
-  (forall x, x ∈ XS -> semvalue x -> LR τ m x) -> LR τ m (∐XS).
+  semvalue (⊔XS) ->
+  (forall x, x ∈ XS -> semvalue x -> LR τ m x) -> LR τ m (⊔XS).
 Proof.
   induction τ; simpl. intros.
 
@@ -1009,9 +1009,9 @@ Proof.
 
   simpl; intros.
   set (g := (postcompose _ strict_app' ∘ pair_left (U (tydom (τ1 ⇒ τ2))) h')).
-  assert (strict_app' ∘ PLT.pair (∐XS) h' ≈ g (∐XS)).
+  assert (strict_app' ∘ PLT.pair (⊔XS) h' ≈ g (⊔XS)).
   simpl; auto.
-  assert (strict_app' ∘ PLT.pair (∐XS) h' ≈ ∐(image g XS)).
+  assert (strict_app' ∘ PLT.pair (⊔XS) h' ≈ ⊔(image g XS)).
   rewrite H5.
   apply CPO.continuous_sup'.
   apply continuous_sequence.
@@ -1040,7 +1040,7 @@ Proof.
   apply semvalue_app_out1' in H8. auto.
   destruct (H0 q H7 H9 n h' H1 H2 H3 H8) as [z [??]].
   exists z. split; auto.
-  cut (LR τ2 z (∐(image g XS))).
+  cut (LR τ2 z (⊔(image g XS))).
   apply LR_equiv; auto.
   apply IHτ2; auto.
   rewrite <- H6. auto.
@@ -1109,8 +1109,8 @@ Proof.
   set (g := (postcompose _ strict_app' 
             ∘ pair_left (U (tydom (σ₁ ⇒ σ₂))) hx
             ∘ precompose _ hf)).
-  assert (strict_app' ∘ PLT.pair (∐XS ∘ hf) hx ≈ g (∐XS)). auto.
-  assert (strict_app' ∘ PLT.pair (∐XS ∘ hf) hx ≈ ∐(image g XS)).
+  assert (strict_app' ∘ PLT.pair (⊔XS ∘ hf) hx ≈ g (⊔XS)). auto.
+  assert (strict_app' ∘ PLT.pair (⊔XS ∘ hf) hx ≈ ⊔(image g XS)).
   rewrite H5.
 
   apply CPO.continuous_sup'.
@@ -1133,7 +1133,7 @@ Proof.
   destruct (H0 q H7 x hx H1 H2 H3) as [z [??]]; auto.
   exists z.
   split; auto.
-  cut (LR σ₂ z (∐(image g XS))).  
+  cut (LR σ₂ z (⊔(image g XS))).  
   apply LR_equiv; auto.
   apply LR_admissible.
   rewrite <- H6; auto.

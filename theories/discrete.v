@@ -97,7 +97,7 @@ Canonical Structure disc (X:fintype) : PLT :=
         (fintype.fintype_effective X)
         (fintype.fintype_plotkin false X)).
 
-Program Definition disc_elem (Y:fintype) (y:Y) : 1 → disc Y :=
+Program Definition disc_elem (Y:fintype) (y:Y) : 1 ⤳ disc Y :=
   PLT.Hom false (PLT.unit false) (disc Y) (single (tt,y)) _ _.
 Next Obligation.
   intros. destruct x'. destruct x.
@@ -134,7 +134,7 @@ Arguments disc_elem [Y] y.
 Section disc_cases.
   Variable X:fintype.
   Variables (A B:PLT).
-  Variable f : X -> (A → B).
+  Variable f : X -> (A ⤳ B).
 
   Program Definition insert_index (x:X) : Preord.hom (A×B) ((A×disc X)×B) :=
     Preord.Hom (A×B) ((A×disc X)×B) (fun ab => ((fst ab, x), snd ab)) _.
@@ -195,7 +195,7 @@ Section disc_cases.
         * apply IHls; auto.
   Qed.
 
-  Program Definition disc_cases : (A × (disc X))%plt → B :=
+  Program Definition disc_cases : (A × (disc X))%plt ⤳ B :=
     PLT.Hom false (PLT.prod A (disc X)) B
        (mk_disc_cases_rel (fintype.fintype_list X)) _ _.
   Next Obligation.
@@ -282,7 +282,7 @@ Canonical Structure finbool.
 
 Lemma disc_cases_elem'
      : forall (X : fintype) (A B C : PLT) 
-       (f : X -> A → B) (g: C → 1) (x : X) (h : C → A),
+       (f : X -> A ⤳ B) (g: C ⤳ 1) (x : X) (h : C ⤳ A),
        disc_cases f ∘ PLT.pair h (disc_elem x ∘ g) ≈ f x ∘ h.
 Proof.
   split; intros a H.
@@ -321,7 +321,7 @@ Proof.
 Qed.
 
 
-Lemma disc_cases_univ (X:fintype) (A B:PLT) (f:X -> A → B) q :
+Lemma disc_cases_univ (X:fintype) (A B:PLT) (f:X -> A ⤳ B) q :
   (forall x, f x ≈ q ∘ 〈 id, disc_elem x ∘ PLT.terminate _ _〉) ->
   disc_cases f ≈ q.
 Proof.
@@ -369,7 +369,7 @@ Proof.
 Qed.
 
 Lemma disc_cases_commute : forall (X : fintype) (A B C : PLT) 
-       (f : X -> A → B) (g:C → A) (h:C → disc X),
+       (f : X -> A ⤳ B) (g:C ⤳ A) (h:C ⤳ disc X),
        disc_cases f ∘ 〈 g, h 〉 ≈ disc_cases (fun x => f x ∘ g) ∘ 〈 id, h 〉.
 Proof.
   intros. transitivity (disc_cases f ∘ PLT.pair_map g id ∘ 〈id,h〉).

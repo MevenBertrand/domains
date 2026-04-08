@@ -102,7 +102,7 @@ Canonical Structure flat (X:enumtype) : ∂PLT :=
         (enumtype.enumtype_effective X)
         (enumtype.enumtype_plotkin X)).
 
-Program Definition flat_elem (Y:enumtype) (y:Y) : PLT.unit true → flat Y :=
+Program Definition flat_elem (Y:enumtype) (y:Y) : PLT.unit true ⤳ flat Y :=
   PLT.Hom true (PLT.unit true) (flat Y) (single (tt,y)) _ _.
 Next Obligation.
   intros. destruct x'. destruct x.
@@ -139,7 +139,7 @@ Arguments flat_elem [Y] y.
 Section flat_cases.
   Variable X:enumtype.
   Variables (A B:∂PLT).
-  Variable f : X -> (A → B).
+  Variable f : X -> (A ⤳ B).
 
   Program Definition insert_index (x:X) : Preord.hom (prod_preord A B) (prod_preord (prod_preord A (flat X)) B) :=
     Preord.Hom _ _ (fun ab => ((fst ab, x), snd ab)) _.
@@ -189,7 +189,7 @@ Section flat_cases.
       + destruct H3 as [[??]?]; auto.
   Qed.
 
-  Program Definition flat_cases : A ⊗ flat X → B :=
+  Program Definition flat_cases : A ⊗ flat X ⤳ B :=
     PLT.Hom true (PLT.prod A (flat X)) B flat_cases_rel _ _.
   Next Obligation.
     intros. 
@@ -250,7 +250,7 @@ Section flat_cases.
 End flat_cases.
 Arguments flat_cases [X A B] f.
 
-Lemma flat_cases_univ (X:enumtype) (A B:∂PLT) (f:X -> A → B) q :
+Lemma flat_cases_univ (X:enumtype) (A B:∂PLT) (f:X -> A ⤳ B) q :
   (forall x, f x ≈ q ∘ 《 id, flat_elem x ∘ PLT.terminate _ _》) ->
   flat_cases f ≈ q.
 Proof.
@@ -291,7 +291,7 @@ Proof.
 Qed.
 
 Lemma flat_cases_commute : forall (X : enumtype) (A B C : ∂PLT) 
-  (f : X -> A → B) (g:C → A) (h:C → flat X),
+  (f : X -> A ⤳ B) (g:C ⤳ A) (h:C ⤳ flat X),
   flat_cases f ∘ 《 g, h 》 ≈ flat_cases (fun x => f x ∘ g) ∘ 《 id, h 》.
 Proof.
   intros.
@@ -311,7 +311,7 @@ Proof.
     rewrite flat_cases_elem. auto.
 Qed.
 
-Lemma flat_cases_eq (X:enumtype) (A B:∂PLT) (f g : X -> A → B) :
+Lemma flat_cases_eq (X:enumtype) (A B:∂PLT) (f g : X -> A ⤳ B) :
   (forall x, f x ≈ g x) ->
   flat_cases f ≈ flat_cases g.
 Proof.

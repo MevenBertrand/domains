@@ -10,16 +10,16 @@ Require Import utils.all categories morphisms functors.
 (** ** Categories with terminal objects
 
      Such categories have a distinguished object [terminus] (notation [!])
-     and a family of morphisms [terminate : A → !] for each object [A].
+     and a family of morphisms [terminate : A ⤳ !] for each object [A].
      Furthermore, [terminate] is universial, in that for every
-     [f : A → !], [f = terminate].
+     [f : A ⤳ !], [f = terminate].
   *)
 
-Definition IsTerminal {C : Quiver} (t : C) (f : forall x, x → t) := forall x (g : x → t), g = (f x).
+Definition IsTerminal {C : Quiver} (t : C) (f : forall x, x ⤳ t) := forall x (g : x ⤳ t), g = (f x).
 
 #[primitive] HB.mixin Record IsPreTerminated (C : Type) of quiver C := {
-  terminus : C ;
-  terminate : forall (x : C), x → terminus ;
+  #[canonical=no]terminus : C ;
+  #[canonical=no]terminate : forall (x : C), x ⤳ terminus ;
 }.
 
 #[short(type="PreTerminated"),primitive]
@@ -45,7 +45,7 @@ Proof.
 Succeed Qed.
 Abort.
 
-Definition terminalI {C : Cat} (t t' : C) (f : forall x, x → t) (f' : forall x, x → t') :
+Definition terminalI {C : Cat} (t t' : C) (f : forall x, x ⤳ t) (f' : forall x, x ⤳ t') :
   IsTerminal t f ->
   IsTerminal t' f' ->
   (Σ! h : t ↔ t', (forall x, h ∘ (f x) = f' x) /\ (forall x, h⁻¹ ∘ (f' x) = f x)).
@@ -67,22 +67,22 @@ Qed.
 
 (* TODO The category of Types is terminated *)
 
-(* Definition elem (X:ob SET) (x:X) : ! → X :=
+(* Definition elem (X:ob SET) (x:X) : ! ⤳ X :=
   SET.Hom !%cat_ob X (fun _ => x) (fun a b H => eq_refl _ _). *)
 
 (** ** Categories with initial objects
 
      Such categories have a distinguished object [init] (notation [¡])
-     and a family of morphisms [initiate : ¡ → A] for each object [A].
+     and a family of morphisms [initiate : ¡ ⤳ A] for each object [A].
      Furthermore, [initiate] is universal, in that every for every
-     [f : ¡ → A], [f = initiate].
+     [f : ¡ ⤳ A], [f = initiate].
   *)
 
-Definition IsInitial {C : Quiver} (t : C) (f : forall x, t → x) := forall x (g : t → x), g = (f x).
+Definition IsInitial {C : Quiver} (t : C) (f : forall x, t ⤳ x) := forall x (g : t ⤳ x), g = (f x).
 
 #[primitive] HB.mixin Record IsPreInitialised (C : Type) of quiver C := {
-  initium : C ;
-  initiate : forall (x : C), initium → x ;
+  #[canonical=no]initium : C ;
+  #[canonical=no]initiate : forall (x : C), initium ⤳ x ;
 }.
 
 #[short(type="PreInitialised"),primitive]
@@ -100,7 +100,7 @@ HB.structure Definition initialised := { C of pre_initialised C & IsInitialised 
 
 Arguments initU : clear implicits.
 
-Definition initialI {C : Cat} (t t' : C) (f : forall x, t → x) (f' : forall x, t' → x) :
+Definition initialI {C : Cat} (t t' : C) (f : forall x, t ⤳ x) (f' : forall x, t' ⤳ x) :
   IsInitial t f ->
   IsInitial t' f' ->
   (Σ! h : t ↔ t', (forall x, (f' x) ∘ h = f x) /\ (forall x, (f x) ∘ h⁻¹ = f' x)).
@@ -123,8 +123,8 @@ Qed.
 (** ** Finite coproducts
 
     The coproduct of [A] and [B] is written [A + B].  The injection
-    functions are [ι₁] and [ι₂].  When we have [f:A → C]  and [g:B → C],
-    the case function [either f g : A+B → C] is the mediating universal
+    functions are [ι₁] and [ι₂].  When we have [f:A ⤳ C]  and [g:B ⤳ C],
+    the case function [either f g : A+B ⤳ C] is the mediating universal
     morphism for the colimit diagram.
 
     Cocartesian categories have all finite coproducts:
@@ -132,7 +132,7 @@ Qed.
   *)
 
 #[primitive] HB.mixin Record PreHasSums C := {
-  cat_sum : C -> C -> C ;
+  #[canonical=no]cat_sum : C -> C -> C ;
 }.
 
 #[short(type="PreHasSums"),primitive]
@@ -145,9 +145,9 @@ Notation "A +[ X ] B" := (@cat_sum X A B) (only parsing) : cat_scope.
 Arguments cat_sum : simpl never.
 
 #[primitive] HB.mixin Record HasInjs C of precat C & pre_has_sums C := {
-  sum_inl : forall {a b : C}, a → cat_sum a b ;
-  sum_inr : forall {a b : C}, b → cat_sum a b ;
-  either : forall {a b x : C}, a → x -> b → x -> cat_sum a b → x ;
+  #[canonical=no]sum_inl : forall {a b : C}, a ⤳ cat_sum a b ;
+  #[canonical=no]sum_inr : forall {a b : C}, b ⤳ cat_sum a b ;
+  #[canonical=no]either : forall {a b x : C}, a ⤳ x -> b ⤳ x -> cat_sum a b ⤳ x ;
 }.
 
 #[short(type="HasInjs"),primitive]
@@ -159,12 +159,12 @@ Notation "'ι₂'" := (sum_inr _ _) : cat_scope.
 Arguments either {_ _ _ _} _ _.
 
 Definition sum_map {X:HasInjs} {a b c d: X}
-  (f:a → b) (g:c → d) : a + c →[X] b + d := either (ι₁ ∘ f) (ι₂ ∘ g).
+  (f:a ⤳ b) (g:c ⤳ d) : a + c ⤳[X] b + d := either (ι₁ ∘ f) (ι₂ ∘ g).
 
 #[primitive] HB.mixin Record HasSums C of cat C & has_injs C := {
-  inlK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₁ = f ; 
-  inrK : forall {a b x : C} {f : a → x} {g : b → x}, (either f g) ∘[C] ι₂ = g ;
-  sumU : forall {a b x : C} {f : a → x} {g : b → x} {h : cat_sum a b → x},
+  inlK : forall {a b x : C} {f : a ⤳ x} {g : b ⤳ x}, (either f g) ∘[C] ι₁ = f ; 
+  inrK : forall {a b x : C} {f : a ⤳ x} {g : b ⤳ x}, (either f g) ∘[C] ι₂ = g ;
+  sumU : forall {a b x : C} {f : a ⤳ x} {g : b ⤳ x} {h : cat_sum a b ⤳ x},
     h ∘[C] ι₁ = f -> h ∘[C] ι₂ = g -> h = either f g
 }.
 
@@ -183,8 +183,8 @@ HB.structure Definition cocartesian := {
 (** ** Finite products
 
     The product of [A] and [B] is written [A × B].  The projection
-    functions are [π₁] and [π₂].  When we have [f:C → A]  and [g:C → B],
-    the pairing function [⟨ f, g ⟩ : C → A×B] is the mediating universal
+    functions are [π₁] and [π₂].  When we have [f:C ⤳ A]  and [g:C ⤳ B],
+    the pairing function [⟨ f, g ⟩ : C ⤳ A×B] is the mediating universal
     morphism for the limit diagram.
 
   Cartesian categories have all finite products:
@@ -192,7 +192,7 @@ HB.structure Definition cocartesian := {
 *)
 
 #[primitive] HB.mixin Record PreHasProds C := {
-  cat_prod : C -> C -> C ;
+  #[canonical=no]cat_prod : C -> C -> C ;
 }.
 
 #[short(type="PreHasProds"),primitive]
@@ -204,9 +204,9 @@ Notation "A ×[ X ] B" := (@cat_prod X A B) (only parsing): cat_scope.
 Arguments cat_prod : simpl never.
 
 #[primitive] HB.mixin Record HasProjs C of quiver C & pre_has_prods C := {
-  prod_projl : forall {a b : C}, cat_prod a b → a ;
-  prod_projr : forall {a b : C}, cat_prod a b → b ;
-  pairing : forall {a b x : C}, x → a -> x → b -> x → cat_prod a b ;
+  #[canonical=no]prod_projl : forall {a b : C}, cat_prod a b ⤳ a ;
+  #[canonical=no]prod_projr : forall {a b : C}, cat_prod a b ⤳ b ;
+  #[canonical=no]pairing : forall {a b x : C}, x ⤳ a -> x ⤳ b -> x ⤳ cat_prod a b ;
 }.
 
 #[short(type="HasProjs"),primitive]
@@ -219,15 +219,16 @@ Notation "⟨ f , g ⟩" := (pairing _ _ _ f g) : cat_scope.
 
 Arguments prod_projl : simpl never.
 Arguments prod_projr : simpl never.
+Arguments pairing : simpl never.
 
 Definition prod_map {X:HasProjs} {a b c d: X}
-  (f:a → b) (g:c → d) : a×c →[X] b×d :=
-    ⟨ (f ∘ (π₁ : a × c →[X] a)) , (g ∘ (π₂ : a × c →[X] c)) ⟩.
+  (f:a ⤳ b) (g:c ⤳ d) : a×c ⤳[X] b×d :=
+    ⟨ (f ∘ (π₁ : a × c ⤳[X] a)) , (g ∘ (π₂ : a × c ⤳[X] c)) ⟩.
 
 #[primitive] HB.mixin Record HasProds C of cat C & has_projs C := {
-  projlK : forall (a b x : C) (f : x → a) (g : x → b), π₁ ∘[C] ⟨f,g⟩ = f ; 
-  projrK : forall (a b x : C) (f : x → a) (g : x → b), π₂ ∘[C] ⟨f,g⟩ = g ; 
-  prodU : forall (a b x : C) (f : x → a) (g : x → b) (h : x → cat_prod a b),
+  projlK : forall (a b x : C) (f : x ⤳ a) (g : x ⤳ b), π₁ ∘[C] ⟨f,g⟩ = f ; 
+  projrK : forall (a b x : C) (f : x ⤳ a) (g : x ⤳ b), π₂ ∘[C] ⟨f,g⟩ = g ; 
+  prodU : forall (a b x : C) (f : x ⤳ a) (g : x ⤳ b) (h : x ⤳ cat_prod a b),
     π₁ ∘[C] h = f -> π₂ ∘[C] h = g -> h = ⟨f,g⟩
 }.
 
@@ -268,25 +269,25 @@ Arguments distr : clear implicits.
     closure in terms of curry and apply morphisms.
      
     When [A] and [B] are objects, [A ⇒ B] is the exponential object.
-    The morphism [apply : (A⇒B) × A → B] applies an internal hom
-    to an argument.  For [f : C×A → B], we have a unique curried
-    morphism [curry f : C → A⇒B] that commutes with the action of [apply].
+    The morphism [apply : (A⇒B) × A ⤳ B] applies an internal hom
+    to an argument.  For [f : C×A ⤳ B], we have a unique curried
+    morphism [curry f : C ⤳ A⇒B] that commutes with the action of [apply].
   *)
 
 (* #[primitive] HB.mixin Record IsExp {C : Cartesian} (a b : C) (t : C) := {
-    evalU : t × a → b ;
-    curryU : forall x, ((x × a) → b) -> x → t ;
-    evalK : forall x (f : (x × a) → b), evalU ∘ (prod_map (curryU _ f) idmap) = f ;
-    expU : forall x (f : (x × a) → b) (h : x → t), evalU ∘ (prod_map h idmap) = f -> h = curryU _ f
+    evalU : t × a ⤳ b ;
+    curryU : forall x, ((x × a) ⤳ b) -> x ⤳ t ;
+    evalK : forall x (f : (x × a) ⤳ b), evalU ∘ (prod_map (curryU _ f) idmap) = f ;
+    expU : forall x (f : (x × a) ⤳ b) (h : x ⤳ t), evalU ∘ (prod_map h idmap) = f -> h = curryU _ f
   }.
 
 #[short(type="Exp"),primitive]
 HB.structure Definition exp {C : Cartesian} (a b : C) := { t of IsExp C a b t}. *)
 
 #[primitive] HB.mixin Record PreHasExps C of cartesian C := {
-  cat_exp : C -> C -> C ;
-  eval : forall {a b : C}, (cat_exp a b) × a →[C] b ;
-  curry : forall {a b x : C}, ((x × a) → b) -> x → cat_exp a b
+  #[canonical=no]cat_exp : C -> C -> C ;
+  #[canonical=no]eval : forall {a b : C}, (cat_exp a b) × a ⤳[C] b ;
+  #[canonical=no]curry : forall {a b x : C}, ((x × a) ⤳ b) -> x ⤳ cat_exp a b
 }.
 
 #[short(type="PreCartesianClosed"),primitive]
@@ -298,9 +299,9 @@ Arguments eval {_ _ _}.
 Arguments curry {_ _ _ _} _.
 
 #[primitive] HB.mixin Record HasExps C of pre_cart_closed C := {
-  evalK : forall (a b x : C) (f : (x × a) → b),
+  evalK : forall (a b x : C) (f : (x × a) ⤳ b),
     eval ∘[C] ⟨ curry f ∘[C] π₁, π₂⟩ = f ;
-  expU : forall (a b x : C) (f : (x × a) → b) (h : x → cat_exp a b),
+  expU : forall (a b x : C) (f : (x × a) ⤳ b) (h : x ⤳ cat_exp a b),
     eval ∘ ⟨ h ∘[C] π₁, π₂⟩ = f -> h = curry f
 }.
 
@@ -312,7 +313,7 @@ Arguments expU : clear implicits.
 
 
 Lemma curry_commute3 (X:CartesianClosed) : 
-  forall (d c a b:X) (f:c×a → b) (g:d → c) (h:d → a),
+  forall (d c a b:X) (f:c×a ⤳ b) (g:d ⤳ c) (h:d ⤳ a),
     eval ∘ ⟨ curry f ∘ g, h ⟩ = f ∘ ⟨ g, h ⟩.
 Proof.
   intros.

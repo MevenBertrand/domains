@@ -1618,7 +1618,7 @@ Proof.
 Qed.
 
 (*
-Program Definition const {A B:preord} (b:B) : A → B :=
+Program Definition const {A B:preord} (b:B) : A ⤳ B :=
   Preord.Hom A B (fun _ => b) _.
 Next Obligation. auto. Qed.
 

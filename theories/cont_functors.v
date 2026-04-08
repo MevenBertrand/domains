@@ -12,7 +12,7 @@ Require Import directed.
 Record directed_system (I:directed_preord) (C:category) :=
   DirSys
   { ds_F    : I -> ob C
-  ; ds_hom : forall i j:I, i ≤ j -> ds_F i → ds_F j
+  ; ds_hom : forall i j:I, i ≤ j -> ds_F i ⤳ ds_F j
   ; ds_ident : forall i (Hii:i≤i), ds_hom i i Hii ≈ id
   ; ds_compose : forall i j k (Hij:i≤j) (Hjk:j≤k) (Hik:i≤k),
                        ds_hom j k Hjk ∘ ds_hom i j Hij ≈ ds_hom i k Hik
@@ -25,7 +25,7 @@ Arguments ds_compose [I] [C] _ _ _ _ _ _ _.
 Record cocone (I:directed_preord) C (DS:directed_system I C) :=
   Cocone
   { cocone_point :> ob C
-  ; cocone_spoke : forall i, ds_F DS i → cocone_point
+  ; cocone_spoke : forall i, ds_F DS i ⤳ cocone_point
   ; cocone_commute : forall i j (Hij:i≤j),
        cocone_spoke i ≈ cocone_spoke j ∘ ds_hom DS i j Hij
   }.
@@ -38,10 +38,10 @@ Arguments cocone_commute [I] [C] [DS] _ _ _ _.
 Record directed_colimit (I:directed_preord) C (DS:directed_system I C) 
   (XC:cocone DS) :=
   DirectedColimit
-  { colim_univ : forall (YC:cocone DS), XC → YC
+  { colim_univ : forall (YC:cocone DS), XC ⤳ YC
   ; colim_commute : forall (YC:cocone DS) i,
        cocone_spoke YC i ≈ colim_univ YC ∘ cocone_spoke XC i
-  ; colim_uniq : forall (YC:cocone DS) (f:XC → YC),
+  ; colim_uniq : forall (YC:cocone DS) (f:XC ⤳ YC),
        (forall i, cocone_spoke YC i ≈ f ∘ cocone_spoke XC i) ->
        f ≈ colim_univ YC
   }.
@@ -131,11 +131,11 @@ Section fixpoint.
   (** Iterated action of the functor [F] on homs. The base case is
       provided by the universal hom associated to ¡.
    *)
-  Fixpoint iter_hom (i:nat) : forall (j:nat) (Hij:i <= j), iterF i → iterF j :=
-    match i as i' return forall (j:nat) (Hij:i' <= j), iterF i' → iterF j with
+  Fixpoint iter_hom (i:nat) : forall (j:nat) (Hij:i <= j), iterF i ⤳ iterF j :=
+    match i as i' return forall (j:nat) (Hij:i' <= j), iterF i' ⤳ iterF j with
     | O => fun j Hij => initiate
     | S i' => fun j =>
-        match j as j' return forall (Hij:S i' <= j'), iterF (S i') → iterF j' with
+        match j as j' return forall (Hij:S i' <= j'), iterF (S i') ⤳ iterF j' with
         | O => fun Hij => False_rect _ (HSle0 i' Hij) (* impossible case *)
         | S j' => fun Hij => F·(iter_hom i' j'
           ltac:(lia))
@@ -219,8 +219,8 @@ Section fixpoint.
   Section cata.
     Variable AG : alg C F.
   
-    Fixpoint cata_hom' (i:nat) : iterF i → AG :=
-      match i as i' return iterF i' → AG with
+    Fixpoint cata_hom' (i:nat) : iterF i ⤳ AG :=
+      match i as i' return iterF i' ⤳ AG with
       | O => initiate
       | S i' => Alg.iota AG ∘ F·(cata_hom' i')
       end.
@@ -251,7 +251,7 @@ Section fixpoint.
       apply cat_assoc.
     Qed.
 
-    Definition cata_hom : fixpoint → AG :=
+    Definition cata_hom : fixpoint ⤳ AG :=
       colim_univ (has_colimits nat_dirord kleene_chain) AG_cocone.
 
     Program Definition cata_alg_hom : Alg.alg_hom fixpoint_alg AG :=
@@ -454,7 +454,7 @@ Section fstF_continuous.
                  (fun i => PROD.Hom C D _ _
                             (cocone_spoke CC1 i)
                             (homr (cocone_spoke CC i) : 
-                                 obr (ds_F DS i) → obr (cocone_point CC)))
+                                 obr (ds_F DS i) ⤳ obr (cocone_point CC)))
 
                  _.
   Next Obligation.
@@ -464,7 +464,7 @@ Section fstF_continuous.
   Qed.
 
   Definition fstF_univ (YC : cocone (dir_sys_app DS (fstF C D))) :
-    cocone_app CC (fstF C D) → YC :=
+    cocone_app CC (fstF C D) ⤳ YC :=
     homl (colim_univ Hcolim (fstF_cocone YC)).
        
   Lemma fstF_continuous' :
@@ -506,7 +506,7 @@ Section sndF_continuous.
                               (cocone_point CC1))
                  (fun i => PROD.Hom C D _ _
                             (homl (cocone_spoke CC i) : 
-                                 obl (ds_F DS i) → obl (cocone_point CC))
+                                 obl (ds_F DS i) ⤳ obl (cocone_point CC))
                             (cocone_spoke CC1 i))
                  _.
   Next Obligation.
@@ -516,7 +516,7 @@ Section sndF_continuous.
   Qed.
 
   Definition sndF_univ (YC : cocone (dir_sys_app DS (sndF C D))) :
-    cocone_app CC (sndF C D) → YC :=
+    cocone_app CC (sndF C D) ⤳ YC :=
     homr (colim_univ Hcolim (sndF_cocone YC)).
        
   Lemma sndF_continuous' :

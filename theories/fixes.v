@@ -22,7 +22,7 @@ Require Import profinite_adj.
 (** * A fixpoint operator for nonstrict functions in PLT.
   *)
 
-Program Definition precompose hf (A B C:PLT.PLT hf) (f:A → B) :
+Program Definition precompose hf (A B C:PLT.PLT hf) (f:A ⤳ B) :
   (Preord.hom (PLT.hom_ord hf B C) (PLT.hom_ord hf A C)) := 
   Preord.Hom (PLT.hom_ord hf B C) (PLT.hom_ord hf A C) 
      (fun g => g ∘ f) _.
@@ -31,7 +31,7 @@ Next Obligation.
 Qed.
 Arguments precompose [hf A B] C f.
 
-Program Definition postcompose hf (A B C:PLT.PLT hf) (g:B → C) :
+Program Definition postcompose hf (A B C:PLT.PLT hf) (g:B ⤳ C) :
   (Preord.hom (PLT.hom_ord hf A B) (PLT.hom_ord hf A C)) :=
   Preord.Hom (PLT.hom_ord hf A B) (PLT.hom_ord hf A C) 
       (fun f => g ∘ f) _.
@@ -40,7 +40,7 @@ Next Obligation.
 Qed.
 Arguments postcompose [hf] A [B C] g.
 
-Lemma precompose_continuous hf (A B C:PLT.PLT hf) (f:A → B) :
+Lemma precompose_continuous hf (A B C:PLT.PLT hf) (f:A ⤳ B) :
   continuous (directed_hf_cl hf) (precompose C f).
 Proof.
   apply CPO.continuous_sup.
@@ -66,7 +66,7 @@ Proof.
     rewrite <- H2; auto.
 Qed.
 
-Lemma postcompose_continuous hf (A B C:PLT.PLT hf) (g:B → C) :
+Lemma postcompose_continuous hf (A B C:PLT.PLT hf) (g:B ⤳ C) :
   continuous (directed_hf_cl hf) (postcompose A g).
 Proof.
   apply CPO.continuous_sup.
@@ -92,7 +92,7 @@ Proof.
     rewrite <- H2; auto.
 Qed.
 
-Program Definition pair_right hf (A B C:PLT.PLT hf) (f:C → A) :
+Program Definition pair_right hf (A B C:PLT.PLT hf) (f:C ⤳ A) :
   (Preord.hom (PLT.hom_ord hf C B) (PLT.hom_ord hf C (PLT.prod A B))) := 
   Preord.Hom (PLT.hom_ord hf C B) (PLT.hom_ord hf C (PLT.prod A B)) 
   (fun g => PLT.pair f g) _.
@@ -101,7 +101,7 @@ Next Obligation.
 Qed.
 Arguments pair_right [hf A] B [C] f.
 
-Program Definition pair_left hf (A B C:PLT.PLT hf) (g:C → B) :
+Program Definition pair_left hf (A B C:PLT.PLT hf) (g:C ⤳ B) :
   (Preord.hom (PLT.hom_ord hf C A) (PLT.hom_ord hf C (PLT.prod A B))) := 
   Preord.Hom (PLT.hom_ord hf C A) (PLT.hom_ord hf C (PLT.prod A B)) 
   (fun f => PLT.pair f g) _.
@@ -110,7 +110,7 @@ Next Obligation.
 Qed.
 Arguments pair_left [hf] A [B C] g.
 
-Lemma pair_right_continuous hf (A B C:PLT.PLT hf) (f:C → A) :
+Lemma pair_right_continuous hf (A B C:PLT.PLT hf) (f:C ⤳ A) :
   continuous (directed_hf_cl hf) (pair_right B f).
 Proof.
   apply CPO.continuous_sup.
@@ -134,7 +134,7 @@ Proof.
     rewrite <- H2; auto.
 Qed.
 
-Lemma pair_left_continuous hf (A B C:PLT.PLT hf) (g:C → B) :
+Lemma pair_left_continuous hf (A B C:PLT.PLT hf) (g:C ⤳ B) :
   continuous (directed_hf_cl hf) (pair_left A g).
 Proof.
   apply CPO.continuous_sup.
@@ -161,15 +161,15 @@ Qed.
 Section fixes.
   Variable Γ:PLT.
   Variable A:∂PLT.
-  Variable f:Γ → U A ⇒ U A.
+  Variable f:Γ ⤳ U A ⇒ U A.
 
   Definition fixes_step
-    (x:Γ → U A) : Γ → U A :=
+    (x:Γ ⤳ U A) : Γ ⤳ U A :=
 
     apply ∘ 〈f, x〉.
 
   Program Definition fixes_step' :
-    PLT.homset_cpo _ Γ (U A) → PLT.homset_cpo _ Γ (U A) :=
+    PLT.homset_cpo _ Γ (U A) ⤳ PLT.homset_cpo _ Γ (U A) :=
 
     CPO.Hom _ (PLT.homset_cpo _ Γ (U A)) (PLT.homset_cpo _ Γ (U A)) 
     fixes_step _ _.
@@ -189,7 +189,7 @@ Section fixes.
       + apply pair_right_continuous.
   Qed.
 
-  Definition fixes : Γ → U A := lfp fixes_step'.
+  Definition fixes : Γ ⤳ U A := lfp fixes_step'.
 
   Lemma fixes_unroll :
     fixes ≈ apply ∘ 〈f, fixes〉.
@@ -203,7 +203,7 @@ End fixes.
 Arguments fixes [Γ A] f.
 
 
-Lemma fixes_mono Γ A (f g:Γ → U A ⇒ U A) : 
+Lemma fixes_mono Γ A (f g:Γ ⤳ U A ⇒ U A) : 
   f ≤ g -> fixes f ≤ fixes g.
 Proof.
   intro. unfold fixes at 1.
@@ -220,7 +220,7 @@ Proof.
     apply PLT.pair_mono; auto.
 Qed.
 
-Lemma fixes_eq Γ A (f g:Γ → U A ⇒ U A) : 
+Lemma fixes_eq Γ A (f g:Γ ⤳ U A ⇒ U A) : 
   f ≈ g -> fixes f ≈ fixes g.
 Proof.
   intros [??]; split; apply fixes_mono; auto.
@@ -243,7 +243,7 @@ Proof.
 Qed.
 
 Lemma plt_bot_None A B x y :
-  (x,y) ∈ PLT.hom_rel (⊥ : A → U B) <-> y = None.
+  (x,y) ∈ PLT.hom_rel (⊥ : A ⤳ U B) <-> y = None.
 Proof.
   split; intros.
   - simpl in H.
@@ -274,8 +274,8 @@ Proof.
     + apply U_hom_rel. auto.
 Qed.
 
-Lemma plt_bot_chomp A B C (g:A → B) :
-  (⊥ : B → U C) ∘ g ≈ ⊥.
+Lemma plt_bot_chomp A B C (g:A ⤳ B) :
+  (⊥ : B ⤳ U C) ∘ g ≈ ⊥.
 Proof.
   split; [| apply bottom_least ].
   hnf. intros.
@@ -286,7 +286,7 @@ Proof.
   apply plt_bot_None. auto.
 Qed.  
 
-Lemma fixes_compose_commute Γ Γ' A (f:Γ → U A ⇒ U A) (g:Γ' → Γ) :
+Lemma fixes_compose_commute Γ Γ' A (f:Γ ⤳ U A ⇒ U A) (g:Γ' ⤳ Γ) :
   fixes f ∘ g ≈ fixes (f ∘ g).
 Proof.
   split.
@@ -295,7 +295,7 @@ Proof.
       * rewrite plt_bot_chomp.
         apply bottom_least.
       * intros.
-        transitivity (∐(image (precompose (U A) g) XS)).
+        transitivity (⊔(image (precompose (U A) g) XS)).
         ** destruct (CPO.continuous_sup _ _ _ (precompose (U A) g)).
            apply H1.
            apply (precompose_continuous false _ _ (U A) g).

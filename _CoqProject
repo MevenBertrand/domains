@@ -26,13 +26,15 @@ theories/sets_choice.v
 theories/effective.v
 theories/directed.v
 theories/plotkin.v
-# theories/cusl.v
-# theories/cont_functors.v
+
 # theories/cpo.v
 # theories/joinable.v
 # theories/approx_rels.v
-# theories/bilimit.v
 # theories/profinite.v
+
+# theories/cusl.v
+# theories/cont_functors.v
+# theories/bilimit.v
 # theories/rational_intervals.v
 # theories/realdom.v
 # theories/realops.v
@@ -42,15 +44,17 @@ theories/plotkin.v
 # theories/exp_functor.v
 # theories/sumprod_functor.v
 # theories/cont_adj.v
-# theories/atoms.v
-# theories/permutations.v
-# theories/nominal.v
+
 # theories/fixes.v
 # theories/discrete.v
 # theories/flat.v
 # theories/lam_models.v
 # theories/powerdom.v
 # theories/strict_utils.v
+
+# theories/atoms.v
+# theories/permutations.v
+# theories/nominal.v
 # theories/finprod.v
 
 # theories/examples/ski.v

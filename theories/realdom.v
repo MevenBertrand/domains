@@ -307,7 +307,7 @@ Definition PreRealDom : ∂PLT :=
      (PLT.Class true rational_interval rint_preord_mixin rint_eff rint_plotkin).
 
 
-Definition canonical (A:∂PLT) (f : A → PreRealDom) :=
+Definition canonical (A:∂PLT) (f : A ⤳ PreRealDom) :=
   forall a x, (a,x) ∈ PLT.hom_rel f  ->
     exists x', (a,x') ∈ PLT.hom_rel f /\ way_inside x' x.
 
@@ -345,7 +345,7 @@ Proof.
 Qed.
 
 
-Program Definition canon : PreRealDom → PreRealDom :=
+Program Definition canon : PreRealDom ⤳ PreRealDom :=
   PLT.Hom true PreRealDom PreRealDom canon_rel _ _.
 Next Obligation.
   intros.
@@ -434,7 +434,7 @@ Proof.
 Qed.
 
 
-Lemma canon_canonical (A:∂PLT) (f:A → PreRealDom) :
+Lemma canon_canonical (A:∂PLT) (f:A ⤳ PreRealDom) :
   canonical A (canon ∘ f).
 Proof.
   red. intros.
@@ -460,7 +460,7 @@ Proof.
   - split; simpl; auto.
 Qed.
 
-Lemma canon_canonical_iff (A:∂PLT) (f:A → PreRealDom) :
+Lemma canon_canonical_iff (A:∂PLT) (f:A ⤳ PreRealDom) :
   canonical A f  <-> f ≈ canon ∘ f.
 Proof.
   split; intros.
@@ -488,19 +488,19 @@ Proof.
     simpl in H2. apply canon_rel_elem in H2; auto.
 Qed.
 
-Definition realdom_lt (A:∂PLT) (f g:A → PreRealDom) :=
+Definition realdom_lt (A:∂PLT) (f g:A ⤳ PreRealDom) :=
   forall a, exists x y,
     (a,x) ∈ PLT.hom_rel f /\ 
     (a,y) ∈ PLT.hom_rel g /\
     rint_end x < rint_start y.
 
-Definition realdom_lt' (A:∂PLT) (f g:A → PreRealDom) :=
+Definition realdom_lt' (A:∂PLT) (f g:A ⤳ PreRealDom) :=
   forall a (ε:Q), ε >= 0 -> exists x y,
     (a,x) ∈ PLT.hom_rel f /\ 
     (a,y) ∈ PLT.hom_rel g /\
     rint_end x < rint_start y + ε.
 
-Definition realdom_le (A:∂PLT) (f g:A → PreRealDom) :=
+Definition realdom_le (A:∂PLT) (f g:A ⤳ PreRealDom) :=
   forall a (ε:Q), ε > 0 -> exists x y,
     (a,x) ∈ PLT.hom_rel f /\ 
     (a,y) ∈ PLT.hom_rel g /\
@@ -570,18 +570,18 @@ Proof.
 Qed.
 
 
-Definition realdom_apart (A:∂PLT) (f g:A → PreRealDom) :=
+Definition realdom_apart (A:∂PLT) (f g:A ⤳ PreRealDom) :=
   exists a x y,
     (a,x) ∈ PLT.hom_rel f /\ 
     (a,y) ∈ PLT.hom_rel g /\
     (rint_end x < rint_start y \/ rint_end y < rint_start x).
 
-Definition realdom_converges (A:∂PLT) (f:A → PreRealDom) :=
+Definition realdom_converges (A:∂PLT) (f:A ⤳ PreRealDom) :=
   forall a ε, ε > 0 ->
     exists x, (a,x) ∈ PLT.hom_rel f /\
       rint_end x - rint_start x <= ε.
 
-Lemma realdom_napart_common (A:∂PLT) (f g:A → PreRealDom) :
+Lemma realdom_napart_common (A:∂PLT) (f g:A ⤳ PreRealDom) :
   ~realdom_apart A f g -> 
   forall a x y,
     (a,x) ∈ PLT.hom_rel f ->
@@ -613,7 +613,7 @@ Proof.
 Qed.
 
 
-Lemma realdom_napart_le (A:∂PLT) (f g:A → PreRealDom) :
+Lemma realdom_napart_le (A:∂PLT) (f g:A ⤳ PreRealDom) :
   canonical A f ->
   realdom_converges A g ->
   ~realdom_apart A f g ->
@@ -677,7 +677,7 @@ Proof.
 Qed.
 
 
-Lemma realdom_napart_eq A (f g:A → PreRealDom) :
+Lemma realdom_napart_eq A (f g:A ⤳ PreRealDom) :
   canonical A f ->
   canonical A g ->
   realdom_converges A f ->
@@ -691,7 +691,7 @@ Proof.
   exists a, y, x; intuition.
 Qed.
 
-Lemma realdom_le_napart A (f g:A → PreRealDom) :
+Lemma realdom_le_napart A (f g:A ⤳ PreRealDom) :
   g ≤ f -> ~realdom_apart A f g.
 Proof.
   intros. red; intros. 
@@ -728,7 +728,7 @@ Proof.
     red in H10. lia.
 Qed.
 
-Lemma realdom_napart_eq_iff A (f g:A → PreRealDom) :
+Lemma realdom_napart_eq_iff A (f g:A ⤳ PreRealDom) :
   canonical A f ->
   canonical A g ->
   realdom_converges A f ->
@@ -740,7 +740,7 @@ Proof.
   - revert H4; apply realdom_le_napart; auto.
 Qed.
 
-Lemma realdom_apart_comm A (f g: A → PreRealDom) :
+Lemma realdom_apart_comm A (f g: A ⤳ PreRealDom) :
   realdom_apart A f g -> realdom_apart A g f.
 Proof.
   unfold realdom_apart.
@@ -748,7 +748,7 @@ Proof.
   exists a, y, x; intuition.
 Qed.
 
-Lemma realdom_apart_cotransitive A (f g h:A → PreRealDom) :
+Lemma realdom_apart_cotransitive A (f g h:A ⤳ PreRealDom) :
   realdom_converges A h ->
   realdom_apart A f g ->
   realdom_apart A f h \/ realdom_apart A h g.
@@ -847,7 +847,7 @@ Proof.
 Qed.
 
 
-Lemma realdom_lt_apart (f g : 1 → PreRealDom) :
+Lemma realdom_lt_apart (f g : 1 ⤳ PreRealDom) :
   realdom_apart 1 f g <-> (realdom_lt 1 f g \/ realdom_lt 1 g f).
 Proof.
   split; intuition.
@@ -864,7 +864,7 @@ Proof.
     exists tt, y, x; intuition.
 Qed.
 
-Lemma realdom_lt_cotransitive (f g h:1 → PreRealDom) :
+Lemma realdom_lt_cotransitive (f g h:1 ⤳ PreRealDom) :
   realdom_converges 1 h ->
   realdom_lt 1 f g ->
   realdom_lt 1 f h \/ realdom_lt 1 h g.
@@ -920,7 +920,7 @@ Proof.
       red in H9; lia.
 Qed.
 
-Lemma converges_maximal A (f g:A → PreRealDom) :
+Lemma converges_maximal A (f g:A ⤳ PreRealDom) :
   canonical A g ->
   realdom_converges A f ->
   f ≤ g -> f ≈ g.
@@ -947,7 +947,7 @@ Proof.
 Qed.
 
 
-Lemma realdom_converges_le A (f g:A → PreRealDom) :
+Lemma realdom_converges_le A (f g:A ⤳ PreRealDom) :
   f ≤ g ->
   realdom_converges A f ->
   realdom_converges A g.
@@ -957,7 +957,7 @@ Proof.
   exists r; split; auto.
 Qed.
 
-Lemma realdom_lt_asym A (f g:A → PreRealDom) (a:A) :
+Lemma realdom_lt_asym A (f g:A ⤳ PreRealDom) (a:A) :
   realdom_lt A f g -> realdom_lt A g f -> False.
 Proof.
   unfold realdom_lt; intros.

@@ -232,7 +232,7 @@ Section cuts.
 
   Parameter A:∂PLT.
 
-  Program Definition hom_to_cut (f:A → PreRealDom) : PLT.ord A → cut_preord :=
+  Program Definition hom_to_cut (f:A ⤳ PreRealDom) : PLT.ord A ⤳ cut_preord :=
     Preord.Hom (PLT.ord A) cut_preord 
                (fun a => rints_to_cut (erel_image _ _ (PLT.dec A) (PLT.hom_rel f) a) 
                                     (PLT.hom_directed _ _ _ f a)
@@ -263,7 +263,7 @@ Section cuts.
     destruct H1 as [r [??]]. exists r; split; auto.
   Qed.
 
-  Program Definition cut_to_hom_rel (f:PLT.ord A → cut_preord) : erel A PreRealDom :=
+  Program Definition cut_to_hom_rel (f:PLT.ord A ⤳ cut_preord) : erel A PreRealDom :=
     @esubset (prod_preord A PreRealDom)
             (fun ar => rint_end (snd ar) ∈ cut_upper (f (fst ar)) /\
                        rint_start (snd ar) ∈ cut_lower (f (fst ar)))
@@ -278,7 +278,7 @@ Section cuts.
     constructor. apply Qeq_dec.
   Qed.
 
-  Lemma cut_to_hom_rel_elem (f:PLT.ord A → cut_preord) a r :
+  Lemma cut_to_hom_rel_elem (f:PLT.ord A ⤳ cut_preord) a r :
     (a,r) ∈ cut_to_hom_rel f <-> 
        (rint_end r ∈ cut_upper (f a) /\ rint_start r ∈ cut_lower (f a)).
   Proof.
@@ -298,7 +298,7 @@ Section cuts.
     apply rint_ord_test in H3. intuition.
   Qed.
 
-  Program Definition cut_to_hom (f:PLT.ord A → cut_preord) : A → PreRealDom :=
+  Program Definition cut_to_hom (f:PLT.ord A ⤳ cut_preord) : A ⤳ PreRealDom :=
     PLT.Hom true A PreRealDom (cut_to_hom_rel f) _ _. 
   Next Obligation.
     simpl; intros.
@@ -435,7 +435,7 @@ Section cuts.
         l ∈ cut_lower x /\
         u - l <= ε.
 
-  Lemma canonical_to_hom (f:PLT.ord A → cut_preord) :
+  Lemma canonical_to_hom (f:PLT.ord A ⤳ cut_preord) :
     (forall a, cut_canonical (f a)) ->
     canonical A (cut_to_hom f).
   Proof.
@@ -453,7 +453,7 @@ Section cuts.
     red; split; simpl; auto.
   Qed.
 
-  Lemma canonical_to_cut (f:A → PreRealDom) :
+  Lemma canonical_to_cut (f:A ⤳ PreRealDom) :
     canonical A f ->
     forall a, cut_canonical (hom_to_cut f a).
   Proof.
@@ -485,7 +485,7 @@ Section cuts.
     destruct H3; auto.
   Qed.
 
-  Lemma located_converges (f:PLT.ord A → cut_preord) :
+  Lemma located_converges (f:PLT.ord A ⤳ cut_preord) :
     (forall a, located (f a)) ->
    realdom_converges A (cut_to_hom f).
   Proof.
@@ -497,7 +497,7 @@ Section cuts.
     apply cut_to_hom_rel_elem. split; simpl; auto.
   Qed.
 
-  Lemma converges_located (f:A → PreRealDom) :
+  Lemma converges_located (f:A ⤳ PreRealDom) :
     realdom_converges A f ->
     forall a, located (hom_to_cut f a).
   Proof.
@@ -514,7 +514,7 @@ Section cuts.
     auto.
   Qed.
 
-  Lemma hom_to_cut_mono (f g:A → PreRealDom) :
+  Lemma hom_to_cut_mono (f g:A ⤳ PreRealDom) :
     f ≤ g -> hom_to_cut f ≤ hom_to_cut g.
   Proof.
     repeat intro.
@@ -535,7 +535,7 @@ Section cuts.
     apply H; auto.
   Qed.
 
-  Lemma cut_to_hom_mono (f g:PLT.ord A → cut_preord) :
+  Lemma cut_to_hom_mono (f g:PLT.ord A ⤳ cut_preord) :
     f ≤ g -> cut_to_hom f ≤ cut_to_hom g.
   Proof.
     repeat intro; simpl in *.

@@ -54,7 +54,7 @@ Reserved Notation "X ⊆ Y" (at level 66).
 Reserved Notation "∪ XS" (at level 50).
 Reserved Notation "∅".
 
-Reserved Notation "∐ XS"  (at level 10).
+Reserved Notation "⊔ XS"  (at level 10).
 Reserved Notation "⊥".
 Reserved Notation "∗".
 
@@ -63,8 +63,8 @@ Reserved Notation "'id' ( A )" (format "'id' '(' A ')'").
 Reserved Notation "'Id'".
 Reserved Notation "'Id' ( A )" (format "'Id' '(' A ')'").
 
-Reserved Notation "A → B" (at level 65).
-Reserved Notation "A →[ C ] B" (at level 65).
+Reserved Notation "A ⤳ B" (at level 65).
+Reserved Notation "A ⤳[ C ] B" (at level 65).
 Reserved Notation "A ↣ B" (at level 65).
 Reserved Notation "A ↣[ C ] B" (at level 65).
 Reserved Notation "A ↠ B" (at level 65).

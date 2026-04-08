@@ -5,18 +5,18 @@ Section pullback.
   Variable C:category.
 
   Definition commuting_square (X Y Z W:ob C) 
-    (f:X → Z) (g:Y → Z)
-    (f':W → Y) (g': W → X) :=
+    (f:X ⤳ Z) (g:Y ⤳ Z)
+    (f':W ⤳ Y) (g': W ⤳ X) :=
       g ∘ f' ≈ f ∘ g'.
 
   Record square  (X Y Z W:ob C) 
-    (f:X → Z) (g:Y → Z)
-    (f':W → Y) (g': W → X) :=
+    (f:X ⤳ Z) (g:Y ⤳ Z)
+    (f':W ⤳ Y) (g': W ⤳ X) :=
     Square
     { commute : commuting_square X Y Z W f g f' g'
     ; map : forall Q p q,
            commuting_square X Y Z Q f g p q ->
-           Q → W
+           Q ⤳ W
     ; axiom1 : forall Q p q H,
            g' ∘ map Q p q H ≈ q
     ; axiom2 : forall Q p q H,
@@ -25,11 +25,11 @@ Section pullback.
            f ∘ g' ∘ k ≈ f ∘ q -> k ≈ map Q p q H
     }.
 
-  Record pullback (X Y Z:ob C) (f:X → Z) (g:Y → Z) :=
+  Record pullback (X Y Z:ob C) (f:X ⤳ Z) (g:Y ⤳ Z) :=
     Pullback
     { pb_ob : ob C
-    ; pb_f : pb_ob → Y
-    ; pb_g : pb_ob → X
+    ; pb_f : pb_ob ⤳ Y
+    ; pb_g : pb_ob ⤳ X
     ; is_pullback : square X Y Z pb_ob f g pb_f pb_g
     }.
 End pullback.
@@ -71,13 +71,13 @@ Section pullback_lemma.
   *)
 
   Variables X Y Z W R S:ob C.
-  Variable f1:R → S.
-  Variable f2:W → Y.
-  Variable f3:X → Z.
-  Variable g1:R → W.
-  Variable g2:W → X.
-  Variable h1:S → Y.
-  Variable h2:Y → Z.
+  Variable f1:R ⤳ S.
+  Variable f2:W ⤳ Y.
+  Variable f3:X ⤳ Z.
+  Variable g1:R ⤳ W.
+  Variable g2:W ⤳ X.
+  Variable h1:S ⤳ Y.
+  Variable h2:Y ⤳ Z.
 
   Section pullback_lemma1.
     Variable PB1: Pullback.square f2 h1 f1 g1.
@@ -85,8 +85,8 @@ Section pullback_lemma.
 
     Section pb_map.
     Variable Q:ob C.
-    Variable p:Q → S.
-    Variable q:Q → X.
+    Variable p:Q ⤳ S.
+    Variable q:Q ⤳ X.
     Variable H:commuting_square f3 (h2 ∘ h1) p q.
 
     Lemma pb_lemma1_comm : commuting_square f3 h2 (h1 ∘ p) q.
@@ -96,10 +96,10 @@ Section pullback_lemma.
       apply cat_assoc.
     Qed.
 
-    Definition pullback_lemma1_map1 : Q → W :=
+    Definition pullback_lemma1_map1 : Q ⤳ W :=
       Pullback.map PB2 (h1 ∘ p) q pb_lemma1_comm.
 
-    Program Definition pullback_lemma_map2 : Q → R :=
+    Program Definition pullback_lemma_map2 : Q ⤳ R :=
       Pullback.map PB1 p pullback_lemma1_map1 _.
     Next Obligation.
       red. red in H.

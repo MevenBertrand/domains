@@ -107,13 +107,13 @@ Section cone.
   Record cone :=
     Cone
     { point : ob C
-    ; spoke : forall j, point → (F j) 
-    ; axiom : forall j j' (h:j → j'), spoke j' ≈ F<$>h ∘ spoke j 
+    ; spoke : forall j, point ⤳ (F j) 
+    ; axiom : forall j j' (h:j ⤳ j'), spoke j' ≈ F<$>h ∘ spoke j 
     }.
   
   Record cone_hom (M N:cone) :=
     Cone_hom
-    { hom_map :> point M → point N
+    { hom_map :> point M ⤳ point N
     ; hom_axiom : forall j,
          spoke M j ≈ spoke N j ∘ hom_map
     }.
@@ -166,12 +166,12 @@ Section alg.
   Record alg :=
   Alg
   { carrier :> ob C
-  ; iota : (F carrier) → carrier
+  ; iota : (F carrier) ⤳ carrier
   }.
 
   Record alg_hom (M N:alg) :=
   Alg_hom
-  { hom_map : carrier M → carrier N
+  { hom_map : carrier M ⤳ carrier N
   ; hom_axiom : hom_map ∘ iota M ≈ iota N ∘ F<$>hom_map
   }.
 
@@ -207,7 +207,7 @@ Section alg.
   }.
 
   Lemma cata_axiom' I :
-    forall (M:alg) (h:carrier (init I) → carrier M),
+    forall (M:alg) (h:carrier (init I) ⤳ carrier M),
       (h ∘ iota (init I) ≈ iota  M ∘ F<$>h) ->
       h ≈ hom_map _ _ (cata I M).
   Proof.
@@ -266,7 +266,7 @@ Section alg.
       reflexivity. reflexivity.
   Qed.    
 
-  Lemma initial_inj_epic : forall (I:initial_alg) B (g h: I → B),
+  Lemma initial_inj_epic : forall (I:initial_alg) B (g h: I ⤳ B),
     g ∘ iota I ≈ h ∘ iota I ->
     g ≈ h.
   Proof.

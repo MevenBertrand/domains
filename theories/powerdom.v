@@ -754,7 +754,7 @@ Section powerdom.
 
   Section powerdomain_fmap.
     Variables X Y:PLT.PLT hf.
-    Variable f: X → Y.
+    Variable f: X ⤳ Y.
 
     Definition fmap_upper (x:pdom_elem X) (y:pdom_elem Y) :=
       forall a, a ∈ elem x -> exists b, b ∈ elem y /\ (a,b) ∈ PLT.hom_rel f.
@@ -1140,7 +1140,7 @@ Section powerdom.
     Qed.
 
     Program Definition fmap sort
-      : (powerdomain sort X) → (powerdomain sort Y) 
+      : (powerdomain sort X) ⤳ (powerdomain sort Y) 
       := PLT.Hom hf (powerdomain sort X) (powerdomain sort Y) 
            (fmap_rel sort) _ _.
     Next Obligation.
@@ -1401,7 +1401,7 @@ Section powerdom.
           simpl; apply ident_elem; auto.
   Qed.    
 
-  Lemma pdom_fmap_compose sort (A B C:PLT.PLT hf) (f:B → C) (g:A → B) :
+  Lemma pdom_fmap_compose sort (A B C:PLT.PLT hf) (f:B ⤳ C) (g:A ⤳ B) :
     fmap A C (f ∘ g) sort ≈ fmap B C f sort ∘ fmap A B g sort.
   Proof.
     split; hnf; intros; destruct a.
@@ -1802,7 +1802,7 @@ Section powerdom.
         * apply nil_elem in H0; elim H0.
   Qed.    
 
-  Program Definition single sort X : X → powerdomain sort X :=
+  Program Definition single sort X : X ⤳ powerdomain sort X :=
     PLT.Hom hf X (powerdomain sort X) (single_rel sort X) _ _.
   Next Obligation.
     intros.
@@ -1897,7 +1897,7 @@ Section powerdom.
   Qed.
 
   Program Definition union sort X :
-    (PLT.prod (powerdomain sort X) (powerdomain sort X)) → powerdomain sort X :=
+    (PLT.prod (powerdomain sort X) (powerdomain sort X)) ⤳ powerdomain sort X :=
     PLT.Hom _ _ _ (union_rel sort X) _ _.
   Next Obligation.
     intros. 
@@ -2095,7 +2095,7 @@ Section powerdom.
   Qed.
 
   Program Definition join sort X : 
-    powerdomain sort (powerdomain sort X) → powerdomain sort X :=
+    powerdomain sort (powerdomain sort X) ⤳ powerdomain sort X :=
     PLT.Hom hf _ _ (join_rel sort X) _ _.
   Next Obligation.
     intros.
@@ -2116,7 +2116,7 @@ Section powerdom.
       apply join_rel_elem. auto.
   Qed.
 
-  Lemma single_natural sort (X Y:PLT.PLT hf) (f:X → Y) :
+  Lemma single_natural sort (X Y:PLT.PLT hf) (f:X ⤳ Y) :
     pdomain sort·f ∘ single sort X ≈ single sort Y ∘ f.
   Proof.
     simpl.
@@ -2254,7 +2254,7 @@ Section powerdom.
     simpl; intros. symmetry. apply single_natural.
   Qed.
 
-  Lemma join_natural sort (X Y:PLT.PLT hf) (f:X → Y) :
+  Lemma join_natural sort (X Y:PLT.PLT hf) (f:X ⤳ Y) :
     pdomain sort·f ∘ join sort X ≈ join sort Y ∘ pdomain sort·pdomain sort·f.
   Proof.
     split; intros [x y] ?.    
@@ -3632,7 +3632,7 @@ Proof.
   destruct H as [[??][??]]; auto.
 Qed.
 
-Program Definition empty sort (X Y:PLT) : X → pdomain false sort Y :=
+Program Definition empty sort (X Y:PLT) : X ⤳ pdomain false sort Y :=
   PLT.Hom false X (pdomain false sort Y) (empty_rel sort X Y) _ _ .
 Next Obligation.
   simpl; intros. 
@@ -3653,7 +3653,7 @@ Next Obligation.
     rewrite (empty_rel_elem sort X Y). auto.
 Qed.
 
-Lemma empty_natural sort (X Y Z:PLT) (f:Y → Z) :
+Lemma empty_natural sort (X Y Z:PLT) (f:Y ⤳ Z) :
   pdomain false sort·f ∘ empty sort X Y ≈ empty sort X Z.
 Proof.
   split; hnf; intros [??] ?.
@@ -3696,7 +3696,7 @@ Proof.
         ** apply nil_elem in H0. elim H0.
 Qed.
 
-Lemma empty_unit sort (X Y:PLT) (f:X → pdomain false sort Y) :
+Lemma empty_unit sort (X Y:PLT) (f:X ⤳ pdomain false sort Y) :
   f ≈ union false sort Y ∘ 〈 empty sort X Y, f 〉.
 Proof.
   split; hnf; intros.
@@ -3904,7 +3904,7 @@ Proof.
 Qed.
 
 
-Lemma union_commute_le hf sort (X Y:PLT.PLT hf) (f g:X → pdomain hf sort Y) :
+Lemma union_commute_le hf sort (X Y:PLT.PLT hf) (f g:X ⤳ pdomain hf sort Y) :
   union hf sort Y ∘ PLT.pair f g ≤
   union hf sort Y ∘ PLT.pair g f.
 Proof.
@@ -3927,14 +3927,14 @@ Proof.
     + apply app_elem in H1. apply app_elem; intuition.
 Qed.
 
-Lemma union_commute hf sort (X Y:PLT.PLT hf) (f g:X → pdomain hf sort Y) :
+Lemma union_commute hf sort (X Y:PLT.PLT hf) (f g:X ⤳ pdomain hf sort Y) :
   union hf sort Y ∘ PLT.pair f g ≈
   union hf sort Y ∘ PLT.pair g f.
 Proof.
   split; apply union_commute_le; auto.
 Qed.
 
-Lemma union_assoc_le hf sort (X Y:PLT.PLT hf) (f g h:X → pdomain hf sort Y) :
+Lemma union_assoc_le hf sort (X Y:PLT.PLT hf) (f g h:X ⤳ pdomain hf sort Y) :
   union hf sort Y ∘ PLT.pair (union hf sort Y ∘ PLT.pair f g) h ≤
   union hf sort Y ∘ PLT.pair f (union hf sort Y ∘ PLT.pair g h).
 Proof.
@@ -4005,7 +4005,7 @@ Proof.
            apply app_elem; auto.
 Qed.
 
-Lemma union_assoc hf sort (X Y:PLT.PLT hf) (f g h:X → pdomain hf sort Y) :
+Lemma union_assoc hf sort (X Y:PLT.PLT hf) (f g h:X ⤳ pdomain hf sort Y) :
   union hf sort Y ∘ PLT.pair (union hf sort Y ∘ PLT.pair f g) h ≈
   union hf sort Y ∘ PLT.pair f (union hf sort Y ∘ PLT.pair g h).
 Proof.
@@ -4020,7 +4020,7 @@ Proof.
   apply union_commute_le. reflexivity. reflexivity.
 Qed.
 
-Lemma empty_unit2 sort (X Y:PLT) (f:X → pdomain false sort Y) :
+Lemma empty_unit2 sort (X Y:PLT) (f:X ⤳ pdomain false sort Y) :
   f ≈ union false sort Y ∘ 〈 f, empty sort X Y 〉.
 Proof.
   rewrite union_commute. apply empty_unit.
@@ -4401,7 +4401,7 @@ Proof.
            rewrite H10; auto.
 Qed.
 
-Lemma union_idem hf sort (X Y:PLT.PLT hf) (f:X → pdomain hf sort Y) :
+Lemma union_idem hf sort (X Y:PLT.PLT hf) (f:X ⤳ pdomain hf sort Y) :
   union hf sort Y ∘ PLT.pair f f ≈ f.
 Proof.
   split; hnf; simpl; intros [x y] ?.
@@ -4481,7 +4481,7 @@ Proof.
       apply app_elem in H0; destruct H0; auto.
 Qed.
 
-Lemma union_lower (X Y:PLT) (f g:X → pdomain false Lower Y) :
+Lemma union_lower (X Y:PLT) (f g:X ⤳ pdomain false Lower Y) :
   f ≤ union false Lower Y ∘ PLT.pair f g.
 Proof.
   intros [x y] ?.
@@ -4505,7 +4505,7 @@ Proof.
 Qed.
 
 
-Lemma union_upper hf (X Y:PLT.PLT hf) (f g:X → pdomain hf Upper Y) :
+Lemma union_upper hf (X Y:PLT.PLT hf) (f g:X ⤳ pdomain hf Upper Y) :
   f ≥ union hf Upper Y ∘ PLT.pair f g.
 Proof.
   intros [x y] ?.
@@ -4526,7 +4526,7 @@ Proof.
 Qed.
 
 
-Lemma lower_union_natural1 hf (X Y:PLT.PLT hf) (f:X → Y) :
+Lemma lower_union_natural1 hf (X Y:PLT.PLT hf) (f:X ⤳ Y) :
   union hf Lower Y ∘ PLT.pair_map (pdomain hf Lower·f) (pdomain hf Lower·f)
   ≤
   pdomain hf Lower·f ∘ union hf Lower X.
@@ -4579,7 +4579,7 @@ Proof.
     + apply PLT.hom_order with n m; auto.
 Qed.
 
-Lemma lower_union_natural2 (X Y:PLT) (f:X → Y) :
+Lemma lower_union_natural2 (X Y:PLT) (f:X ⤳ Y) :
   pdomain false Lower·f ∘ union false Lower X ≈
   union false Lower Y ∘ PLT.pair_map (pdomain false Lower·f) (pdomain false Lower·f).
 Proof.
@@ -4662,7 +4662,7 @@ Proof.
 Qed.
 
 
-Lemma upper_union_natural hf (X Y:PLT.PLT hf) (f:X → Y) :
+Lemma upper_union_natural hf (X Y:PLT.PLT hf) (f:X ⤳ Y) :
   pdomain hf Upper·f ∘ union hf Upper X ≈
   union hf Upper Y ∘ PLT.pair_map (pdomain hf Upper·f) (pdomain hf Upper·f).
 Proof.
@@ -4824,7 +4824,7 @@ Proof.
         apply PLT.hom_order with m n; auto.
 Qed.
 
-Lemma convex_union_natural hf (X Y:PLT.PLT hf) (f:X → Y) :
+Lemma convex_union_natural hf (X Y:PLT.PLT hf) (f:X ⤳ Y) :
   pdomain hf Convex·f ∘ union hf Convex X ≈
   union hf Convex Y ∘ PLT.pair_map (pdomain hf Convex·f) (pdomain hf Convex·f).
 Proof.

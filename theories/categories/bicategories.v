@@ -53,14 +53,14 @@ Section bicategory.
   ; assoc : forall {A B C D} (f:hom C D) (g:hom B C) (h:hom A B),
         (f • g) • h ↔ f • (g • h)
 
-  ; unit1_natural : forall A B (f g:HOM A B) (x:g → f),
+  ; unit1_natural : forall A B (f g:HOM A B) (x:g ⤳ f),
         iso_hom (unit1 f) ∘ (x ⋆ id(Id(A))) ≈ x ∘ iso_hom (unit1 g)
 
-  ; unit2_natural : forall A B (f g:HOM A B) (x:g → f),
+  ; unit2_natural : forall A B (f g:HOM A B) (x:g ⤳ f),
         iso_hom (unit2 f) ∘ (id(Id(B)) ⋆ x) ≈ x ∘ iso_hom (unit2 g)
 
   ; assoc_natural : forall A B C D (f f':HOM C D) (g g':HOM B C) (h h':HOM A B)
-        (x:f → f') (y:g → g') (z:h → h'),
+        (x:f ⤳ f') (y:g ⤳ g') (z:h ⤳ h'),
 
         iso_hom (assoc f' g' h') ∘ ((x ⋆ y) ⋆ z)
         ≈
@@ -131,10 +131,10 @@ Definition hom1_ident (X:bicategory) (A:X) : HOM X A A :=
 
 Notation "G • F" := (hom1_compose _ _ _ _ G F)
   (at level 32, left associativity).
-Notation "A → B" := (Bicategory.hom _ A B) : bicategory_scope.
+Notation "A ⤳ B" := (Bicategory.hom _ A B) : bicategory_scope.
 Notation "F ⇒ G" := (Bicategory.hom2 _ _ _ F G) : bicategory_scope.
 
-Definition comp_horiz (X:bicategory) (A B C:X) (F F':B → C) (G G':A → B) :
+Definition comp_horiz (X:bicategory) (A B C:X) (F F':B ⤳ C) (G G':A ⤳ B) :
   F ⇒ F' -> G ⇒ G' -> F•G ⇒ F'•G'
 
   := Bicategory.CompHoriz X A B C F F' G G'.   
@@ -144,10 +144,10 @@ Notation "'Id' ( A )" := (hom1_ident _ A) (only parsing).
 Notation "x ⋆ y" := (comp_horiz _ _ _ _ _ _ _ _ x y)
     (at level 37, left associativity).
 
-Definition left_whisker (X:bicategory) (A B C:ob X) (g h:B → C) 
-  (x:g ⇒ h) (f:A → B) : g•f ⇒ h•f := x ⋆ id(f).
-Definition right_whisker (X:bicategory) (A B C:ob X) (f g:A → B)
-  (h:B → C) (x:f ⇒ g) : h•f ⇒ h•g := id(h) ⋆ x.
+Definition left_whisker (X:bicategory) (A B C:ob X) (g h:B ⤳ C) 
+  (x:g ⇒ h) (f:A ⤳ B) : g•f ⇒ h•f := x ⋆ id(f).
+Definition right_whisker (X:bicategory) (A B C:ob X) (f g:A ⤳ B)
+  (h:B ⤳ C) (x:f ⇒ g) : h•f ⇒ h•g := id(h) ⋆ x.
   
 Arguments left_whisker [X A B C g h] x f.
 Arguments right_whisker [X A B C f g] h x.
@@ -183,19 +183,19 @@ Record pseudofunctor (X Y:bicategory) :=
   { ob_map :> ob X -> ob Y
   ; hom_map : forall {A B:ob X}, functor (HOM X A B) (HOM Y (ob_map A) (ob_map B))
 
-  ; compose : forall {A B C:ob X} (g:B → C) (f:A → B),
+  ; compose : forall {A B C:ob X} (g:B ⤳ C) (f:A ⤳ B),
                         hom_map g • hom_map f ↔ hom_map (g • f)
 
   ; ident : forall A:ob X,
                         Id(ob_map A) ↔ hom_map (Id(A))
 
   ; compose_natural :
-         forall (A B C:ob X) (g g':B → C) (f f':A → B) (x:g ⇒ g') (y:f ⇒ f'),
+         forall (A B C:ob X) (g g':B ⤳ C) (f f':A ⤳ B) (x:g ⇒ g') (y:f ⇒ f'),
            hom_map·(x ⋆ y) ∘ iso_hom (compose g f)
            ≈ iso_hom (compose g' f') ∘ (hom_map·x ⋆ hom_map·y)
 
   ; unit1 :
-         forall (A:ob X) (f:A → A),
+         forall (A:ob X) (f:A ⤳ A),
            iso_hom (bicat_unit1 (hom_map f))
            ≈ 
            hom_map·(bicat_unit1 f)
@@ -205,7 +205,7 @@ Record pseudofunctor (X Y:bicategory) :=
            ( id ⋆ iso_hom (ident A) )
 
   ; unit2 :
-         forall (A:ob X) (f:A → A),
+         forall (A:ob X) (f:A ⤳ A),
            iso_hom (bicat_unit2 (hom_map f))
            ≈ 
            hom_map·(bicat_unit2 f)

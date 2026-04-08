@@ -602,7 +602,7 @@ Section cut_limit.
 Section real_limit.
   Variable θ:convergence_rate.
   Variable A:∂PLT.
-  Variable f:(A ⊗ flat enumN → PreRealDom)%plt.
+  Variable f:(A ⊗ flat enumN ⤳ PreRealDom)%plt.
 
   Let P (anr:(prod_preord (prod_preord A (flat enumN)) PreRealDom)) := 
       forall m:flat enumN, m ∈ proj1_sig (Ndownset (snd (fst anr))) ->
@@ -799,7 +799,7 @@ Admitted.
   Qed.
 *)
   
-  Program Definition real_limit : A → PreRealDom :=
+  Program Definition real_limit : A ⤳ PreRealDom :=
     PLT.Hom true A PreRealDom real_limit_rel _ _ .
   Next Obligation.
     intros; simpl.

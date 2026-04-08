@@ -166,7 +166,7 @@ Section PLT.
          (joinable_rel_plt hf (ord A) (ord B) (effective A) (plotkin A) (effective B) (plotkin B))).
   Canonical Structure exp.
 
-  Program Definition initiate A : empty → A :=
+  Program Definition initiate A : empty ⤳ A :=
     Hom empty A (esets.empty (prod_preord (ord empty) (ord A))) _ _.
   Next Obligation.
     intros. apply empty_elem in H1. elim H1.
@@ -175,7 +175,7 @@ Section PLT.
     intros A x. elim x.
   Qed.
 
-  Program Definition terminate A : A → unit :=
+  Program Definition terminate A : A ⤳ unit :=
     Hom A unit (eprod (eff_enum _ (effective A)) (eff_enum _ (effective unit))) _ _.
   Next Obligation.
     intros.
@@ -189,19 +189,19 @@ Section PLT.
     apply eprod_elem; split; apply eff_complete.
   Qed.
 
-  Definition iota1 A B : A → (sum A B) :=
+  Definition iota1 A B : A ⤳ (sum A B) :=
     Hom A (sum A B)
       (iota1_rel (ord A) (ord B) (effective A))
       (iota1_ordering (ord A) (ord B) (effective A))
       (iota1_dir (ord A) (ord B) (effective A) hf).
 
-  Definition iota2 A B : B → (sum A B) :=
+  Definition iota2 A B : B ⤳ (sum A B) :=
     Hom B (sum A B)
       (iota2_rel (ord A) (ord B) (effective B))
       (iota2_ordering (ord A) (ord B) (effective B))
       (iota2_dir (ord A) (ord B) (effective B) hf).
   
-  Definition sum_cases {C A B} (f:A → C) (g:B → C) : (sum A B) → C :=
+  Definition sum_cases {C A B} (f:A ⤳ C) (g:B ⤳ C) : (sum A B) ⤳ C :=
     Hom (sum A B) C
       (sum_cases (ord C) (ord A) (ord B) f g)
       (sum_cases_ordering (ord C) (ord A) (ord B) f g
@@ -210,13 +210,13 @@ Section PLT.
           (effective A) (effective B) hf f g
           (hom_directed _ _ f) (hom_directed _ _ g)).
 
-  Definition app {A B} : (prod (exp A B) A) → B :=
+  Definition app {A B} : (prod (exp A B) A) ⤳ B :=
     Hom (prod (exp A B) A) B
       (apply_rel hf (ord A) (ord B) (effective A) (effective B) (plotkin A))
       (apply_rel_ordering hf (ord A) (ord B) (effective A) (effective B) (plotkin A))
       (apply_rel_dir hf (ord A) (ord B) (effective A) (effective B) (plotkin A)).
  
-  Definition curry {C A B} (f:(prod C A) → B) : C → (exp A B) :=
+  Definition curry {C A B} (f:(prod C A) ⤳ B) : C ⤳ (exp A B) :=
     Hom C (exp A B)
       (curry_rel hf (ord A) (ord B) (ord C)
         (effective A) (effective B) (effective C) (plotkin A) f)
@@ -228,7 +228,7 @@ Section PLT.
         f (hom_order _ _ f) (hom_directed _ _ f)
         (plotkin B)).
 
-  Definition pair {C A B} (f:C → A) (g:C → B) : C → (prod A B) :=
+  Definition pair {C A B} (f:C ⤳ A) (g:C ⤳ B) : C ⤳ (prod A B) :=
     Hom C (prod A B) 
       (pair_rel (effective C) f g)
       (pair_rel_ordering _ _ _ (effective C) f g (hom_order _ _ f) (hom_order _ _ g))
@@ -236,22 +236,22 @@ Section PLT.
         (hom_order _ _ f) (hom_order _ _ g)
         (hom_directed _ _ f) (hom_directed _ _ g)).
 
-  Definition pi1 {A B} : (prod A B) → A :=
+  Definition pi1 {A B} : (prod A B) ⤳ A :=
     Hom (prod A B) A 
       (pi1_rel (effective A) (effective B))
       (pi1_rel_ordering _ _ (effective A) (effective B))
       (pi1_rel_dir _ _ _ (effective A) (effective B)).
 
-  Definition pi2 {A B} : (prod A B) → B :=
+  Definition pi2 {A B} : (prod A B) ⤳ B :=
     Hom (prod A B) B 
       (pi2_rel (effective A) (effective B))
       (pi2_rel_ordering _ _ (effective A) (effective B))
       (pi2_rel_dir _ _ _ (effective A) (effective B)).
 
-  Definition pair_map {A B C D} (f:A → C) (g:B → D) : (prod A B) → (prod C D) :=
+  Definition pair_map {A B C D} (f:A ⤳ C) (g:B ⤳ D) : (prod A B) ⤳ (prod C D) :=
     pair (f ∘ pi1) (g ∘ pi2).
 
-  Program Definition pair_map' {A B C D} (f:A → C) (g:B → D) : (prod A B) → (prod C D) :=
+  Program Definition pair_map' {A B C D} (f:A ⤳ C) (g:B ⤳ D) : (prod A B) ⤳ (prod C D) :=
     Hom (prod A B) (prod C D) (pair_rel' f g) _ _.
   Next Obligation.
     intros A B C D f g.
@@ -309,7 +309,7 @@ Section PLT.
           ** split; auto.
   Qed.
 
-  Lemma pair_map_eq {A B C D} (f:A → C) (g:B → D) :
+  Lemma pair_map_eq {A B C D} (f:A ⤳ C) (g:B ⤳ D) :
     pair_map f g ≈ pair_map' f g.
   Proof.
     red. simpl. symmetry.
@@ -318,7 +318,7 @@ Section PLT.
     apply hom_order.
   Qed.
 
-  Theorem initiate_univ A (f:empty → A) :
+  Theorem initiate_univ A (f:empty ⤳ A) :
     f ≈ initiate A.
   Proof.
     split; hnf; intros.
@@ -326,7 +326,7 @@ Section PLT.
     - destruct a. elim c.
   Qed.
 
-  Theorem terminate_le_univ A (f:A → unit) :
+  Theorem terminate_le_univ A (f:A ⤳ unit) :
     f ≤ terminate A.
   Proof.
     hnf; intros.
@@ -337,21 +337,21 @@ Section PLT.
     - apply single_axiom. destruct c0. auto.
   Qed.
 
-  Theorem iota1_cases_commute C A B (f:A → C) (g:B → C) :
+  Theorem iota1_cases_commute C A B (f:A ⤳ C) (g:B ⤳ C) :
     sum_cases f g ∘ iota1 A B ≈ f.
   Proof.
     apply iota1_cases_commute.
     apply (hom_order _ _ f).
   Qed.
 
-  Theorem iota2_cases_commute C A B (f:A → C) (g:B → C) :
+  Theorem iota2_cases_commute C A B (f:A ⤳ C) (g:B ⤳ C) :
     sum_cases f g ∘ iota2 A B ≈ g.
   Proof.
     apply iota2_cases_commute.
     apply (hom_order _ _ g).
   Qed.
 
-  Theorem sum_cases_universal C A B (f:A → C) (g:B → C) (CASES:(sum A B) → C) :
+  Theorem sum_cases_universal C A B (f:A ⤳ C) (g:B ⤳ C) (CASES:(sum A B) ⤳ C) :
     CASES ∘ iota1 A B ≈ f -> CASES ∘ iota2 A B ≈ g -> CASES ≈ sum_cases f g.
   Proof.
     intros. symmetry.
@@ -359,7 +359,7 @@ Section PLT.
     apply (hom_order _ _ CASES).
   Qed.
 
-  Theorem pair_universal_le C A B (f:C → A) (g:C → B) (PAIR:C → (prod A B)) :
+  Theorem pair_universal_le C A B (f:C ⤳ A) (g:C ⤳ B) (PAIR:C ⤳ (prod A B)) :
     pi1 ∘ PAIR ≤ f -> pi2 ∘ PAIR ≤ g -> PAIR ≤ pair f g.
   Proof.
     apply pair_rel_universal_le.
@@ -368,7 +368,7 @@ Section PLT.
     apply hom_order.
   Qed.
 
-  Theorem pair_universal C A B (f:C → A) (g:C → B) (PAIR:C → (prod A B)) :
+  Theorem pair_universal C A B (f:C ⤳ A) (g:C ⤳ B) (PAIR:C ⤳ (prod A B)) :
     pi1 ∘ PAIR ≈ f -> pi2 ∘ PAIR ≈ g -> PAIR ≈ pair f g.
   Proof.
     apply (pair_rel_universal hf).
@@ -379,7 +379,7 @@ Section PLT.
   Qed.
 
 
-  Theorem pair_le_commute1 C A B (f:C → A) (g:C → B) :
+  Theorem pair_le_commute1 C A B (f:C ⤳ A) (g:C ⤳ B) :
     pi1 ∘ pair f g ≤ f.
   Proof.
     apply pair_proj_commute1_le.
@@ -387,7 +387,7 @@ Section PLT.
     apply PLT.hom_order.
   Qed.
 
-  Theorem pair_le_commute2 C A B (f:C → A) (g:C → B) :
+  Theorem pair_le_commute2 C A B (f:C ⤳ A) (g:C ⤳ B) :
     pi2 ∘ pair f g ≤ g.
   Proof.
     apply pair_proj_commute2_le.
@@ -396,7 +396,7 @@ Section PLT.
   Qed.
 
   Theorem pair_compose_commute A B C D
-    (f:C → A) (g:C → B) (h:D → C) :
+    (f:C ⤳ A) (g:C ⤳ B) (h:D ⤳ C) :
     PLT.pair f g ∘ h ≈ PLT.pair (f ∘ h) (g ∘ h).
   Proof.
     split.
@@ -442,7 +442,7 @@ Section PLT.
           apply cons_elem; auto.
   Qed.
 
-  Theorem curry_apply A B C (f:(prod C A) → B) :
+  Theorem curry_apply A B C (f:(prod C A) ⤳ B) :
     app ∘ pair_map (curry f) id ≈ f.
   Proof.
     rewrite pair_map_eq.
@@ -452,7 +452,7 @@ Section PLT.
     - apply plotkin.
   Qed.
 
-  Theorem pair_mono (C A B:ob) (f f':C → A) (g g':C → B) :
+  Theorem pair_mono (C A B:ob) (f f':C ⤳ A) (g g':C ⤳ B) :
     f ≤ f' -> g ≤ g' -> pair f g ≤ pair f' g'.
   Proof.
     repeat intro.
@@ -462,13 +462,13 @@ Section PLT.
     destruct H1; split; auto.
   Qed.
 
-  Theorem pair_eq (C A B:ob) (f f':C → A) (g g':C → B) :
+  Theorem pair_eq (C A B:ob) (f f':C ⤳ A) (g g':C ⤳ B) :
     f ≈ f' -> g ≈ g' -> pair f g ≈ pair f' g'.
   Proof.
     intros. split; apply pair_mono; auto.
   Qed.
 
-  Theorem sum_cases_mono (C A B:ob) (f f':A → C) (g g':B → C) :
+  Theorem sum_cases_mono (C A B:ob) (f f':A ⤳ C) (g g':B ⤳ C) :
     f ≤ f' -> g ≤ g' -> sum_cases f g ≤ sum_cases f' g'.
   Proof.
     repeat intro.
@@ -478,13 +478,13 @@ Section PLT.
     destruct z; auto.
   Qed.
 
-  Theorem sum_cases_eq (C A B:ob) (f f':A → C) (g g':B → C) :
+  Theorem sum_cases_eq (C A B:ob) (f f':A ⤳ C) (g g':B ⤳ C) :
     f ≈ f' -> g ≈ g' -> sum_cases f g ≈ sum_cases f' g'.
   Proof.
     intros. split; apply sum_cases_mono; auto.
   Qed.
 
-  Theorem curry_mono (C A B:ob) (f f':prod C A → B) :
+  Theorem curry_mono (C A B:ob) (f f':prod C A ⤳ B) :
     f ≤ f' -> curry f ≤ curry f'.
   Proof.
     repeat intro. destruct a as [c R].
@@ -497,13 +497,13 @@ Section PLT.
     apply PLT.hom_order.
   Qed.
 
-  Theorem curry_eq (C A B:ob) (f f':prod C A → B) :
+  Theorem curry_eq (C A B:ob) (f f':prod C A ⤳ B) :
     f ≈ f' -> curry f ≈ curry f'.
   Proof.
     intros; split; apply curry_mono; auto.
   Qed.
 
-  Theorem pair_map_pair C X Y Z W (f1:C → X) (f2:X → Y) (g1:C → Z) (g2:Z → W) :
+  Theorem pair_map_pair C X Y Z W (f1:C ⤳ X) (f2:X ⤳ Y) (g1:C ⤳ Z) (g2:Z ⤳ W) :
     pair (f2 ∘ f1) (g2 ∘ g1) ≈ pair_map f2 g2 ∘ pair f1 g1.
   Proof.
     split; hnf; simpl; intros.
@@ -558,7 +558,7 @@ Section PLT.
         apply pi2_rel_elem in H1. auto.
   Qed.
 
-  Theorem curry_apply2 A B C (f:(prod C A) → B) (g:C → A) :
+  Theorem curry_apply2 A B C (f:(prod C A) ⤳ B) (g:C ⤳ A) :
     app ∘ pair (curry f) g ≈ f ∘ pair id g.
   Proof.
     cut (pair (curry f) g ≈ pair_map (curry f) id ∘ pair id g).
@@ -572,7 +572,7 @@ Section PLT.
     symmetry. apply cat_ident2.
   Qed.
 
-  Theorem curry_apply3 A B C D (f:(prod D A) → B) (h:C → D) (g:C → A) :
+  Theorem curry_apply3 A B C D (f:(prod D A) ⤳ B) (h:C ⤳ D) (g:C ⤳ A) :
     app ∘ pair (curry f ∘ h) g ≈ f ∘ pair h g.
   Proof.
     cut (pair (curry f ∘ h) g ≈ pair_map (curry f) id ∘ pair h g).
@@ -585,7 +585,7 @@ Section PLT.
     symmetry. apply cat_ident2.
   Qed.
 
-  Theorem curry_universal A B C (f:(prod C A) → B) (CURRY:C → (exp A B)) :
+  Theorem curry_universal A B C (f:(prod C A) ⤳ B) (CURRY:C ⤳ (exp A B)) :
     app ∘ pair_map CURRY id ≈ f -> CURRY ≈ curry f.
   Proof.
     intro. apply (curry_universal hf); auto.
@@ -597,7 +597,7 @@ Section PLT.
     - rewrite pair_map_eq in H. apply H.
   Qed.
 
-  Theorem curry_compose_commute A B C D (f:(prod C A) → B) (h:D → C) :
+  Theorem curry_compose_commute A B C D (f:(prod C A) ⤳ B) (h:D ⤳ C) :
     curry f ∘ h ≈ curry (f ∘ pair_map h id).
   Proof.
     apply curry_universal.
@@ -624,7 +624,7 @@ Section PLT.
   Definition cocartesian :=
     Cocartesian ob hom hom_eq_mixin comp_mixin cat_axioms initialized_mixin cocartesian_mixin.
 
-  Lemma compose_hom_rel : forall (A B C:PLT) (f:A → B) (g:B → C) x z,
+  Lemma compose_hom_rel : forall (A B C:PLT) (f:A ⤳ B) (g:B ⤳ C) x z,
     (x,z) ∈ PLT.hom_rel (g ∘ f) <-> 
     exists y, (x,y) ∈ PLT.hom_rel f /\ (y,z) ∈ PLT.hom_rel g.
   Proof.
@@ -636,14 +636,14 @@ Section PLT.
     auto.
   Qed.
 
-  Lemma pair_hom_rel : forall (A B C:PLT) (f:C → A) (g:C → B) c a b ,
+  Lemma pair_hom_rel : forall (A B C:PLT) (f:C ⤳ A) (g:C ⤳ B) c a b ,
     (c,(a,b)) ∈ hom_rel (pair f g) <-> (c,a) ∈ hom_rel f /\ (c,b) ∈ hom_rel g.
   Proof.
     simpl; intros.
     rewrite pair_rel_elem. intuition.
   Qed.
 
-  Lemma sum_cases_hom_rel : forall (A B C:PLT) (f:A → C) (g:B → C) c z,
+  Lemma sum_cases_hom_rel : forall (A B C:PLT) (f:A ⤳ C) (g:B ⤳ C) c z,
     (z,c) ∈ hom_rel (sum_cases f g) <->
         match z with
         | inl a => (a,c) ∈ hom_rel f
@@ -654,7 +654,7 @@ Section PLT.
     rewrite (sum_cases_elem _ _ _ (hom_rel f) (hom_rel g) z c). intuition.
   Qed.
 
-  Lemma curry_hom_rel : forall (A B C:PLT) (f:prod C A → B) c R,
+  Lemma curry_hom_rel : forall (A B C:PLT) (f:prod C A ⤳ B) c R,
     (c,R) ∈ hom_rel (curry f) <-> 
     (forall a b, (a,b) ∈ proj1_sig R -> ((c,a),b) ∈ hom_rel f).
   Proof.
@@ -680,7 +680,7 @@ Section PLT.
   Section homset_cpo.
     Variables A B:ob.
 
-    Program Definition hom_rel' : hom_ord A B → erel (ord A) (ord B) :=
+    Program Definition hom_rel' : hom_ord A B ⤳ erel (ord A) (ord B) :=
       Preord.Hom (hom_ord A B) (erel (ord A) (ord B)) (@hom_rel A B) _.
     Next Obligation. simpl. auto. Qed.
 
@@ -789,7 +789,7 @@ Section PLT.
   End homset_cpo.
 End PLT.
 
-Theorem pair_commute1 (C A B:PLT false) (f:C → A) (g:C → B) :
+Theorem pair_commute1 (C A B:PLT false) (f:C ⤳ A) (g:C ⤳ B) :
   pi1 false ∘ pair false f g ≈ f.
 Proof.
   apply pair_proj_commute1.
@@ -798,7 +798,7 @@ Proof.
   - apply PLT.hom_directed.
 Qed.
 
-Theorem pair_commute2 (C A B:PLT false) (f:C → A) (g:C → B) :
+Theorem pair_commute2 (C A B:PLT false) (f:C ⤳ A) (g:C ⤳ B) :
   pi2 false ∘ pair false f g ≈ g.
 Proof.
   apply pair_proj_commute2.
@@ -807,7 +807,7 @@ Proof.
   - apply PLT.hom_directed.
 Qed.
 
-Lemma terminate_univ : forall (A:PLT false) (f:A → unit false),
+Lemma terminate_univ : forall (A:PLT false) (f:A ⤳ unit false),
   f ≈ PLT.terminate false A.
 Proof.
   intros. split.
@@ -1007,7 +1007,7 @@ Proof.
   intros. apply PLT.curry_eq; auto.
 Qed.
 
-Lemma plt_hom_directed2 hf (A B:PLT.PLT hf) (f:A → B) a x y :
+Lemma plt_hom_directed2 hf (A B:PLT.PLT hf) (f:A ⤳ B) a x y :
   (a,x) ∈ PLT.hom_rel f ->
   (a,y) ∈ PLT.hom_rel f ->
   exists z, (a,z) ∈ PLT.hom_rel f /\ x ≤ z /\ y ≤ z.
@@ -1031,7 +1031,7 @@ Proof.
 Qed.
 
 
-Lemma hom_rel_pair_map hf (A B C D:PLT.PLT hf) (f:A → C) (g:B → D) x y x' y' :
+Lemma hom_rel_pair_map hf (A B C D:PLT.PLT hf) (f:A ⤳ C) (g:B ⤳ D) x y x' y' :
   (x,y,(x',y')) ∈ PLT.hom_rel (PLT.pair_map f g) <->
   ((x,x') ∈ PLT.hom_rel f /\ (y,y') ∈ PLT.hom_rel g).
 Proof.
@@ -1059,7 +1059,7 @@ Proof.
       exists y. split; auto. simpl. apply pi2_rel_elem; auto.
 Qed.
 
-Lemma terminate_le_cancel (hf:bool) (A B:PLT.PLT hf) (f g:1 → B) (a:A) :
+Lemma terminate_le_cancel (hf:bool) (A B:PLT.PLT hf) (f g:1 ⤳ B) (a:A) :
   f ∘ PLT.terminate hf A ≤ g ∘ PLT.terminate hf A ->
   f ≤ g.
 Proof.
@@ -1074,7 +1074,7 @@ Proof.
   destruct H1 as [[] [??]]. auto.
 Qed.
 
-Lemma terminate_cancel (hf:bool) (A B:PLT.PLT hf) (f g:1 → B) (a:A) :
+Lemma terminate_cancel (hf:bool) (A B:PLT.PLT hf) (f g:1 ⤳ B) (a:A) :
   f ∘ PLT.terminate hf A ≈ g ∘ PLT.terminate hf A ->
   f ≈ g.
 Proof.
@@ -1127,8 +1127,8 @@ Section plt_const.
   Qed.
 End plt_const.  
 
-Theorem pair_bottom1 (C A B:ob ∂PLT) (f:C → A) :
-  《 f, ⊥ : C → B 》 ≈ ⊥.
+Theorem pair_bottom1 (C A B:ob ∂PLT) (f:C ⤳ A) :
+  《 f, ⊥ : C ⤳ B 》 ≈ ⊥.
 Proof.
   split.
   - hnf; simpl; intros.
@@ -1144,8 +1144,8 @@ Proof.
   - apply bottom_least.
 Qed.
 
-Theorem pair_bottom2 (C A B:ob ∂PLT) (g:C → B) :
-  《 ⊥ : C → A,  g 》 ≈ ⊥.
+Theorem pair_bottom2 (C A B:ob ∂PLT) (g:C ⤳ B) :
+  《 ⊥ : C ⤳ A,  g 》 ≈ ⊥.
 Proof.
   split.
   - hnf; simpl; intros.
@@ -1160,8 +1160,8 @@ Proof.
   - apply bottom_least.
 Qed.
 
-Theorem pi1_greatest (A B:ob ∂PLT) (proj:A⊗B → A) :
-  (forall C (f:C → A) (g:C → B), proj ∘ 《f, g》 ≤ f) ->
+Theorem pi1_greatest (A B:ob ∂PLT) (proj:A⊗B ⤳ A) :
+  (forall C (f:C ⤳ A) (g:C ⤳ B), proj ∘ 《f, g》 ≤ f) ->
   proj ≤ π₁.
 Proof.
   repeat intro.
@@ -1179,8 +1179,8 @@ Proof.
   apply ident_elem. auto.
 Qed.
   
-Theorem pi2_greatest (A B:ob ∂PLT) (proj:A⊗B → B) :
-  (forall C (f:C → A) (g:C → B), proj ∘ 《f, g》 ≤ g) ->
+Theorem pi2_greatest (A B:ob ∂PLT) (proj:A⊗B ⤳ B) :
+  (forall C (f:C ⤳ A) (g:C ⤳ B), proj ∘ 《f, g》 ≤ g) ->
   proj ≤ π₂.
 Proof.
   repeat intro.
@@ -1198,16 +1198,16 @@ Proof.
   apply plt_const_rel_elem. auto.
 Qed.
 
-Definition antistrict (A B:∂PLT) (f:A → B) :=
+Definition antistrict (A B:∂PLT) (f:A ⤳ B) :=
   forall a, exists b, (a,b) ∈ PLT.hom_rel f.
 Arguments antistrict [A B] f.
     
-Definition nonbottom (A B:∂PLT) (f:A → B) :=
+Definition nonbottom (A B:∂PLT) (f:A ⤳ B) :=
   exists x, x ∈ PLT.hom_rel f.
 Arguments nonbottom [A B] f.
 
-Lemma antistrict_nonbottom (A B:∂PLT) (f:A → B) :
-  antistrict f <-> (forall C (g:C → A), nonbottom g -> nonbottom (f ∘ g)).
+Lemma antistrict_nonbottom (A B:∂PLT) (f:A ⤳ B) :
+  antistrict f <-> (forall C (g:C ⤳ A), nonbottom g -> nonbottom (f ∘ g)).
 Proof.
   split; intros.
   - destruct H0 as [[??] ?].
@@ -1223,8 +1223,8 @@ Proof.
       exists c0. eapply PLT.hom_order; eauto.
 Qed.
 
-Theorem antistrict_pair_commute1 (C B:∂PLT) (g:C → B) :
-  antistrict g <-> forall A (f:C → A), π₁ ∘ 《f,g》 ≈ f.
+Theorem antistrict_pair_commute1 (C B:∂PLT) (g:C ⤳ B) :
+  antistrict g <-> forall A (f:C ⤳ A), π₁ ∘ 《f,g》 ≈ f.
 Proof.
   intros.
   split; repeat intro.
@@ -1252,8 +1252,8 @@ Proof.
     exists c1; auto.
 Qed.
 
-Theorem antistrict_pair_commute2 (C A:∂PLT) (f:C → A) :
-  antistrict f <-> forall B (g:C → B), π₂ ∘ 《f, g》 ≈ g.
+Theorem antistrict_pair_commute2 (C A:∂PLT) (f:C ⤳ A) :
+  antistrict f <-> forall B (g:C ⤳ B), π₂ ∘ 《f, g》 ≈ g.
 Proof.
   split; intros.
   - split. apply PLT.pair_le_commute2.

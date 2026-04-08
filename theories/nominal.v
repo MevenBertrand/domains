@@ -225,7 +225,7 @@ Qed.
 Canonical Structure initius :=
   Nominal.Ob False initius_eq_mixin initius_mixin.
 
-Program Definition initiate (A:nominal) : initius → A :=
+Program Definition initiate (A:nominal) : initius ⤳ A :=
   Nominal.Hom initius A (fun x => False_rect _ x) _ _.
 Next Obligation.
   elim x.
@@ -445,7 +445,7 @@ Section nominal_directed_colimits.
   Canonical Structure nom_colimit : nominal :=
     Nominal.Ob nom_colimit_type nom_colimit_eq_mixin nom_colimit_mixin.
 
-  Program Definition nom_colimit_spoke (i:I) : ds_F DS i → nom_colimit :=
+  Program Definition nom_colimit_spoke (i:I) : ds_F DS i ⤳ nom_colimit :=
     Nominal.Hom (ds_F DS i) nom_colimit (NomColim i) _ _.
   Next Obligation.
     exists i. simpl. exists (ord_refl _ _). exists (ord_refl _ _).
@@ -470,7 +470,7 @@ Section nominal_directed_colimits.
       | NomColim i x' => cocone_spoke YC i x'
       end.
 
-    Program Definition nom_colimit_univ : nom_colimit → cocone_point YC :=
+    Program Definition nom_colimit_univ : nom_colimit ⤳ cocone_point YC :=
       Nominal.Hom nom_colimit (cocone_point YC) nom_colimit_univ_defn _ _.
     Next Obligation.
       destruct x as [i x].
@@ -491,7 +491,7 @@ Section nominal_directed_colimits.
       intro. intro. simpl. auto.
     Qed.
 
-    Lemma nom_colimit_uniq : forall (f:nom_colimit → YC),
+    Lemma nom_colimit_uniq : forall (f:nom_colimit ⤳ YC),
       (forall i, cocone_spoke YC i ≈ f ∘ nom_colimit_spoke i) ->
       f ≈ nom_colimit_univ.
     Proof.
@@ -542,7 +542,7 @@ Qed.
 Canonical Structure nom_terminus : nominal :=
   Nominal.Ob unit nom_terminus_eq_mixin nom_terminus_mixin.
 
-Program Definition nom_terminate (A:nominal) : A → nom_terminus :=
+Program Definition nom_terminate (A:nominal) : A ⤳ nom_terminus :=
   Nominal.Hom A nom_terminus (fun _ => tt) _ _.
 
 Program Definition nom_terminated_mixin :=
@@ -610,19 +610,19 @@ Qed.
 Canonical Structure nom_prod (A B:nominal) : nominal :=
   Nominal.Ob (A*B) (nom_prod_eq_mixin A B) (nom_prod_mixin A B).
 
-Program Definition nom_pi1 (A B:nominal) : nom_prod A B → A :=
+Program Definition nom_pi1 (A B:nominal) : nom_prod A B ⤳ A :=
   Nominal.Hom (nom_prod A B) A (fun x => fst x) _ _.
 Next Obligation.
   destruct H; auto.
 Qed.
 
-Program Definition nom_pi2 (A B:nominal) : nom_prod A B → B :=
+Program Definition nom_pi2 (A B:nominal) : nom_prod A B ⤳ B :=
   Nominal.Hom (nom_prod A B) B (fun x => snd x) _ _.
 Next Obligation.
   destruct H; auto.
 Qed.
 
-Program Definition nom_pairing (C A B:nominal) (f:C → A) (g:C → B) : C → nom_prod A B
+Program Definition nom_pairing (C A B:nominal) (f:C ⤳ A) (g:C ⤳ B) : C ⤳ nom_prod A B
   := Nominal.Hom C (nom_prod A B) (fun c => (f c, g c)) _ _.
 Next Obligation.
   split; simpl; apply Nominal.eq_axiom; auto.
@@ -879,7 +879,7 @@ Canonical Structure nom_exp (A B:nominal) : nominal :=
     (nom_exp_eq_mixin A B)
     (nom_exp_mixin A B).
 
-Program Definition nom_curry (C A B:nominal) (f:C×A → B) : C → nom_exp A B :=
+Program Definition nom_curry (C A B:nominal) (f:C×A ⤳ B) : C ⤳ nom_exp A B :=
   Nominal.Hom C (nom_exp A B)
      (fun c => NomExp A B (fun a => f (c,a)) (‖c‖) _ _) _ _.
 Next Obligation.
@@ -910,7 +910,7 @@ Next Obligation.
   symmetry. apply nom_ident.
 Qed.
 
-Program Definition nom_apply (A B:nominal) : nom_exp A B × A → B :=
+Program Definition nom_apply (A B:nominal) : nom_exp A B × A ⤳ B :=
   Nominal.Hom (nom_exp A B × A) B (fun fx => fst fx (snd fx)) _ _.
 Next Obligation.
   destruct x; destruct y; destruct H; simpl in *.
@@ -1607,13 +1607,13 @@ Canonical Structure binding (A:nominal) : nominal :=
 
 (**  [binding] induces an endofunctor on NOMINAL. *)
 
-Definition binding_fmap_defn (A B:nominal) (f:A → B) 
+Definition binding_fmap_defn (A B:nominal) (f:A ⤳ B) 
   (x:binding A) : binding B :=
   match x with
   | ν a, x' => ν a, (f x')
   end.
 
-Program Definition binding_fmap (A B:nominal) (f:A → B) : binding A → binding B :=
+Program Definition binding_fmap (A B:nominal) (f:A ⤳ B) : binding A ⤳ binding B :=
   Nominal.Hom (binding A) (binding B) (binding_fmap_defn A B f) _ _.
 
 Next Obligation.
@@ -1656,7 +1656,7 @@ Proof.
   hnf; simpl. intros [u x]; simpl. auto.
 Qed.
 
-Lemma binding_fmap_respects (A B:nominal) (f f':A → B) :
+Lemma binding_fmap_respects (A B:nominal) (f f':A ⤳ B) :
   f ≈ f' -> binding_fmap A B f ≈ binding_fmap A B f'.
 Proof.
   repeat intro. destruct x as [u x]. simpl.

@@ -58,7 +58,7 @@ Proof.
 Qed.
 
 
-Program Definition injq (q:Q) : PLT.unit true → PreRealDom :=
+Program Definition injq (q:Q) : PLT.unit true ⤳ PreRealDom :=
   PLT.Hom true _ PreRealDom (injq_rel q) _ _.
 Next Obligation.
   intros. apply injq_rel_elem in H1. apply injq_rel_elem.
@@ -210,7 +210,7 @@ Proof.
     simpl. split; apply Qopp_le_compat; auto.
 Qed.
 
-Program Definition real_opp : PreRealDom → PreRealDom :=
+Program Definition real_opp : PreRealDom ⤳ PreRealDom :=
   PLT.Hom true PreRealDom PreRealDom real_opp_rel _ _.
 Next Obligation.
   simpl; intros.
@@ -317,7 +317,7 @@ Proof.
       split; apply Qle_refl.
 Qed.
 
-Lemma realdom_lt0_opp A (f:A → PreRealDom) :
+Lemma realdom_lt0_opp A (f:A ⤳ PreRealDom) :
   realdom_lt A f (injq 0 ∘ PLT.terminate _ A) ->
   realdom_lt A (injq 0 ∘ PLT.terminate _ A) (real_opp ∘ f).
 Proof.
@@ -375,7 +375,7 @@ Proof.
 Qed.
 
 Local Obligation Tactic := idtac.
-Program Definition real_plus : (PreRealDom ⊗ PreRealDom)%plt → PreRealDom :=
+Program Definition real_plus : (PreRealDom ⊗ PreRealDom)%plt ⤳ PreRealDom :=
   PLT.Hom true (PreRealDom ⊗ PreRealDom)%plt PreRealDom real_plus_rel _ _.
 Next Obligation.
   intros.
@@ -399,7 +399,7 @@ Next Obligation.
   apply real_plus_rel_elem. auto.
 Qed.
 
-Lemma real_plus_canon : forall A (f g:A → PreRealDom),
+Lemma real_plus_canon : forall A (f g:A ⤳ PreRealDom),
   canonical A f ->
   canonical A g ->
   canonical A (real_plus ∘ 《 f, g 》)%plt.
@@ -428,7 +428,7 @@ Proof.
       apply Qplus_lt_le_compat; intuition.
 Qed.
 
-Lemma real_plus_converges : forall A (f g:A → PreRealDom),
+Lemma real_plus_converges : forall A (f g:A ⤳ PreRealDom),
   realdom_converges A f ->
   realdom_converges A g ->
   realdom_converges A (real_plus ∘ 《 f, g 》)%plt.
@@ -489,7 +489,7 @@ Proof.
     exists q1. exists q2. intuition.
 Qed.
 
-Program Definition real_mult : (PreRealDom ⊗ PreRealDom)%plt → PreRealDom :=
+Program Definition real_mult : (PreRealDom ⊗ PreRealDom)%plt ⤳ PreRealDom :=
   PLT.Hom true (PreRealDom ⊗ PreRealDom)%plt PreRealDom real_mult_rel _ _.
 Next Obligation.
   intros. 
@@ -515,7 +515,7 @@ Next Obligation.
 Qed.
 
 
-Lemma real_mult_canon : forall A (f g:A → PreRealDom),
+Lemma real_mult_canon : forall A (f g:A ⤳ PreRealDom),
   canonical A f ->
   canonical A g ->
   canonical A (real_mult ∘ 《 f, g 》)%plt.
@@ -555,7 +555,7 @@ Proof.
 Qed.
 
 
-Lemma real_mult_converges : forall A (f g:A → PreRealDom),
+Lemma real_mult_converges : forall A (f g:A ⤳ PreRealDom),
   realdom_converges A f ->
   realdom_converges A g ->
   realdom_converges A (real_mult ∘ 《 f, g 》)%plt.
@@ -946,7 +946,7 @@ Proof.
       apply Qle_trans with (rint_end b); auto.
 Qed.
 
-Program Definition real_recip : PreRealDom → PreRealDom :=
+Program Definition real_recip : PreRealDom ⤳ PreRealDom :=
   PLT.Hom _ PreRealDom PreRealDom real_recip_rel _ _ .
 Next Obligation.
   intros.
@@ -1101,7 +1101,7 @@ Proof.
 Qed.  
 
 
-Lemma real_recip_canonical A (f: A → PreRealDom) :
+Lemma real_recip_canonical A (f: A ⤳ PreRealDom) :
   canonical A f ->
   canonical A (real_recip ∘ f).
 Proof.
@@ -1244,7 +1244,7 @@ Proof.
 Qed.
 
 
-Lemma real_recip_pos_converges A (f: A → PreRealDom) :
+Lemma real_recip_pos_converges A (f: A ⤳ PreRealDom) :
   realdom_lt A (injq 0 ∘ PLT.terminate _ A) f ->
   realdom_converges A f ->
   realdom_converges A (real_recip ∘ f).
@@ -1335,7 +1335,7 @@ Proof.
 Qed.
 
 
-Lemma real_recip_neg_converges A (f: A → PreRealDom) :
+Lemma real_recip_neg_converges A (f: A ⤳ PreRealDom) :
   realdom_lt A f (injq 0 ∘ PLT.terminate _ A) ->
   realdom_converges A f ->
   realdom_converges A (real_recip ∘ f).
@@ -1359,7 +1359,7 @@ Qed.
 
 
 (** Addition is a commutative group *)
-Lemma real_plus_comm_le A (g h:A → PreRealDom) :
+Lemma real_plus_comm_le A (g h:A ⤳ PreRealDom) :
   real_plus ∘ 《 g, h 》%plt ≤ real_plus ∘ 《 h, g 》%plt.
 Proof.
   red; intros [x y] H.
@@ -1375,13 +1375,13 @@ Proof.
     + rewrite Qplus_comm; apply Qle_refl.
 Qed.
 
-Lemma real_plus_comm A (g h:A → PreRealDom) :
+Lemma real_plus_comm A (g h:A ⤳ PreRealDom) :
   real_plus ∘ 《 g, h 》%plt ≈ real_plus ∘ 《 h, g 》%plt.
 Proof.
   split; apply real_plus_comm_le; auto.
 Qed.
 
-Lemma real_plus_assoc A (f g h:A → PreRealDom) :
+Lemma real_plus_assoc A (f g h:A ⤳ PreRealDom) :
   (real_plus ∘ 《 f, real_plus ∘ 《 g, h 》 》 ≈
    real_plus ∘ 《 real_plus ∘ 《 f, g 》, h 》)%plt.
 Proof.
@@ -1447,7 +1447,7 @@ Proof.
         apply Qle_refl.
 Qed.
 
-Lemma real_plus_0_le A (h: A → PreRealDom) :
+Lemma real_plus_0_le A (h: A ⤳ PreRealDom) :
   real_plus ∘ 《 h, injq 0 ∘ PLT.terminate true A 》%plt ≤ h.
 Proof.
   hnf; simpl; intros.
@@ -1470,7 +1470,7 @@ Proof.
   - ring.
 Qed.
 
-Lemma real_plus_0_eq A (h: A → PreRealDom) :
+Lemma real_plus_0_eq A (h: A ⤳ PreRealDom) :
   canonical A h ->
   real_plus ∘ 《 h, injq 0 ∘ PLT.terminate true A 》%plt ≈ h.
 Proof.
@@ -1512,7 +1512,7 @@ Proof.
     + unfold q2. ring_simplify. apply Qle_refl.
 Qed.
 
-Lemma real_opp_0_le A (h : A → PreRealDom) 
+Lemma real_opp_0_le A (h : A ⤳ PreRealDom) 
   (Hh : canonical A h) :
   real_plus ∘ 《 h, real_opp ∘ h 》%plt ≤ injq 0 ∘ PLT.terminate true A.
 Proof.
@@ -1591,7 +1591,7 @@ Proof.
            apply Qlt_le_weak; auto.
 Qed.
 
-Lemma real_opp_0_le2 A (h : A → PreRealDom) 
+Lemma real_opp_0_le2 A (h : A ⤳ PreRealDom) 
   (Hh : realdom_converges A h) :
   real_plus ∘ 《 h, real_opp ∘ h 》%plt ≥ injq 0 ∘ PLT.terminate true A.
 Proof.
@@ -1633,7 +1633,7 @@ Proof.
       apply Q.le_min_r.
 Qed.
 
-Lemma real_opp_0_eq A (h : A → PreRealDom) :
+Lemma real_opp_0_eq A (h : A ⤳ PreRealDom) :
   canonical A h ->
   realdom_converges A h ->
   real_plus ∘ 《 h, real_opp ∘ h 》%plt ≈ injq 0 ∘ PLT.terminate true A.
@@ -1644,7 +1644,7 @@ Proof.
 Qed.
 
 (** Addition reflects the strict order *)
-Lemma real_plus_reflects A (f g h:A → PreRealDom) :
+Lemma real_plus_reflects A (f g h:A ⤳ PreRealDom) :
   realdom_lt A (real_plus ∘ 《 f, h 》)%plt (real_plus ∘ 《 g, h 》)%plt ->
   realdom_lt A f g.
 Proof.
@@ -1695,7 +1695,7 @@ Qed.
 
 (** Multiplication is a commutative monoid with unit 1 *)
 
-Lemma real_mult_comm_le A (g h:A → PreRealDom) :
+Lemma real_mult_comm_le A (g h:A ⤳ PreRealDom) :
   real_mult ∘ 《 g, h 》%plt ≤ real_mult ∘ 《 h, g 》%plt.
 Proof.
   red; intros [x y] H.
@@ -1710,14 +1710,14 @@ Proof.
     apply rint_mult_swap. auto.
 Qed.
 
-Lemma real_mult_comm A (g h:A → PreRealDom) :
+Lemma real_mult_comm A (g h:A ⤳ PreRealDom) :
   real_mult ∘ 《 g, h 》%plt ≈ real_mult  ∘ 《 h, g 》%plt.
 Proof.
   split; apply real_mult_comm_le; auto.
 Qed.
 
 
-Lemma real_mult_assoc A (f g h:A → PreRealDom) :
+Lemma real_mult_assoc A (f g h:A ⤳ PreRealDom) :
   (real_mult ∘ 《 f, real_mult ∘ 《 g, h 》 》 ≈
    real_mult ∘ 《 real_mult ∘ 《 f, g 》, h 》)%plt.
 Proof.
@@ -1791,7 +1791,7 @@ Proof.
 Qed.
 
 
-Lemma real_mult_1_le A (f:A → PreRealDom) :
+Lemma real_mult_1_le A (f:A ⤳ PreRealDom) :
   (real_mult ∘ 《 f, injq 1 ∘ PLT.terminate true A 》 ≤ f)%plt.
 Proof.
   intros [a r] H.
@@ -1817,7 +1817,7 @@ Qed.
 
 
 (* Wow, why is this proof so damn hard? *)
-Lemma real_mult_1_le2 A (f:A → PreRealDom) :
+Lemma real_mult_1_le2 A (f:A ⤳ PreRealDom) :
   canonical A f ->
   (real_mult ∘ 《 f, injq 1 ∘ PLT.terminate true A 》 ≥ f)%plt.
 Proof.
@@ -2193,7 +2193,7 @@ Proof.
                **** rewrite H4. auto.
 Qed.
 
-Lemma real_mult_1 A (f:A → PreRealDom) :
+Lemma real_mult_1 A (f:A ⤳ PreRealDom) :
   canonical A f ->
   (real_mult ∘ 《 f, injq 1 ∘ PLT.terminate true A 》 ≈ f)%plt.
 Proof.
@@ -2204,7 +2204,7 @@ Qed.
 
 
 (** Multiplication reflects the strict order *)
-Lemma real_mult_reflects_pos (A:∂PLT) (a:A) (x y z:A → PreRealDom) :
+Lemma real_mult_reflects_pos (A:∂PLT) (a:A) (x y z:A ⤳ PreRealDom) :
   realdom_lt A (injq 0 ∘ PLT.terminate _ A) z ->
   realdom_lt A
     (real_mult ∘ 《 x, z 》)%plt
@@ -2282,7 +2282,7 @@ Qed.
     Hence, the reals are a ring.
   *)
 
-Lemma real_distrib_le A (x y z: A → PreRealDom) :
+Lemma real_distrib_le A (x y z: A ⤳ PreRealDom) :
   (real_plus ∘ 《 real_mult ∘ 《 x, y 》 
               , real_mult ∘ 《 x, z 》 
               》
@@ -2334,7 +2334,7 @@ Qed.
 (** Probably this lemma can be improved to require only that
     x converges...
   *)
-Lemma real_distrib_eq A (x y z: A → PreRealDom) 
+Lemma real_distrib_eq A (x y z: A ⤳ PreRealDom) 
   (Hx0 : canonical A x) 
   (Hy0 : canonical A y) 
   (Hz0 : canonical A z)
@@ -2358,7 +2358,7 @@ Proof.
 Qed.
 
 (*
-Lemma real_distrib_le2 A (x y z: A → PreRealDom) 
+Lemma real_distrib_le2 A (x y z: A ⤳ PreRealDom) 
   (Hx : realdom_converges A x) :
   (real_plus ∘ 《 real_mult ∘ 《 x, y 》 
               , real_mult ∘ 《 x, z 》 
@@ -2414,7 +2414,7 @@ Qed.
     Hence the reals form a field.
   *)
 
-Lemma real_recip_mult_le (A:∂PLT) (x: A → PreRealDom) :
+Lemma real_recip_mult_le (A:∂PLT) (x: A ⤳ PreRealDom) :
   canonical A x ->
   (real_mult ∘ 《 x, real_recip ∘ x 》 ≤ injq 1 ∘ PLT.terminate _ A)%plt.
 Proof.
@@ -2462,7 +2462,7 @@ Proof.
         apply rint_proper.
 Qed.
 
-Lemma real_recip_pos_eq (A:∂PLT) (x: A → PreRealDom) :
+Lemma real_recip_pos_eq (A:∂PLT) (x: A ⤳ PreRealDom) :
   canonical A x ->
   realdom_converges A x ->
   realdom_lt A (injq 0 ∘ PLT.terminate _ A) x ->
@@ -2475,7 +2475,7 @@ Proof.
   - apply real_recip_mult_le; auto.
 Qed.
 
-Lemma real_recip_neg_eq (A:∂PLT) (x: A → PreRealDom) :
+Lemma real_recip_neg_eq (A:∂PLT) (x: A ⤳ PreRealDom) :
   canonical A x ->
   realdom_converges A x ->
   realdom_lt A x (injq 0 ∘ PLT.terminate _ A) ->
@@ -2490,7 +2490,7 @@ Qed.
 
 (** The reals are an archimedian field *)
 
-Lemma real_archimediean (f: 1%plt → PreRealDom) :
+Lemma real_archimediean (f: 1%plt ⤳ PreRealDom) :
   realdom_converges 1%plt f ->
   exists q1 q2,
     realdom_lt 1%plt (injq q1) f /\ realdom_lt 1%plt f (injq q2).

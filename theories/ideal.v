@@ -79,13 +79,13 @@ Section ideal_completion.
 
   Canonical Structure ideal : preord := Preord.Pack ideal_type ideal_mixin.
 
-  Program Definition ideal_forget : ideal → cl_eset CL K :=
+  Program Definition ideal_forget : ideal ⤳ cl_eset CL K :=
     Preord.Hom ideal (cl_eset CL K) (@proj1_sig _ _) _.
   Next Obligation.
     auto.
   Qed.
 
-  Program Definition principal_ideal : K → ideal :=
+  Program Definition principal_ideal : K ⤳ ideal :=
     Preord.Hom K ideal
       (fun k => exist lower_set (enum_lowerset k) (enum_is_lowerset k))
       _.

@@ -77,7 +77,7 @@ Program Definition prodF hf
      (fun (AB:ob (PROD (EMBED hf) (EMBED hf))) =>
          PLT.prod (@obl (EMBED hf) (EMBED hf) AB)
                   (@obr (EMBED hf) (EMBED hf) AB))
-     (fun (AB CD:ob (PROD (EMBED hf) (EMBED hf))) (f:AB → CD) => 
+     (fun (AB CD:ob (PROD (EMBED hf) (EMBED hf))) (f:AB ⤳ CD) => 
        prod_fmap hf _ _ _ _
          (@homl (EMBED hf) (EMBED hf) AB CD f)
          (@homr (EMBED hf) (EMBED hf) AB CD f))
@@ -212,7 +212,7 @@ Program Definition sumF hf
      (fun (AB:ob (PROD (EMBED hf) (EMBED hf))) =>
          PLT.sum (@obl (EMBED hf) (EMBED hf) AB)
                  (@obr (EMBED hf) (EMBED hf) AB))
-     (fun (AB CD:ob (PROD (EMBED hf) (EMBED hf))) (f:AB → CD) => 
+     (fun (AB CD:ob (PROD (EMBED hf) (EMBED hf))) (f:AB ⤳ CD) => 
        sum_fmap hf _ _ _ _
          (@homl (EMBED hf) (EMBED hf) AB CD f)
          (@homr (EMBED hf) (EMBED hf) AB CD f))

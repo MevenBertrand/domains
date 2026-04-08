@@ -25,7 +25,7 @@ Require Import profinite.
 
      Basis embeddings form a category with the effective Plotkin orders
      as objects.  To avoid notational confusion, we use the symbol ⇀
-     to refer to embeddings, reserving → for the homs of PLT.
+     to refer to embeddings, reserving ⤳ for the homs of PLT.
   *)
 
 Record embedding (hf:bool) (A B:PLT.ob hf) :=
@@ -106,7 +106,7 @@ Definition embed_comp_mixin hf :=
 Canonical Structure embed_comp hf :=
   Comp.Pack (PLT.ob hf) (embedding hf) (embed_comp_mixin hf).
 
-Program Definition embed_func {hf A B} (E:embedding hf A B) : PLT.ord A → PLT.ord B :=
+Program Definition embed_func {hf A B} (E:embedding hf A B) : PLT.ord A ⤳ PLT.ord B :=
   Preord.Hom A B (embed_map E) (embed_mono E).
 Coercion embed_func : embedding >-> hom.
 
@@ -220,7 +220,7 @@ Section ep_pairs.
 
   Notation PLT := (PLT.PLT hf).
 
-  Record is_ep_pair (X Y:ob PLT) (e:X → Y) (p:Y → X) :=
+  Record is_ep_pair (X Y:ob PLT) (e:X ⤳ Y) (p:Y ⤳ X) :=
   IsEP
   { pe_ident : p ∘ e ≈ id
   ; ep_ident : e ∘ p ≤ id
@@ -228,8 +228,8 @@ Section ep_pairs.
 
   Record ep_pair (X Y:ob PLT) :=
   EpPair
-  { embed : X → Y
-  ; project : Y → X
+  { embed : X ⤳ Y
+  ; project : Y ⤳ X
   ; ep_correct : is_ep_pair X Y embed project
   }.
   Arguments embed [X] [Y] e.
@@ -602,7 +602,7 @@ Section ep_pairs.
           rewrite <- H1. auto.
     Qed.
 
-    Program Definition project_hom : Y → X :=
+    Program Definition project_hom : Y ⤳ X :=
       PLT.Hom hf Y X project_rel _ _.
     Next Obligation.
       intros. 
@@ -662,7 +662,7 @@ Section ep_pairs.
           rewrite <- H1. auto.
     Qed.
 
-    Program Definition embed_hom : X → Y :=
+    Program Definition embed_hom : X ⤳ Y :=
       PLT.Hom hf X Y embed_rel _ _.
     Next Obligation.
       intros.

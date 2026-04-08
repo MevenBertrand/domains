@@ -739,9 +739,9 @@ Proof.
 Qed.
 
 Lemma exp_fmap_compose hf (A B C D E F:ob (EMBED hf)) 
-  (f1:B → E) (f2:D → F)
-  (g1:A → B) (g2:C → D)
-  (h1:A → E) (h2:C → F) :
+  (f1:B ⤳ E) (f2:D ⤳ F)
+  (g1:A ⤳ B) (g2:C ⤳ D)
+  (h1:A ⤳ E) (h2:C ⤳ F) :
   f1 ∘ g1 ≈ h1 ->
   f2 ∘ g2 ≈ h2 ->
   exp_fmap hf B E D F f1 f2 ∘ exp_fmap hf A B C D g1 g2 ≈
@@ -776,8 +776,8 @@ Proof.
 Qed.
 
 Lemma exp_fmap_respects hf (A B C D:ob (EMBED hf)) 
-   (f f':A → B)
-   (g g':C → D) :
+   (f f':A ⤳ B)
+   (g g':C ⤳ D) :
    f ≈ f' -> g ≈ g' ->
    exp_fmap hf A B C D f g ≈ exp_fmap hf A B C D f' g'.
 Proof.
