@@ -25,7 +25,7 @@ End D.
 
 (* somehow we need some restrictions on the functions for 
    abs and tpi *)
-Fixpoint denot {n} (t : Tm n)(ρ : fin n -> D.elt) := 
+Fixpoint denot {n} (t : Tm n)(ρ : fin n -> D.elt) : D.elt := 
   match t with 
   | var x   => ρ x 
   | app M N => D.app (denot M ρ) (denot N ρ)
