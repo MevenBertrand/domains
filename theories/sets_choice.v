@@ -189,7 +189,7 @@ Qed.
      countable choice is not provable in Coq.
   *)
 
-Theorem weak_countable_choice {A : DecPoset} {B : Poset} (R:erel A B) :
+Theorem weak_countable_choice {A : DecPreOrd} {B : Poset} (R:erel A B) :
   (forall a : A, ∃! (b : B), (a,b) ∈ R) ->
   { f:A -> B | forall a, (a, f a) ∈ R }.
 Proof.

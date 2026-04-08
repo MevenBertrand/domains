@@ -30,7 +30,26 @@ HB.structure Definition eqTy := {T of HasEqDec T}.
 (** This is better than an instance [EqTyDec (A : EqTy) x y : Decision (x = y :> A)] because
   it will also fire if the carrier type is richer than [EqTy], in which case [apply:] will
   trigger canonical resolution *)
-Hint Extern 100 (Decision (_ = _)) => solve [apply: eqdec] : typeclass_instances. 
+Hint Extern 100 (Decision (_ = _)) => solve [apply: eqdec] : typeclass_instances.
+
+Program Definition _HasEqProd (A B : EqTy) := HasEqDec.Build (A*B)%type _.
+Next Obligation.
+  destruct (decide (s1 = s)).
+  1: destruct (decide (s2 = s0)).
+  all: solve [constructor ; congruence].
+Qed.
+
+HB.instance Definition _ (A B : EqTy) := _HasEqProd A B.
+
+Program Definition _HasEqSum (A B : EqTy) := HasEqDec.Build (A+B)%type _.
+Next Obligation.
+  destruct x as [a|b], y as [a'|b'].
+  4: destruct (decide (b = b')).
+  1: destruct (decide (a = a')).
+  all: solve [constructor ; congruence].
+Qed.
+
+HB.instance Definition _ (A B : EqTy) := _HasEqSum A B.
 
 (** ** Decidable properties *)
 

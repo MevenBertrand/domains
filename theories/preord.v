@@ -57,6 +57,79 @@ Qed.
 #[short(type="Poset")]
 HB.structure Definition poset := { T of pre_order T & IsPoset T}.
 
+(** *** Turning any PreOrder into a Poset by identifying equivalent elements *)
+
+
+Definition poset_equiv (A : PreOrder) : A -> A -> Prop := fun x y => x ≤ y /\ y ≤ x.
+
+Instance poset_equiv_equiv (A : PreOrder) : Equivalence (poset_equiv A).
+Proof.
+  split.
+  - split ; reflexivity.
+  - intros ?? [] ; now split.
+  - intros ??? [] [] ; split ; now etransitivity.
+Qed.
+
+Definition poset_quot (A : PreOrder) : Type := quot (poset_equiv A).
+
+Definition to_poset {A : PreOrder} (x : A) : poset_quot A := to_quot x.
+
+Program Definition _PosetQuot_PrePreOrder (A : PreOrder) :=
+  IsPrePreOrder.Build (poset_quot A)
+    (quot_rec (fun a => quot_rec (fun a' => a ≤ a') (p := _)) (p := _)).
+Next Obligation.
+  intros x x' [].
+  ext.
+  split ; intros.
+  all: now etransitivity.
+Qed.
+Next Obligation.
+  intros x x' [].
+  ext.
+  induction x0 as [y] using quot_ind.
+  rewrite !quot_rec_eq.
+  split ; now etransitivity.
+Qed.
+
+HB.instance Definition _ (A : PreOrder) := _PosetQuot_PrePreOrder A.
+
+Lemma poset_quotP (A : PreOrder) (x y : A) : (to_poset x) ≤ (to_poset y) <-> x ≤ y.
+Proof.
+  rewrite /ord /= !quot_rec_eq.
+  reflexivity.
+Qed.
+
+Program Definition _PosetQuot_PreOrder (A : PreOrder) :=
+  IsPreOrder.Build (poset_quot A) _ _.
+Next Obligation.
+  intros x.
+  induction x using quot_ind.
+  now rewrite poset_quotP.
+Qed.
+Next Obligation.
+  intros x ; induction x as [x] using quot_ind.
+  intros y ; induction y as [y] using quot_ind.
+  intros z ; induction z as [z] using quot_ind.
+  rewrite /ord /= !quot_rec_eq.
+  now etransitivity.
+Qed.
+
+HB.instance Definition _ (A : PreOrder) := _PosetQuot_PreOrder A.
+
+Program Definition _PosetQuot_Poset (A : PreOrder) :=
+  IsPoset.Build (poset_quot A) _.
+Next Obligation.
+  revert b H H0.
+  induction a as [a] using quot_ind.
+  intros b ; induction b as [b] using quot_ind.
+  rewrite /ord /= !quot_rec_eq.
+  intros.
+  ext ; now split.
+Qed.
+
+HB.instance Definition _ (A : PreOrder) := _PosetQuot_Poset A.
+
+
 (** *** Every poset is a category *)
 
 Definition CatPos (C : Type) : Type := C.
@@ -96,8 +169,6 @@ Proof.
 Qed.
 
 Smpl Add (apply: mon_ext_ppo ; cbn) : extensionality.
-(* Smpl Add (apply: mon_ext_po ; cbn) : extensionality.
-Smpl Add (apply: mon_ext_pos ; cbn) : extensionality. *)
 
 Section Monotone.
   Context {C D E : PrePreOrder}.
@@ -114,6 +185,7 @@ Section Monotone.
 
 End Monotone.
 
+(** PrePreOrders, PreOrders and Posets form categories *)
 HB.instance Definition _ := IsPreCat.Build PrePreOrder
   (fun _ => id_mon) (fun _ _ _ f g => comp_mon g f).
 Definition _PrePreOrd_Cat : IsCat PrePreOrder :=
@@ -162,11 +234,28 @@ HB.instance Definition _ := IsPrePreOrder.Build nat le.
 HB.instance Definition _ := IsPreOrder.Build nat Nat.le_refl Nat.le_trans.
 HB.instance Definition _ := IsPoset.Build nat Nat.le_antisymm.
 
-(** ** Poset is terminated. *)
+(** ** PreOrder and Poset are terminated. *)
 
 HB.instance Definition _ := IsPrePreOrder.Build unit (fun _ _ => True).
 HB.instance Definition _ := IsPreOrder.Build unit (fun _ => I) (fun _ _ _ _ _ => I).
 HB.instance Definition _ := IsPoset.Build unit (fun _ _ _ _ => unit_ext _ _).
+
+Program Definition _PreTermPreOrd := IsPreTerminated.Build PreOrder unit
+  (fun P => {| mon_map := fun x => tt ; mon_mon := _ |} ).
+Next Obligation.
+  intros x.
+  red.
+  reflexivity.
+Qed.
+
+HB.instance Definition _ := _PreTermPreOrd.
+
+Program Definition _TermPreOrd := IsTerminated.Build PreOrder _.
+Next Obligation.
+  red ; ext.
+Qed.
+
+HB.instance Definition _ := _TermPreOrd.
 
 Program Definition _PreTermPoset := IsPreTerminated.Build Poset unit
   (fun P => {| mon_map := fun x => tt ; mon_mon := _ |} ).
@@ -188,16 +277,32 @@ HB.instance Definition _ := _TermPoset.
 (** *** Constant monotone function *)
 
 
-Program Definition const_mon {C D : Poset} (d : D) : Monotone C D := {| mon_map := fun=> d |}.
+Program Definition const_mon {C D : PreOrder} (d : D) : Monotone C D := {| mon_map := fun=> d |}.
 Next Obligation.
   red ; reflexivity.
 Qed.
 
-(** ** Poset is initialised. *)
+(** ** PreOrd and Poset are initialised. *)
 
 HB.instance Definition _ := IsPrePreOrder.Build void (fun _ _ => False).
 HB.instance Definition _ := IsPreOrder.Build void (fun x => of_void _ x) (fun x _ _ _ _ => of_void _ x).
 HB.instance Definition _ := IsPoset.Build void (fun _ _ _ _ => empty_ext _ _).
+
+Program Definition _PreInitPreOrd := IsPreInitialised.Build PreOrder void
+  (fun P => {| mon_map := fun x => of_void _ x ; mon_mon := _ |} ).
+Next Obligation.
+  by intros ? ?.
+Qed.
+
+HB.instance Definition _ := _PreInitPreOrd.
+
+Program Definition _InitPreOrd := IsInitialised.Build PreOrder _.
+Next Obligation.
+  red ; ext.
+  by cbn in *.
+Qed.
+
+HB.instance Definition _ := _InitPreOrd.
 
 Program Definition _PreInitPoset := IsPreInitialised.Build Poset void
   (fun P => {| mon_map := fun x => of_void _ x ; mon_mon := _ |} ).
@@ -215,7 +320,7 @@ Qed.
 
 HB.instance Definition _ := _InitPoset.
 
-(**  ** Poset is cartesian *)
+(**  ** PreOrder and Poset are cartesian *)
 
 Definition prod_ord (A B:PrePreOrder) (x y:A*B) : Prop :=
   (fst x) ≤ (fst y) /\ (snd x) ≤ (snd y).
@@ -244,9 +349,41 @@ Qed.
 
 HB.instance Definition _ (A B : Poset) := _ProdPoset A B.
 
-Definition _PreHasProdsPoset := PreHasProds.Build Poset (fun A B => HB.pack (A*B)).
+HB.instance Definition _ := PreHasProds.Build PreOrder (fun A B => A*B).
 
-HB.instance Definition _ := _PreHasProdsPoset.
+Program Definition _HasProjsPreOrd := HasProjs.Build PreOrder
+  (fun p q => {| mon_map := fst ; mon_mon := _|})
+  (fun p q => {| mon_map := snd ; mon_mon := _|})
+  (fun p q x f g => {| mon_map := fun x => (f x,g x) ; mon_mon := _|}).
+Next Obligation.
+  now intros [] [] [].
+Qed.
+Next Obligation.
+  now intros [] [] [].
+Qed.
+Next Obligation.
+  split ; cbn.
+  all: now apply: mon_mon.
+Qed.
+
+HB.instance Definition _ := _HasProjsPreOrd.
+
+Program Definition _HasProdsPreOrd := HasProds.Build PreOrder _ _ _.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  intros ; subst.
+  ext ; cbn.
+  apply surjective_pairing.
+Qed.
+
+HB.instance Definition _ := _HasProdsPreOrd.
+
+HB.instance Definition _ := PreHasProds.Build Poset (fun A B => A*B).
 
 Program Definition _HasProjsPoset := HasProjs.Build Poset
   (fun p q => {| mon_map := fst ; mon_mon := _|})
@@ -280,7 +417,7 @@ Qed.
 
 HB.instance Definition _ := _HasProdsPoset.
 
-(**  ** Poset is cartesian closed *)
+(** ** PreOrder and Poset are cartesian closed *)
 
 Definition exp_ord (A B:PrePreOrder) (f g : Monotone A B):=
   forall x x', x ≤ x' -> f x ≤ g x'.
@@ -312,7 +449,7 @@ Qed.
 
 HB.instance Definition _ (A B : Poset) := _ExpPoset A B.
 
-Program Definition _HasExpsPoset := PreHasExps.Build Poset
+Program Definition _PreHasExpsPreOrd := PreHasExps.Build PreOrder
   (fun A B => HB.pack (Monotone A B))
   (fun A B => {| mon_map := fun x => (fst x) (snd x) ; mon_mon := _|})
   (fun A B X => {| 
@@ -345,8 +482,68 @@ Next Obligation.
   now split.
 Qed.
 
-(** The preorder on sums, defined in the standard way.
-  *)
+HB.instance Definition _ := _PreHasExpsPreOrd.
+
+Program Definition _HasExpsPreOrd := HasExps.Build PreOrder _ _.
+Next Obligation.
+  ext ; cbn.
+  destruct x0 => //=.
+Qed.
+Next Obligation.
+  ext ; reflexivity.
+Qed.
+
+HB.instance Definition _ := _HasExpsPreOrd.
+
+Program Definition _PreHasExpsPoset := PreHasExps.Build Poset
+  (fun A B => HB.pack (Monotone A B))
+  (fun A B => {| mon_map := fun x => (fst x) (snd x) ; mon_mon := _|})
+  (fun A B X => {| 
+    mon_map := fun (f : Monotone (X*A) B) =>
+      {|
+        mon_map := fun (x : X) => {| mon_map := fun a => f (x,a) ; mon_mon := _ |} ;
+        mon_mon := _
+      |} ;
+    mon_mon := _|} ).
+Next Obligation.
+  intros ?? ; cbn in *.
+  rewrite {1}/ord /=.
+  intros [Hf Ha] ; cbn in *.
+  now apply: Hf.
+Qed.
+Next Obligation.
+  cbn.
+  intros ** ???.
+  apply mon_mon.
+  now split ; cbn.
+Qed.
+Next Obligation.
+  intros ** ?????? ; cbn.
+  apply: mon_mon.
+  now split ; cbn.
+Qed.
+Next Obligation.
+  intros ** ?? P ? ** ? **; cbn in *.
+  apply: P.
+  now split.
+Qed.
+
+
+HB.instance Definition _ := _PreHasExpsPoset.
+
+Program Definition _HasExpsPoset := HasExps.Build Poset _ _.
+Next Obligation.
+  ext ; cbn.
+  destruct x0 => //=.
+Qed.
+Next Obligation.
+  ext ; reflexivity.
+Qed.
+
+HB.instance Definition _ := _HasExpsPoset.
+
+(** ** PreOrder and Poset have sums *)
+
 Definition sum_ord (A B:PrePreOrder) (x y:A+B):=
   match x, y with
   | inl x', inl y' => x' ≤ y'
@@ -381,9 +578,43 @@ Qed.
 
 HB.instance Definition _ (A B : Poset) := _SumPoset A B.
 
-Definition _PreHasSumsPoset := PreHasSums.Build Poset (fun A B => HB.pack (A+B)%type).
+HB.instance Definition _ := PreHasSums.Build PreOrder (fun A B => (A+B)%type).
 
-HB.instance Definition _ := _PreHasSumsPoset.
+Program Definition _HasInjsPreOrd := HasInjs.Build PreOrder
+  (fun p q => {| mon_map := inl ; mon_mon := _|})
+  (fun p q => {| mon_map := inr ; mon_mon := _|})
+  (fun p q x f g => {|
+      mon_map := fun x => match x with | inl x => f x | inr x => g x end ;
+      mon_mon := _|}).
+Next Obligation.
+  now intros ?? ? ** ; cbn ; red ; cbn.
+Qed.
+Next Obligation.
+  now intros ?? ? ** ; cbn ; red ; cbn.
+Qed.
+Next Obligation.
+  intros * [] [] H ; red in H ; cbn in * => //.
+  all: now apply mon_mon.
+Qed.
+
+HB.instance Definition _ := _HasInjsPreOrd.
+
+Program Definition _HasSumsPreOrd := HasSums.Build PreOrder _ _ _.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  now ext.
+Qed.
+Next Obligation.
+  intros; subst.
+  ext.
+  now destruct x0.
+Qed.
+
+HB.instance Definition _ := _HasSumsPreOrd.
+
+HB.instance Definition _ := PreHasSums.Build Poset (fun A B => (A+B)%type).
 
 Program Definition _HasInjsPoset := HasInjs.Build Poset
   (fun p q => {| mon_map := inl ; mon_mon := _|})
@@ -421,16 +652,25 @@ HB.instance Definition _ := _HasSumsPoset.
 
 (** ** Preorders with decidable ordering *)
 
-#[primitive]HB.mixin Record HasOrdDec T of poset T := {
+#[primitive]HB.mixin Record HasOrdDec T of pre_pre_ord T := {
   #[canonical=no]ord_dec : forall x y:T, Decision (x ≤ y)
 }.
+
+
+#[short(type="RawDecPreOrd")]
+HB.structure Definition raw_dec_preord := { T of pre_order T & HasOrdDec T}.
+
+#[short(type="DecPreOrd")]
+HB.structure Definition dec_preord := { T of pre_order T & HasEqDec T & HasOrdDec T}.
 
 #[short(type="DecPoset")]
 HB.structure Definition dec_poset := { T of poset T & HasOrdDec T & HasEqDec T}.
 
 (**  Preorders with decidable ordering also have decidable equality. *)
 
-HB.builders Context P of HasOrdDec P.
+HB.factory Record DecPosetFactory T of poset T & HasOrdDec T := {}.
+
+HB.builders Context P of DecPosetFactory P.
 
 Fact ord_dec_eq_dec x y : Decision (x = y :> P).
 Proof.
@@ -460,6 +700,7 @@ Qed.
 (** *** Instances *)
 
 HB.instance Definition _ := HasOrdDec.Build nat le_dec.
+HB.instance Definition _ := DecPosetFactory.Build nat.
 
 Hint Extern 100 (Decision (_ ≤ _)) => (apply: ord_dec) : typeclass_instances.
 
@@ -475,14 +716,17 @@ Proof.
 Qed.
 
 HB.instance Definition _ := HasOrdDec.Build unit unit_dec.
+HB.instance Definition _ := DecPosetFactory.Build unit.
 HB.instance Definition _ := HasOrdDec.Build void void_dec.
+HB.instance Definition _ := DecPosetFactory.Build void.
 
-HB.instance Definition _ (A B : DecPoset) := HasOrdDec.Build (A*B) _.
+HB.instance Definition _ (A B : DecPreOrd) := HasOrdDec.Build (A*B) _.
+HB.instance Definition _ (A B : DecPoset) := DecPosetFactory.Build (A*B).
 
-Definition _PreHasProdsOrdDec := PreHasProds.Build DecPoset (fun A B => HB.pack (A*B)).
-HB.instance Definition _ := _PreHasProdsOrdDec.
+HB.instance Definition _ := PreHasProds.Build DecPreOrd (fun A B => A*B).
+HB.instance Definition _ := PreHasProds.Build DecPoset (fun A B => A*B).
 
-Program Definition _SumDec (A B : DecPoset) := HasOrdDec.Build (A+B) _.
+Program Definition _SumDec (A B : DecPreOrd) := HasOrdDec.Build (A+B) _.
 Next Obligation.
   destruct x as [a|b], y as [a'|b'].
   2,3: right ; now cbv.
@@ -496,10 +740,11 @@ Next Obligation.
     assumption.
 Qed.
 
-HB.instance Definition _ (A B : DecPoset) := _SumDec A B.
+HB.instance Definition _ (A B : DecPreOrd) := _SumDec A B.
+HB.instance Definition _ (A B : DecPoset) := DecPosetFactory.Build (A+B).
 
-Definition _PreHasSumsOrdDec := PreHasSums.Build DecPoset (fun A B => HB.pack (A+B)).
-HB.instance Definition _ := _PreHasSumsOrdDec.
+HB.instance Definition _ := PreHasSums.Build DecPreOrd (fun A B => A+B).
+HB.instance Definition _ := PreHasSums.Build DecPoset (fun A B => A+B).
 
 (** ** Concreteness *)
 
@@ -565,6 +810,24 @@ HB.instance Definition _ (A : Poset) := _LiftPoset A.
 
 Definition Poset_lift (A : Poset) : Poset := (lift A).
 
+Lemma lift_ord_dec {A : DecPreOrd} (x y : lift A) : Decision (x ≤ y).
+Proof.
+  destruct x as [x|], y as [y|].
+  1: destruct (decide (x ≤ y)).
+  all: cbv ; now constructor.
+Qed.
+
+Lemma lift_eq_dec {A : EqTy} (x y : lift A) : Decision (x = y).
+Proof.
+  destruct x as [x|], y as [y|].
+  1: destruct (decide (x = y)).
+  all: constructor ; congruence.
+Qed.
+
+HB.instance Definition _ (A : DecPreOrd) := HasOrdDec.Build (lift A) lift_ord_dec.
+HB.instance Definition _ (A : EqTy) := HasEqDec.Build (lift A) lift_eq_dec.
+HB.instance Definition _ (A : DecPoset) := DecPosetFactory.Build (lift A).
+
 Program Definition liftup {A : PreOrder} : Monotone A (lift A) :=
   {|
       mon_map := Some ;
@@ -574,8 +837,6 @@ Next Obligation.
   intros ?? Hl.
   exact Hl.
 Qed.
-
-(* HB.instance Definition _ := _LiftPreFunctor. *)
 
 Definition liftF_map {A B : PrePreOrder} (f : A -> B) : lift A -> lift B :=
   fun x => match x with | None => None | Some x' => Some (f x') end.
@@ -636,20 +897,6 @@ Next Obligation.
 Qed.
 
 HB.instance Definition _ := _LiftFunctor_Poset.
-
-
-Lemma lift_dec {A : DecPoset} (x y : lift A) : Decision (x ≤ y).
-Proof.
-  destruct x as [x|], y as [y|].
-  - now destruct (ord_dec x y) ; [left |right].
-  - right.
-    now cbv.
-  - left.
-    now cbv.
-  - now left.
-Qed.
-
-HB.instance Definition _ (A : DecPoset) := HasOrdDec.Build (lift A) lift_dec.
 
 (** ** Partial *)
 (** The "partial" preorder, which classifies partial maps:

@@ -4,7 +4,6 @@ From Stdlib Require Import ssreflect ssrfun Arith Lia.
 From HB Require Import structures.
 Require Import utils.all categories.all preord sets finsets colsets effective.
 
-
 (**  A finite set is conditionally-inhabited for hf
      whenever hf is false; or when hf is true, the set
      is inhabited.
@@ -14,7 +13,7 @@ Require Import utils.all categories.all preord sets finsets colsets effective.
      unpointed domains.
   *)
 
-Definition inh {set : SetTheory} {A:Poset} (hf:bool) (X:set A) : Prop := 
+Definition inh {set : SetTheory} {A:PreOrder} (hf:bool) (X:set A) : Prop := 
   if hf then exists x, x ∈ X else True.
 
 Instance inh_dec A hf (X:finset A) : Decision (inh hf X).
@@ -41,7 +40,7 @@ Proof.
   now apply H.
 Qed.
 
-Lemma inh_image {A B : Poset} hf (X:finset A) (f:A → B) :
+Lemma inh_image {A B : PreOrder} hf (X:finset A) (f:A ⤳ B) :
   inh hf (image f X) <-> inh hf X.
 Proof.
   destruct hf; simpl.
@@ -78,8 +77,8 @@ Qed.
 (**  A subset of the image of a function is equal to the image
      of some subset of the set X.
   *)
-Lemma incl_image {A B : Poset} {set : SetTheory} 
-  (f:A → B) (X: set A) (M : finset B) :
+Lemma incl_image {A B : PreOrder} {set : SetTheory} 
+  (f:A ⤳ B) (X: set A) (M : finset B) :
   M ⊆ image f X <->
   exists (M' : finset A), M = image f M' /\ M' ⊆ X.
 Proof.
@@ -147,7 +146,7 @@ Qed.
 (** A set X is h-directed when every h-inhabited finite
     subset has an upper bound in X.
   *)
-Definition directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :=
+Definition directed {set : SetTheory} {A:PreOrder} (hf:bool) (X:set A) :=
   forall (M:finset A) (Hinh:inh hf M),
     M ⊆ X -> ∃ x ∈ X, upper_bound x M.
 
@@ -155,7 +154,7 @@ Definition directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :=
      that every pair of elements in X has an upper bound in X; and that
      X is inhabited when b = false.
   *)
-Lemma prove_directed {set : SetTheory} {A:Poset} (hf:bool) (X:set A) :
+Lemma prove_directed {set : SetTheory} {A:PreOrder} (hf:bool) (X:set A) :
   (if hf then True else exists x, x ∈ X) ->
   (∀ x ∈ X, ∀ y ∈ X, exists z, x ≤ z /\ y ≤ z /\ z ∈ X) ->
   directed hf X.
@@ -196,7 +195,7 @@ Qed.
 
 (**  Directeness forms a set color. *)
 
-Lemma directed_single {set : SetTheory} (hf:bool) {A : Poset} (a : A) :
+Lemma directed_single {set : SetTheory} (hf:bool) {A : PreOrder} (a : A) :
   directed (set := set) hf (single a).
 Proof.
   intros ? ? Hincl.
@@ -207,7 +206,7 @@ Proof.
   intros ? ?; now apply rrefl.
 Qed.
 
-Lemma directed_image {set : SetTheory} (hf : bool) {A B : Poset} (f : A → B) (X : set A) :
+Lemma directed_image {set : SetTheory} (hf : bool) {A B : PreOrder} (f : A ⤳ B) (X : set A) :
  directed hf X -> directed hf (image f X).
 Proof.
   move => Hdir ? ? /incl_image [M' [??]] ; subst.
@@ -221,7 +220,7 @@ Proof.
   now apply mon_mon, Hub.
 Qed.
 
-Lemma directed_union {set : SetTheory} (hf : bool) {A : Poset} (XS : set (set A)) :
+Lemma directed_union {set : SetTheory} (hf : bool) {A : PreOrder} (XS : set (set A)) :
   (directed hf XS) ->
   (forall X : set A, X ∈ XS -> directed hf X) ->
   directed hf (∪ XS).
@@ -270,7 +269,7 @@ Definition directed_hf_cl {set : SetTheory} (hf:bool) : color set :=
 Definition semidirected_cl {set : SetTheory} := directed_hf_cl (set := set) true.
 Definition directed_cl {set : SetTheory} := directed_hf_cl (set := set) false.
 
-Lemma directed_subset (hf : bool) {A : Poset} {P : A -> Prop} `{! forall x, Decision (P x)}
+Lemma directed_subset (hf : bool) {A : PreOrder} {P : A -> Prop} `{! forall x, Decision (P x)}
   (X : finset A) :
   (forall x (M : finset A), (∀ y ∈ M, P y) -> upper_bound x M -> P x) ->
   directed hf X ->
@@ -289,7 +288,7 @@ Qed.
 Program Definition _NatDirected := IsDirected.Build nat _.
 Next Obligation.
   eexists (finset_lub 0 Nat.max _ _ _ _ M).
-  apply finset_lub_lub.
+  edestruct (finset_lub_lub 0 Nat.max) as [H _] ; eassumption.
   Unshelve.
   all: rewrite /= /ord /=.
   all: lia.

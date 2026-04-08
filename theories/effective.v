@@ -11,10 +11,14 @@ Require Import utils.all categories.all preord sets finsets esets.
   members of the preorder are enumerable.
   *)
 
-#[primitive]HB.mixin Record IsEnum T of poset T := {
+#[primitive]HB.mixin Record IsEnum T of pre_order T := {
   enum : eset T ;
   enumP : forall x : T, x ∈ enum ;
 }.
+
+#[short(type="EffPreOrder")]
+HB.structure Definition eff_pre_ord := { T of dec_preord T & IsEnum T}.
+
 
 #[short(type="EffPoset")]
 HB.structure Definition eff_poset := { T of dec_poset T & IsEnum T}.
@@ -22,7 +26,7 @@ HB.structure Definition eff_poset := { T of dec_poset T & IsEnum T}.
 (** ** Decidability *)
 
 #[deprecated(note="use finset_in_dec directly")]Lemma
-  eff_in_dec {A:EffPoset} (M:finset A) (x:A) : Decision (x ∈ M).
+  eff_in_dec {A:EffPreOrder} (M:finset A) (x:A) : Decision (x ∈ M).
 Proof.
   intros. apply: finset_in_dec.
 Qed.
@@ -55,21 +59,21 @@ HB.instance Definition _ := _EffUnit.
 
 (** *** Binary product *)
 
-Program Definition _ProdEnum (A B:EffPoset) := IsEnum.Build (A*B) (eprod enum enum) _.
+Program Definition _ProdEnum (A B:EffPreOrder) := IsEnum.Build (A*B) (eprod enum enum) _.
 Next Obligation.
   rewrite eprodP /=.
   split.
   all: apply enumP.
 Qed.
 
-HB.instance Definition _ (A B : EffPoset) := _ProdEnum A B.
+HB.instance Definition _ (A B : EffPreOrder) := _ProdEnum A B.
 
-Definition _PreHasProdsEff := PreHasProds.Build EffPoset (fun A B => HB.pack (A*B)).
+Definition _PreHasProdsEff := PreHasProds.Build EffPreOrder (fun A B => HB.pack (A*B)).
 HB.instance Definition _ := _PreHasProdsEff.
 
 (** *** Coproduct *)
 
-Program Definition _SumEnum (A B:EffPoset) := IsEnum.Build (A+B) (esum enum enum) _.
+Program Definition _SumEnum (A B:EffPreOrder) := IsEnum.Build (A+B) (esum enum enum) _.
 Next Obligation.
   destruct x.
   - rewrite esum_leftP.
@@ -78,11 +82,11 @@ Next Obligation.
     apply enumP. 
 Qed.
 
-HB.instance Definition _ (A B : EffPoset) := _SumEnum A B.
+HB.instance Definition _ (A B : EffPreOrder) := _SumEnum A B.
 
 (** *** Lift *)
 
-Program Definition _LiftEnum (A : EffPoset) :=
+Program Definition _LiftEnum (A : EffPreOrder) :=
   IsEnum.Build (lift A) (eunion2 (single lift_bot) (image liftup enum)) _.
 Next Obligation.
   rewrite eunion2P imageP singleP.
@@ -94,14 +98,14 @@ Next Obligation.
   now apply: enumP.
 Qed.
 
-HB.instance Definition _ (A : EffPoset) := _LiftEnum A.
+HB.instance Definition _ (A : EffPreOrder) := _LiftEnum A.
 
-Definition _PreHasSumsEff := PreHasSums.Build EffPoset (fun A B => HB.pack (A+B)).
+Definition _PreHasSumsEff := PreHasSums.Build EffPreOrder (fun A B => HB.pack (A+B)).
 HB.instance Definition _ := _PreHasSumsEff.
 
 (** ** Semi-decidability of effective existentials *)
 
-Lemma semidec_eff (A:Type) (B : EffPoset) (P:A -> B -> Prop)
+Lemma semidec_eff (A:Type) (B : EffPreOrder) (P:A -> B -> Prop)
   `{forall a b, SemiDec (P a b)} a :
   SemiDec (ex (P a)).
 Proof.

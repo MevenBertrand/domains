@@ -31,14 +31,14 @@ Require Import utils.all categories.all preord sets finsets colsets effective di
 (**  A preorder is MUB complete if every bounded, h-inhabited finite
      set has a least upper bound below the given bound.
   *)
-Definition is_mub_complete hf (A:Poset) :=
+Definition is_mub_complete hf (A:PreOrder) :=
   forall (M:finset A) (x:A), inh hf M -> upper_bound x M ->
     exists mub:A, minimal_upper_bound mub M /\ mub ≤ x.
 
 (**  A set is MUB closed if it contains every MUB of every
      h-inhabited finite subset.
   *)
-Definition mub_closed hf {A:Poset} (X:finset A) :=
+Definition mub_closed hf {A:PreOrder} (X:finset A) :=
   forall M:finset A, inh hf M -> M ⊆ X ->
     forall x:A, minimal_upper_bound x M -> x ∈ X.
 
@@ -176,7 +176,7 @@ Qed.
      element is an upper bound or a minimal upper bound of a finite set.
   *)
 
-Instance upper_bound_dec {A : DecPoset} (M:finset A) (x:A) :
+Instance upper_bound_dec {A : DecPreOrd} (M:finset A) (x:A) :
   Decision (upper_bound x M).
 Proof.
   unfold upper_bound.
@@ -241,9 +241,11 @@ Section normal_mubs.
   Proof.
     destruct (decide (∃ y ∈ Q, upper_bound y X /\ y < x)) as [s|n].
     - right.
-      destruct s as (m&?&?&?).
+      destruct s as (m&?&?&Hlt).
       intros [_ Hlub].
-      now eapply lt_nle.
+      eapply lt_nle.
+      1: apply: Hlt.
+      now apply: Hlub.
     - assert (∀ y ∈ Q, upper_bound y X -> y ≤ x -> y = x) as Heq.
       {
        intros y ???.
@@ -551,6 +553,7 @@ HB.builders Context hf A of HasNormals hf A.
     cbn in *.
     now apply Hincl.
   Qed.
+  
   Fact norm_mub_clos_mub (M : finset A) : mub_closed hf (norm_closure M).
   Proof.
     intros M' Hinh Hincl ??.
@@ -588,7 +591,7 @@ HB.builders Context hf A of HasNormals hf A.
 
 HB.end.
 
-Lemma mub_componentwise (A B : Poset) (M : finset (A*B)) (a : A) (b : B) :
+Lemma mub_componentwise (A B : PreOrder) (M : finset (A*B)) (a : A) (b : B) :
   minimal_upper_bound (a,b) M <->
     (minimal_upper_bound a (image π₁ M)) /\ (minimal_upper_bound b (image π₂ M)).
 Proof.
@@ -647,7 +650,7 @@ Next Obligation.
       split; apply mub_clos_incl; auto.
       all: rewrite imageP /=.
       all: now eexists.
-    + change (is_mub_complete hf ((A :> Poset) × B)).
+    + change (is_mub_complete hf ((A :> PreOrder) × B)).
       red. intros M [a b] HMinh Hmub.
       destruct (mub_complete (image π₁ M) a) as (xA&?&?).
       1: now apply inh_image.
@@ -681,7 +684,7 @@ Qed.
 (**  The product of two effective Plotkin orders is Plotkin. *)
 HB.instance Definition _ hf A B := prod_has_normals hf A B.
 
-Lemma finsubset_le_left {A B : DecPoset} (a : A) (X : finset A) (Y : finset B) :
+Lemma finsubset_le_left {A B : DecPreOrd} (a : A) (X : finset A) (Y : finset B) :
   finsubset (ord^~ (inl a)) (finsum X Y) = image ι₁ (finsubset (ord^~ a) X).
 Proof.
   apply set_ext.
@@ -699,7 +702,7 @@ Proof.
       intros (?&?&[=]).
 Qed.
 
-Lemma finsubset_le_right {A B : DecPoset} (b : B) (X : finset A) (Y : finset B) :
+Lemma finsubset_le_right {A B : DecPreOrd} (b : B) (X : finset A) (Y : finset B) :
   finsubset (ord^~ (inr b)) (finsum X Y) = image ι₂ (finsubset (ord^~ b) Y).
 Proof.
   apply set_ext.
@@ -717,7 +720,7 @@ Proof.
     + now move => [? []] /finsubsetP [??] [= ?] ; subst.
 Qed.
 
-Lemma directed_fempty {A : Poset} : directed true (fempty :> finset A).
+Lemma directed_fempty {A : PreOrder} : directed true (fempty :> finset A).
 Proof.
   move => ? /= [? ?] /incl_fempty ?.
   subst.
@@ -812,10 +815,10 @@ HB.instance Definition _ hf A B := sum_has_normals hf A B.
 (**  Next we show that adding a new bottom element to an effective
      Plotkin order yields another Plotkin order.
   *)
-Program Definition unlift {A : Poset} : finset (lift A) -> finset A :=
+Program Definition unlift {A : PreOrder} : finset (lift A) -> finset A :=
  finfilter_map (fun (x : lift A) => x).
 
-Lemma unliftP {A : Poset} (X : finset (lift A)) (x : A) : x ∈ unlift X <-> (liftup x) ∈ X.
+Lemma unliftP {A : PreOrder} (X : finset (lift A)) (x : A) : x ∈ unlift X <-> (liftup x) ∈ X.
 Proof.
   rewrite /unlift finfilter_mapP /=.
   intuition eauto.

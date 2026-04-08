@@ -36,8 +36,8 @@ Delimit Scope set_scope with set.
        have yet to discover it.
   *)
 
-#[primitive] HB.mixin Record IsBaseSetTheory (set : Poset -> Poset) := {
-  member {A : Poset} : A -> set A -> Prop ;
+#[primitive] HB.mixin Record IsBaseSetTheory (set : PreOrder -> Poset) := {
+  member {A : PreOrder} : A -> set A -> Prop ;
   #[canonical=no]_set_leP T (X Y : set T) : X ≤ Y <-> (forall t, member t X -> member t Y) ;
   }.
 
@@ -49,14 +49,14 @@ Arguments member {set _} : simpl never, rename.
 Notation "x ∈ X" := (member x (X)%set) : set_scope.
 Notation "x ∉ X"  := (not (member x (X)%set)) : set_scope.
 
-Lemma set_leP {set : BaseSetTheory} (A : Poset) (X Y : set A) :
+Lemma set_leP {set : BaseSetTheory} (A : PreOrder) (X Y : set A) :
   X ≤ Y <-> (forall t : A, t ∈ X -> t ∈ Y).
 Proof.
   apply _set_leP.
 Qed.
 
 Lemma set_ext (set : BaseSetTheory)
-(A : Poset) (X Y : set A) :
+(A : PreOrder) (X Y : set A) :
   (forall t : A, t ∈ X <-> t ∈ Y) -> X = Y.
 Proof.
   intros * H.
@@ -69,13 +69,13 @@ Smpl Add (apply: set_ext) : extensionality.
 
 (** *** Set quantifiers *)
 
-Definition set_ex {set : BaseSetTheory} {A : Poset} (P : A -> Prop) (X : set A) :=
+Definition set_ex {set : BaseSetTheory} {A : PreOrder} (P : A -> Prop) (X : set A) :=
   exists x, x ∈ X /\ P x.
 
 Notation "∃ x ∈ M , P" := (set_ex (fun x => P) M)
   (at level 10, x binder, M at level 200, P at level 200) : type_scope.
 
-Definition set_all {set : BaseSetTheory} {A : Poset} (P : A -> Prop) (X : set A) :=
+Definition set_all {set : BaseSetTheory} {A : PreOrder} (P : A -> Prop) (X : set A) :=
   forall x, x ∈ X -> P x.
 
 Notation "∀ x ∈ M , P" := (set_all (fun x => P) M)
@@ -83,17 +83,17 @@ Notation "∀ x ∈ M , P" := (set_all (fun x => P) M)
 
 (** *** Inclusion *)
 
-Definition incl {set set' : BaseSetTheory} {A : Poset} (X : set A) (Y : set' A) :=
+Definition incl {set set' : BaseSetTheory} {A : PreOrder} (X : set A) (Y : set' A) :=
   ∀ a ∈ X, a ∈ Y.
 
 Notation "X ⊆ Y" := (incl (X)%set (Y)%set) : set_scope.
 
-Lemma le_incl {set : BaseSetTheory} {A : Poset} (X Y : set A) : X ≤ Y <-> X ⊆ Y.
+Lemma le_incl {set : BaseSetTheory} {A : PreOrder} (X Y : set A) : X ≤ Y <-> X ⊆ Y.
 Proof.
   by rewrite set_leP /incl.
 Qed.
 
-Instance incl_poset {set : BaseSetTheory} (A : Poset) :
+Instance incl_PreOrd {set : BaseSetTheory} (A : PreOrder) :
   RelationClasses.PreOrder (A := set A) incl.
 Proof.
   split.
@@ -104,14 +104,14 @@ Qed.
 (** We can always build a "canonical" set theory by using inclusion as the preorder *)
 
 Definition IsExtMem
-  (set : Poset -> Type)
-  (pmember : forall {A : Poset}, A -> set A -> Prop) : Prop := 
+  (set : PreOrder -> Type)
+  (pmember : forall {A : PreOrder}, A -> set A -> Prop) : Prop := 
   forall T (X Y : set T), (forall t, pmember t X <-> pmember t Y) -> X = Y.
 
 Program Definition promote_set
-  (set : Poset -> Type)
-  (pmember : forall {A : Poset}, A -> set A -> Prop)
-  : IsExtMem set (@pmember) -> (Poset -> Poset) :=
+  (set : PreOrder -> Type)
+  (pmember : forall {A : PreOrder}, A -> set A -> Prop)
+  : IsExtMem set (@pmember) -> (PreOrder -> Poset) :=
   fun Hset A =>
   {| poset.sort := (set A) |}.
 Next Obligation.
@@ -130,8 +130,8 @@ Next Obligation.
 Defined.
 
 Program Definition SetIncl
-  (set : Poset -> Type)
-  (pmember : forall {A : Poset}, A -> set A -> Prop)
+  (set : PreOrder -> Type)
+  (pmember : forall {A : PreOrder}, A -> set A -> Prop)
   (H : IsExtMem set (@pmember)) :=
   IsBaseSetTheory.Build (promote_set set (@pmember) H) (@pmember) ltac:(reflexivity).
 
@@ -139,9 +139,9 @@ Program Definition SetIncl
 
 #[primitive] HB.mixin Record IsPreSetTheory set of basesettheory set := {
   (* empty (A : Type) : set A ; *)
-  single {A : Poset} : A -> set A ;
-  image {A B : Poset} (f : A → B) : set A -> set B ;
-  union {A : Poset} : set (set A) -> set A ;
+  single {A : PreOrder} : A -> set A ;
+  image {A B : PreOrder} (f : A ⤳ B) : set A -> set B ;
+  union {A : PreOrder} : set (set A) -> set A ;
   }.
 
 #[short(type="PreSetTheory"),primitive]
@@ -159,20 +159,21 @@ Notation "∪ XS" := (union (XS)%set) : set_scope.
 #[primitive] HB.mixin Record IsSetTheory set of presettheory set :=
   {
     (* emptyP T (x : T) : (x ∈ empty (set := set)) <-> False ; *)
-    singleP (T : Poset) (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
-    imageP (A B : Poset) (f : A → B) (P : (set A)) (y : B) :
+    singleP (T : PreOrder) (a b : T) : (a ∈ single (set := set) b) <-> a = b ;
+    imageP (A B : PreOrder) (f : A ⤳ B) (P : (set A)) (y : B) :
       y ∈ (image f P) <-> exists x, x ∈ P /\ y = f x ;
-    unionP (T : Poset) (xs : set (set T)) (a : T) :
+    unionP (T : PreOrder) (xs : set (set T)) (a : T) :
       a ∈ (∪ xs) <-> exists x : (set T), x ∈ xs /\ a ∈ x
   }.
 
 #[short(type="SetTheory"),primitive]
 HB.structure Definition settheory :=
-  { set of basesettheory set & IsPreSetTheory set & IsSetTheory set }.
+  { set of basesettheory set & IsPreSetTheory set & IsSetTheory set}.
 
-Lemma image_compose (set : SetTheory) (A B C : Poset) (f:A → B) (g:B → C) (X: set A) (c:C) :
-  c ∈ (image (g ∘ f) X) <-> c ∈ (image g (image f X)).
+Lemma image_compose (set : SetTheory) (A B C : PreOrder) (f:A ⤳ B) (g:B ⤳ C) (X: set A) :
+  image (g ∘ f) X = image g (image f X).
 Proof.
+  ext.
   rewrite !imageP.
   split.
   - intros (x&[Hx ->]).
@@ -185,14 +186,14 @@ Proof.
     now exists x ; split.
 Qed.
 
-Lemma image_fun {set : SetTheory} {A B : Poset} (f:A → B) (X: set A) :
+Lemma image_fun {set : SetTheory} {A B : PreOrder} (f:A ⤳ B) (X: set A) :
   ∀ x ∈ X, f x ∈ image f X.
 Proof.
   intros ??.
   now rewrite !imageP.
 Qed.
 
-Lemma image_all {set : SetTheory} {A B : Poset} {P : B -> Prop} (f:A → B) (X: set A) :
+Lemma image_all {set : SetTheory} {A B : PreOrder} {P : B -> Prop} (f:A ⤳ B) (X: set A) :
   (∀ x ∈ image f X, P x) <-> ∀ x ∈ X, P (f x).
 Proof.
   rewrite /set_all.
@@ -201,7 +202,7 @@ Proof.
   now destruct H0 as (?&?&->).
 Qed.
 
-Lemma image_ex {set : SetTheory} {A B : Poset} {P : B -> Prop} (f:A → B) (X: set A) :
+Lemma image_ex {set : SetTheory} {A B : PreOrder} {P : B -> Prop} (f:A ⤳ B) (X: set A) :
   (∃ x ∈ image f X, P x) <-> ∃ x ∈ X, P (f x).
 Proof.
   rewrite /set_ex.
@@ -213,7 +214,7 @@ Proof.
     repeat (eexists ; tea).
 Qed.
 
-Lemma single_incl {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :
+Lemma single_incl {set set' : SetTheory} {A : PreOrder} (a : A) (X : set' A) :
   (single (set := set) a) ⊆ X <-> a ∈ X.
 Proof.
   rewrite /incl /set_all.
@@ -221,7 +222,7 @@ Proof.
   intuition (subst ; auto).
 Qed.
 
-Lemma incl_single {set set' : SetTheory} {A : Poset} (a : A) (X : set' A) :
+Lemma incl_single {set set' : SetTheory} {A : PreOrder} (a : A) (X : set' A) :
   X ⊆ (single (set := set) a) <-> forall x, x ∈ X -> x = a.
 Proof.
   rewrite /incl /set_all.
@@ -229,7 +230,7 @@ Proof.
   intuition (subst ; auto).
 Qed.
 
-Lemma image_incl {set set' : SetTheory} {A B : Poset} (X : set A) (Y : set' B) (f : A → B) :
+Lemma image_incl {set set' : SetTheory} {A B : PreOrder} (X : set A) (Y : set' B) (f : A ⤳ B) :
   image f X ⊆ Y <-> ∀ x ∈ X, (f x) ∈ Y.
 Proof.
   rewrite /incl /set_all.
@@ -256,36 +257,36 @@ Qed.
 
 (** ** General notions mixing order and set theory *)
 
-Definition lower_set {set : BaseSetTheory} {A : Poset} (X : set A) :=
+Definition lower_set {set : BaseSetTheory} {A : PreOrder} (X : set A) :=
   forall (a b:A), a ≤ b -> b ∈ X -> a ∈ X.
 
-Definition upper_set {set : BaseSetTheory} {A : Poset} (X : set A) :=
+Definition upper_set {set : BaseSetTheory} {A : PreOrder} (X : set A) :=
   forall (a b:A), a ≤ b -> a ∈ X -> b ∈ X.
 
-Definition upper_bound {set : BaseSetTheory} {A : Poset}
+Definition upper_bound {set : BaseSetTheory} {A : PreOrder}
   (ub:A) (X : set A) :=
   ∀ x ∈ X, x ≤ ub.
 
-Definition lower_bound {set : BaseSetTheory} {A : Poset}
+Definition lower_bound {set : BaseSetTheory} {A : PreOrder}
   (lb:A) (X : set A) :=
   ∀ x ∈ X, lb ≤ x.
 
-Definition minimal_upper_bound {set : BaseSetTheory} {A : Poset}
+Definition minimal_upper_bound {set : BaseSetTheory} {A : PreOrder}
   (mub:A) (X : set A) :=
   upper_bound mub X /\
   (forall b, upper_bound b X -> b ≤ mub -> mub ≤ b).
   
-Definition maximal_lower_bound {set : BaseSetTheory} {A : Poset}
+Definition maximal_lower_bound {set : BaseSetTheory} {A : PreOrder}
   (mlb:A) (X : set A) :=
   lower_bound mlb X /\
   (forall b, lower_bound b X -> mlb ≤ b -> b ≤ mlb).
 
-Definition least_upper_bound {set : BaseSetTheory} {A : Poset}
+Definition least_upper_bound {set : BaseSetTheory} {A : PreOrder}
   (lub:A) (X : set A) :=
   upper_bound lub X /\
   (forall b, upper_bound b X -> lub ≤ b).
 
-Definition greatest_lower_bound {set : BaseSetTheory} {A : Poset}
+Definition greatest_lower_bound {set : BaseSetTheory} {A : PreOrder}
   (glb:A) (X : set A) :=
   lower_bound glb X /\
   (forall b, lower_bound b X -> b ≤ glb).

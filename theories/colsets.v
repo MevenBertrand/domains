@@ -16,12 +16,12 @@ Require Import utils.all categories.all preord sets.
 
 Record color {set : SetTheory} :=
   Color
-  { color_prop : forall (A : Poset) (X : set A), Prop
-  ; color_single : forall (A : Poset) (a:A),
+  { color_prop : forall (A : PreOrder) (X : set A), Prop
+  ; color_single : forall (A : PreOrder) (a:A),
         color_prop A (single a)
-  ; color_image : forall (A B : Poset) (f:A → B) (X : set A),
+  ; color_image : forall (A B : PreOrder) (f:A ⤳ B) (X : set A),
         color_prop A X -> color_prop B (image f X)
-  ; color_union : forall (A : Poset) (XS:set (set A)),
+  ; color_union : forall (A : PreOrder) (XS:set (set A)),
         color_prop (set A) XS ->
         (forall X : (set A), X ∈ XS -> color_prop A X) ->
         color_prop A (∪XS)
@@ -73,14 +73,16 @@ Qed.
 Section ColoredSets.
   Context {set : SetTheory} (C:color set).
 
-  Lemma colored_ext : IsExtMem (fun A => { X : set A | color_prop C X }) (fun A a X => a ∈ sval X).
+  Lemma colored_ext : IsExtMem
+    (fun (A : PreOrder) => { X : set A | color_prop C X })
+    (fun A a X => a ∈ sval X).
   Proof.
     intros ? [X] [Y] ? ; cbn in *.
     enough (X = Y) as <- by (f_equal ; ext).
     now apply set_ext.
   Qed.
 
-  Definition colored_sets : Poset -> Poset :=
+  Definition colored_sets : PreOrder -> Poset :=
     promote_set (fun A => { X : set A | color_prop C X }) (fun A a X => a ∈ sval X) colored_ext.
 
   HB.instance Definition _ : IsBaseSetTheory.axioms_ colored_sets :=
@@ -88,12 +90,12 @@ Section ColoredSets.
 
   Definition csingle A a : colored_sets A := exist _ (single a) (color_single C A a).
 
-  Definition cimage (A B:Poset) (f:A → B) (X : colored_sets A) :=
+  Definition cimage (A B:PreOrder) (f:A ⤳ B) (X : colored_sets A) :=
     exist _ (image f (proj1_sig X))
             (color_image C A B f (proj1_sig X) (proj2_sig X)).
 
   Program Definition cunion
-    (A : Poset) (XS : colored_sets (colored_sets A)) : colored_sets A :=
+    (A : PreOrder) (XS : colored_sets (colored_sets A)) : colored_sets A :=
     exist (color_prop C) (∪ (image _ (projT1 XS))) _.
   Next Obligation.
     unshelve econstructor.
