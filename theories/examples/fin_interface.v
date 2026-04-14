@@ -8,7 +8,9 @@ Require Import utils.all categories.all preord sets finsets.
 
 Open Scope general_if_scope.
 
-(** ** The base carrier of a solution to the domain equation *)
+(** ** Interface for the type of finite domain elements *)
+
+(** *** The carrier and its basic operations *)
 
 Class DomainSupport : Type := {
   elt : DecPoset ; (** the type of finite domain elements *)
@@ -16,7 +18,7 @@ Class DomainSupport : Type := {
 
   (** Constructors for [elt] *)
   fbot : elt ;
-  funiv : nat -> elt ;
+  funiv : elt ;
   (*
   fnat : elt ;
   zero  : elt ;
@@ -24,14 +26,14 @@ Class DomainSupport : Type := {
   fpi : elt -> finfun -> elt ;
   fabs : finfun -> elt ;
 
-  (** Destructors for [finfun] *)
+  (** Destructor for [finfun] *)
   fapp : finfun -> Monotone elt elt ;
 
   (** there is some identification happening! *)
   fabs_eq (f : finfun) : (forall a, fapp f a = fbot) <-> fabs f = fbot
 }.
 
-(** ** Characterisation *)
+(** *** Characterisation *)
 
 (** The "other half" of a the structure: eliminator for [elt] and
   constructor for [finfun] *)
@@ -51,7 +53,7 @@ Arguments ValidFun {_} _.
 
 Variant elt_gen `{DomainSupport} : Type :=
   | gbot : elt_gen
-  | guniv (n : nat) : elt_gen
+  | guniv : elt_gen
   | gpi (a : elt) (b : finfun) : elt_gen
   | gabs (f : finfun) : (fabs f) <> fbot -> elt_gen.
 
@@ -60,7 +62,7 @@ Arguments gabs {_} f _.
 Definition mk_elt `{DomainSupport} (g : elt_gen) : elt :=
   match g with
   | gbot => fbot
-  | guniv n => funiv n
+  | guniv => funiv
   | gpi a b => fpi a b
   | gabs f _ => fabs f
   end.
@@ -74,6 +76,10 @@ Class DomainUniversal (D : DomainSupport) : Type := {
   (** constructor for [finfun] *)
   mk_finfun (f : finset (elt*elt)) `{ValidFun _ f} : finfun ;
 
+  (** characterisation of [finfun] *)
+  case_finfun : forall (f : finfun),
+    (exists f' (h : ValidFun f'), f = @mk_finfun f' h) ;
+
   (** characterisation of [app] *)
   mk_app (f : finset (elt*elt)) `{ValidFun _ f} (a : elt) :
     least_upper_bound
@@ -83,20 +89,24 @@ Class DomainUniversal (D : DomainSupport) : Type := {
 
 (** Because lubs are unique, [mk_app] uniquely characterises
   [fapp (mk_finfun f h) a]. However, since we do not
-  know that arbitrary lubs exist (although in this case they
-  actually do), we cannot write this as an equality, eg
+  know that arbitrary lubs exist in [elt] (although in this particular case
+  it does), we cannot write this as an equality, eg
   [fapp (mk_finfun f h) a = lub …], so it's easier to have an operation
   [fapp] + its characterisation *)
+
+(** Note that we cannot expose a [case_finfun] function of type
+  [finfun -> finset (elt*elt)] because this would not respect the quotient.
+  We can only assert that such a thing exists *)
 
 Arguments mk_finfun {D U} _ {_} : rename.
 Arguments mk_app {D U} f {_} a : rename.
 
 (* testing things are ok *)
-Lemma noconf_univ_pi `{DomainUniversal} n a b : (funiv n) <> (fpi a b).
+Lemma noconf_univ_pi `{DomainUniversal} a b : (funiv) <> (fpi a b).
 Proof.
   intros e.
-  enough (guniv n = gpi a b) by congruence.
-  rewrite -(mk_case (guniv n)) -(mk_case (gpi a b)) /= e //.
+  enough (guniv = gpi a b) by congruence.
+  rewrite -(mk_case (guniv)) -(mk_case (gpi a b)) /= e //.
 Qed.
 
 Lemma noconf_bot_abs `{DomainUniversal} f :
@@ -117,12 +127,12 @@ Proof.
   now rewrite finsubsetP.
 Qed.
 
-(** ** Characterising the order *)
+(** *** Characterising the order *)
 
 Definition gen_le `{DomainSupport} (e e' : elt_gen) : bool :=
   match e, e' with
   | gbot, _ => true
-  | guniv n, guniv n' => n =? n'
+  | guniv, guniv => true
   | gpi a b, gpi a' b' => decide (a ≤ a' /\ b ≤ b')
   | gabs f _, gabs f' _ => decide (f ≤ f')
   | _, _ => false
@@ -153,7 +163,18 @@ Proof.
     by apply mon_mon.
 Qed.
 
-(** ** Ranking *)
+Lemma finfun_ext `{DomainOrder} (f f' : finfun) : (forall a, fapp f a = fapp f' a) -> f = f'.
+Proof.
+  intros e.
+  apply ord_antisym.
+  all: apply finfun_leP ; intros.
+  1: now rewrite e.
+  now rewrite -e.
+Qed.
+
+Smpl Add (apply finfun_ext) : extensionality.
+
+(** *** Ranking *)
 
 (** The main thing to note is that the rank cannot be defined as a function,
   as this would violate the quotient: a "bad" representation of a domain element
@@ -169,13 +190,13 @@ Class DomainRanked (D : DomainSupport) (U : DomainUniversal D) (O : DomainOrder 
   all_ranked : forall (e : elt), exists (n : nat), ranked e n ;
   all_ranked_fun : forall (f : finfun), exists (n : nat), ranked_fun f n ;
 
-  (** ranking and the constructors *)
+  (** ranking for constructors and destructors *)
   ranked_bot (n : nat) : ranked fbot n ;
-  ranked_univ (m n : nat) : ranked (funiv m) (S n) ;
-  ranked_pi (a : elt) (b : finfun) n : ranked a n -> ranked_fun b n -> ranked (fpi a b) (S n) ;
-  ranked_abs (f : finfun) n : ranked_fun f n -> ranked (fabs f) (S n) ;
-  ranked_finfun (f : finset (elt*elt)) `{ValidFun _ f} n :
-    ∀ p ∈ f, (ranked p.1 n /\ ranked p.2 n) -> ranked_fun (mk_finfun f) (S n) ;
+  ranked_zero e : ranked e 0 -> e = fbot ;
+  ranked_univ (n : nat) : (exists m, n = S m) <-> ranked funiv n ;
+  ranked_pi (a : elt) (b : finfun) n : (ranked a n /\ ranked_fun b n) <-> ranked (fpi a b) (S n) ;
+  ranked_abs (f : finfun) n : fabs f <> fbot -> (ranked_fun f n) <-> ranked (fabs f) (S n) ;
+  ranked_app (f : finfun) u n : ranked_fun f n -> ranked (fapp f u) n ;
 
   (** ranking and the order *)
   ranked_incr e m n : ranked e m -> m ≤ n -> ranked e n ;
@@ -188,7 +209,6 @@ Class DomainRanked (D : DomainSupport) (U : DomainUniversal D) (O : DomainOrder 
     least_upper_bound f' fs -> (∀ f ∈ fs, ranked_fun f n) -> ranked_fun f' n ; 
 }.
 
-
 Class FullDomain : Type := {
   domain_support :> DomainSupport ;
   domain_universal :> DomainUniversal domain_support ;
@@ -200,3 +220,60 @@ Existing Instance domain_support.
 Existing Instance domain_universal.
 Existing Instance domain_order.
 Existing Instance domain_ranked.
+
+Lemma elt_weak_ind `{FullDomain} (P : elt -> Prop) (Pfun : finfun -> Prop) :
+  (P fbot) ->
+  (P funiv) ->
+  (forall a b, P a -> Pfun b -> P (fpi a b)) ->
+  (forall f, Pfun f -> P (fabs f)) ->
+  (forall (f : finset (elt*elt)) (h : ValidFun f), (∀ p ∈ f, (P p.1 /\ P p.2)) ->
+    Pfun (mk_finfun f)) ->
+  forall e, P e.
+Proof.
+  intros Hbot Huniv Hpi Habs Hfun.
+  enough (forall n, (forall e, ranked e n -> P e) /\ (forall f, ranked_fun f n -> Pfun f)) as Hind.
+  {
+   intros.
+   destruct (all_ranked e) as [].
+   now eapply Hind.
+  }
+  intros n.
+  induction n as [|n IH] using Nat.strong_induction_le.
+  - split.
+    + intros e ->%ranked_zero.
+      assumption.
+    + intros ? Ho.
+      destruct (decide (fabs f = fbot)) as [He|Hn].
+      * rewrite -fabs_eq in He.
+        assert (forall A, ValidFun (A := A) fempty)
+          by move => ? ? /femptyP //.
+        assert (f = mk_finfun fempty).
+        {
+          ext.
+          rewrite He.
+          apply ord_antisym.
+          - rewrite elt_leP.
+            enough (case_elt fbot = gbot) as -> by now cbn.
+            rewrite -(mk_case gbot) //=.
+          - apply mk_app ; cbn.
+            move => ? /imageP [? []] /finsubsetP [] /femptyP //.  
+        }
+        subst.
+        eapply Hfun.
+        move => ? /femptyP //.
+      * eapply ranked_abs in Hn.
+        apply Hn in Ho.
+  - rewrite -(case_mk e) in He |- *.
+    destruct (case_elt e) ; cbn.
+    + apply Hbot.
+    + apply Huniv.
+    + apply ranked_pi in He as (m&?&?&[= <-]).
+      apply Hpi.
+      * now eapply IH.
+      * eapply      
+    
+
+
+
+
+(** ** Typing *)
