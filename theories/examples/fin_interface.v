@@ -8,6 +8,12 @@ Require Import utils.all categories.all preord sets finsets.
 
 Open Scope general_if_scope.
 
+Lemma True_decide P `{Decision P} : decide P -> P.
+Proof.
+  intros Hdec.
+  by case_decide.
+Qed.
+
 Lemma neg_ex A (X : finset A) P `{! forall x, Decision (P x)} : ~ (∃ x ∈ X, P x) <-> (∀ x ∈ X, ~ P x).
 Proof.
   split.
@@ -50,6 +56,8 @@ Class DomainSupport : Type := {
   fabs_eq (f : finfun) : (forall a, fapp f a = fbot) <-> fabs f = fbot
 }.
 
+Notation fincode := (finset (elt*elt)).
+
 (** *** Characterisation *)
 
 (** The "other half" of a the structure: eliminator for [elt] and
@@ -91,14 +99,14 @@ Class DomainUniversal (D : DomainSupport) : Type := {
   case_mk : forall e, mk_elt (case_elt e) = e ;
 
   (** constructor for [finfun] *)
-  mk_finfun (f : finset (elt*elt)) `{ValidFun _ f} : finfun ;
+  mk_finfun (f : fincode) `{ValidFun _ f} : finfun ;
 
   (** characterisation of [finfun] *)
   case_finfun : forall (f : finfun),
     (exists f' (h : ValidFun f'), f = @mk_finfun f' h) ;
 
   (** characterisation of [app] *)
-  mk_app (f : finset (elt*elt)) `{ValidFun _ f} (a : elt) :
+  mk_app (f : fincode) `{ValidFun _ f} (a : elt) :
     least_upper_bound
       (fapp (@mk_finfun f _) a)
       (image π₂ (finsubset (fun p => (fst p) ≤ a) f))
@@ -112,13 +120,43 @@ Class DomainUniversal (D : DomainSupport) : Type := {
   [fapp] + its characterisation *)
 
 (** Note that we cannot expose a [case_finfun] function of type
-  [finfun -> finset (elt*elt)] because this would not respect the quotient.
+  [finfun -> fincode] because this would not respect the quotient.
   We can only assert that such a thing exists *)
 
 Arguments mk_finfun {D U} _ {_} : rename.
 Arguments mk_app {D U} f {_} a : rename.
 
-(* testing things are ok *)
+Lemma case_bot `{DomainUniversal} : case_elt fbot = gbot.
+Proof.
+  by rewrite -(mk_case gbot).
+Qed.
+
+Lemma case_univ `{DomainUniversal} : case_elt funiv = guniv.
+Proof.
+  by rewrite -(mk_case guniv).
+Qed.
+
+Lemma case_pi `{DomainUniversal} a b : case_elt (fpi a b) = gpi a b.
+Proof.
+  by rewrite -(mk_case (gpi _ _)).
+Qed.
+
+Lemma case_abs `{DomainUniversal} f (h : (fabs f) <> fbot) : case_elt (fabs f) = gabs f h.
+Proof.
+  by rewrite -(mk_case (gabs _ _)).
+Qed.
+
+Hint Rewrite @case_bot @case_univ @case_pi : elt.
+
+Lemma pi_inj `{DomainUniversal} a b a' b' :
+  (fpi a b) = (fpi a' b') ->
+  a = a' /\ b = b'.
+Proof.
+  intros e.
+  enough (gpi a b = gpi a' b') by (split ; congruence).
+  rewrite -(mk_case (gpi a b)) -(mk_case (gpi a' b')) /= e //.
+Qed.
+
 Lemma noconf_univ_pi `{DomainUniversal} a b : (funiv) <> (fpi a b).
 Proof.
   intros e.
@@ -126,13 +164,45 @@ Proof.
   rewrite -(mk_case (guniv)) -(mk_case (gpi a b)) /= e //.
 Qed.
 
-Lemma app_lt `{DomainUniversal} (f : finset (elt*elt)) `{ValidFun _ f} (p : elt*elt) :
-  p ∈ f -> p.2 ≤ fapp (mk_finfun f) p.1.
+Lemma noconf_univ_bot `{DomainUniversal} : (funiv) <> fbot.
 Proof.
-  intros Hin.
+  intros e.
+  enough (guniv = gbot) by congruence.
+  rewrite -(mk_case (guniv)) -(mk_case (gbot)) /= e //.
+Qed.
+
+Lemma noconf_pi_bot `{DomainUniversal} a b : (fpi a b) <> fbot.
+Proof.
+  intros e.
+  enough (gpi a b = gbot) by congruence.
+  rewrite -(mk_case (gpi a b)) -(mk_case (gbot)) /= e //.
+Qed.
+
+Lemma finfun_app `{DomainUniversal} (f : fincode) `{ValidFun _ f} :
+  ∀ p ∈ f, p.2 ≤ fapp (mk_finfun f) p.1.
+Proof.
+  intros p Hin.
   apply mk_app ; cbn.
   apply: (image_fun _ _ _ π₂).
   now rewrite finsubsetP.
+Qed.
+
+Lemma noconf_univ_abs `{DomainUniversal} f : funiv <> fabs f.
+Proof.
+  intros e.
+  destruct (decide (fabs f = fbot)) as [|h].
+  1: apply noconf_univ_bot ; now etransitivity.
+  enough (guniv = (gabs f h)) by congruence.
+  rewrite -(mk_case guniv) -(mk_case (gabs f h)) /= e //.
+Qed.
+
+Lemma noconf_pi_abs `{DomainUniversal} a b f : (fpi a b) <> fabs f.
+Proof.
+  intros e.
+  destruct (decide (fabs f = fbot)) as [|h].
+  1: eapply noconf_pi_bot ; now etransitivity.
+  enough ((gpi a b) = (gabs f h)) by congruence.
+  rewrite -(mk_case (gpi a b)) -(mk_case (gabs f h)) /= e //.
 Qed.
 
 (** *** Characterising the order *)
@@ -157,13 +227,51 @@ Proof.
   rewrite -/(mk_elt gbot) mk_case //=.
 Qed.
 
-Lemma eq_bot `{DomainOrder} (e : elt) : e ≤ fbot -> e = fbot.
+Lemma le_bot_inv `{DomainOrder} (e : elt) : e ≤ fbot -> e = fbot.
 Proof.
   intros. apply ord_antisym ; tea.
   apply bot_least.
 Qed.
 
-Lemma mk_finfun_leP `{DomainOrder} (f : finset (elt*elt)) `{ValidFun _ f} (f' : finfun) :
+Lemma le_univ_inv `{DomainOrder} (e : elt) : e ≤ funiv -> e = fbot \/ e = funiv.
+Proof.
+  intros hle%elt_leP.
+  autorewrite with elt in hle.
+  rewrite -(case_mk e).
+  destruct (case_elt e) ; cbn in * ; solve [done|easy].
+Qed.
+
+Lemma le_pi_inv `{DomainOrder} (e a : elt) (b : finfun) :
+  e ≤ (fpi a b) ->
+  e = fbot \/ exists a' b', e = fpi a' b' /\ a' ≤ a /\ b' ≤ b.
+Proof.
+  intros hle%elt_leP.
+  autorewrite with elt in hle.
+  rewrite -(case_mk e).
+  destruct (case_elt e) ; cbn in * ; try solve [easy|done].
+  apply True_decide in hle as [].
+  right.
+  now do 2 eexists.
+Qed.
+
+Lemma le_abs_inv `{DomainOrder} (e : elt) (f : finfun) :
+  e ≤ (fabs f) ->
+  e = fbot \/ e <> fbot /\ exists f', e = fabs f' /\ f' ≤ f.
+Proof.
+  intros hle.
+  destruct (decide ((fabs f) = fbot)) as [e'|].
+  - rewrite e' in hle.
+    now apply le_bot_inv in hle.
+  - apply elt_leP in hle.
+    rewrite case_abs in hle.
+    rewrite -(case_mk e).
+    destruct (case_elt e) ; cbn in * ; try solve [easy|done].
+    apply True_decide in hle.
+    right.
+    eauto.
+Qed.
+
+Lemma mk_finfun_le_inv `{DomainOrder} (f : fincode) `{ValidFun _ f} (f' : finfun) :
   (mk_finfun f ≤ f') <->
   (∀ p ∈ f, snd p ≤ fapp f' (fst p)).
 Proof.
@@ -171,9 +279,7 @@ Proof.
   - intros Hle p Hin.
     transitivity (fapp (mk_finfun f) p.1).
     2: by apply finfun_leP.
-    apply (mk_app f) ; cbn.
-    apply: (image_fun _ _ _ π₂).
-    now rewrite finsubsetP.
+    now apply finfun_app.
   - intros Hle.
     apply finfun_leP.
     intros a.
@@ -182,13 +288,6 @@ Proof.
     transitivity (fapp f' x'.1) ; auto.
     by apply mon_mon.
 Qed.
-
-Lemma finfun_app `{DomainOrder} (f : finset (elt*elt)) `{ValidFun _ f} :
-  (∀ p ∈ f, snd p ≤ fapp (mk_finfun f) (fst p)).
-Proof.
-  now rewrite -mk_finfun_leP.
-Qed.
-
 
 Lemma finfun_ext `{DomainOrder} (f f' : finfun) : (forall a, fapp f a = fapp f' a) -> f = f'.
 Proof.
@@ -210,7 +309,7 @@ Definition funbot `{DomainUniversal} : finfun := (mk_finfun fempty).
 
 Lemma app_funbot `{DomainOrder} a : fapp funbot a = fbot.
 Proof.
-  apply eq_bot, mk_app ; cbn.
+  apply le_bot_inv, mk_app ; cbn.
   move => ? /imageP [? []] /finsubsetP [] /femptyP //.
 Qed.  
 
@@ -224,16 +323,16 @@ Proof.
   intros Ho.
   ext.
   rewrite app_funbot.
-  now apply eq_bot.
+  now apply le_bot_inv.
 Qed.
 
-Lemma app_bot_mk_finfun `{DomainOrder} (f : finset (elt*elt)) `{ValidFun _ f} :
+Lemma app_bot_mk_finfun `{DomainOrder} (f : fincode) `{ValidFun _ f} :
   (∀ p ∈ f, p.2 = fbot) -> mk_finfun f = funbot.
 Proof.
   intros e.
   ext.
   rewrite app_funbot.
-  apply eq_bot, mk_app.
+  apply le_bot_inv, mk_app.
   move => ? /imageP /= [x' []] /finsubsetP [? ?] ? ; subst.
   now rewrite e.
 Qed.
@@ -247,13 +346,13 @@ Proof.
   destruct (case_finfun f) as (f'&?&->).
   apply app_bot_mk_finfun.
   intros p Hin.
-  apply eq_bot.
+  apply le_bot_inv.
   etransitivity.
   1: now apply finfun_app.
   now rewrite e.
 Qed.
 
-Lemma noconf_bot `{DomainOrder} f :
+Lemma noconf_funbot `{DomainOrder} f :
   (exists a, fapp f a <> fbot) <-> f <> funbot.
 Proof.
   transitivity (~ (forall a, fapp f a = fbot)).
@@ -269,16 +368,16 @@ Proof.
   rewrite neg_ex_neg in Hn.
   eapply Hall, app_bot_equiv, app_bot_mk_finfun.
   intros p Hin ; cbn -[prod_projl] in *.
-  apply eq_bot.
+  apply le_bot_inv.
   erewrite <- Hn.
   1: now apply finfun_app.
   now apply: (image_fun _ _ _ π₁).
 Qed.
 
-Lemma noconf_bot_abs `{DomainOrder} f :
+Lemma noconf_abs_bot `{DomainOrder} f :
   (exists a, fapp f a <> fbot) <-> (fabs f) <> fbot.
 Proof.
-  rewrite noconf_bot.
+  rewrite noconf_funbot.
   apply not_iff_compat.
   by rewrite -fabs_eq -app_bot_equiv.
 Qed.
@@ -346,7 +445,7 @@ Lemma elt_weak_ind `{FullDomain} (P : elt -> Prop) (Pfun : finfun -> Prop) :
   (P funiv) ->
   (forall a b, P a -> Pfun b -> P (fpi a b)) ->
   (forall f, Pfun f -> P (fabs f)) ->
-  (forall (f : finset (elt*elt)) (h : ValidFun f), (∀ p ∈ f, P p.2) ->
+  (forall (f : fincode) (h : ValidFun f), (∀ p ∈ f, P p.2) ->
     Pfun (mk_finfun f)) ->
   forall e, P e.
 Proof.
@@ -387,4 +486,207 @@ Proof.
       now eapply IHfun.
 Qed.
 
+(** A variant, which gives an IH for the values of a [finfun] at any input *)
+Lemma elt_weak_ind' `{FullDomain} (P : elt -> Prop) (Pfun : finfun -> Prop) :
+  (P fbot) ->
+  (P funiv) ->
+  (forall a b, P a -> Pfun b -> P (fpi a b)) ->
+  (forall f, Pfun f -> P (fabs f)) ->
+  (forall (f : finfun), (forall a, P (fapp f a)) -> Pfun f) ->
+  forall e, P e.
+Proof.
+  intros Hbot Huniv Hpi Habs Hfun.
+  assert (forall n f, ranked_fun f n -> (forall e (m : nat), m ≤ n -> ranked e m -> P e) -> Pfun f)
+    as IHfun.
+  {
+    intros n f Hf IH.
+    apply Hfun.
+    intros a.
+    eapply IH.
+    1: reflexivity.
+    by apply ranked_app.
+  }
+  enough (forall n e, ranked e n -> P e) as Hind.
+  {
+   intros.
+   destruct (all_ranked e) as [].
+   now eapply Hind.
+  }
+  intros n e He.
+  induction n as [|n IH] using Nat.strong_induction_le in e, He |- *.
+  - apply ranked_zero in He as ->.
+    assumption.
+  - rewrite -(case_mk e) in He |- *.
+    destruct (case_elt e) ; cbn in *.
+    + apply Hbot.
+    + apply Huniv.
+    + apply ranked_pi in He as [].
+      apply Hpi.
+      1: now eapply IH.
+      now eapply IHfun.
+    + apply ranked_abs in He ; tea.
+      apply Habs.
+      now eapply IHfun.
+Qed.
+
+Inductive ind_le `{DomainSupport} : elt -> elt -> Prop :=
+  | bot_le e : ind_le fbot e
+  | univ_le : ind_le funiv funiv
+  | pi_le a a' b b' :
+      ind_le a a' ->
+      (forall x, ind_le (fapp b x) (fapp b' x)) ->
+      ind_le (fpi a b) (fpi a' b')
+  | abs_le f f' : (forall x, ind_le (fapp f x) (fapp f' x)) -> ind_le (fabs f) (fabs f').
+
+Lemma le_ind_le `{FullDomain} e e' : e ≤ e' -> ind_le e e'.
+Proof.
+  revert e'.
+  pattern e.
+  unshelve eapply elt_weak_ind'.
+  1: exact (fun f => forall f', f ≤ f' -> forall x, ind_le (fapp f x) (fapp f' x)).
+  - constructor.
+  - move => e' /elt_leP /= Hle.
+    autorewrite with elt in Hle ; cbn in Hle.
+    rewrite -(case_mk e').
+    destruct (case_elt e') ; cbn ; try done.
+    constructor.
+  - move => ?? IH IH' e' /elt_leP Hle.
+    autorewrite with elt in Hle ; cbn in Hle.
+    rewrite -(case_mk e').
+    destruct (case_elt e') ; cbn ; try done.
+    apply True_decide in Hle as [].
+    now constructor.
+  - move => f IH e' /elt_leP Hle.
+    destruct (decide (fabs f = fbot)) as [->|].
+    1: now constructor.
+    unshelve erewrite case_abs in Hle => //.
+    rewrite /= in Hle.
+    rewrite -(case_mk e').
+    destruct (case_elt e') ; cbn ; try done.
+    apply True_decide in Hle.
+    now constructor.
+  - cbn ; intros f IH ? Hle ?.
+    by apply IH, finfun_leP.
+Qed.
+
 (** ** Typing *)
+
+Reserved Notation "'⊢' t '::' T" (at level 101, t at level 59).
+
+Inductive fin_typing `{FullDomain} : elt -> elt -> Prop :=
+  | Tbot A : ⊢ fbot :: A
+  
+  | TUniv : ⊢ funiv :: funiv
+  
+  | TPi (a : elt) (b : fincode) `{ValidFun _ b} :
+    (∀ p ∈ b, (⊢ p.1 :: a) /\ (⊢ p.2 :: funiv)) ->
+    ⊢ fpi a (mk_finfun b) :: funiv
+
+  | TAbs (a : elt) (b : finfun) (f : fincode) `{ValidFun _ f} :
+    (∀ p ∈ f, (⊢ p.1 :: a) /\ (⊢ p.2 :: fapp b p.1)) ->
+    ⊢ fabs (mk_finfun f) :: fpi a b
+
+  where "'⊢' t '::' A" := (fin_typing A t).
+
+
+Lemma typing_bot_inv `{FullDomain} u :
+  (⊢ u :: fbot) -> u = fbot.
+Proof.
+  intros Hty.
+  inversion Hty ; subst ; cbn.
+  all: try reflexivity.
+  all: exfalso.
+  - by apply noconf_univ_bot.
+  - now eapply noconf_pi_bot.
+Qed.
+
+Lemma typing_univ_inv `{FullDomain} u :
+  (⊢ u :: funiv) ->
+  (u = fbot) \/ (u = funiv) \/
+    exists (a : elt) (b : fincode) (h : ValidFun b),
+      u = fpi a (mk_finfun b) /\
+      (∀ p ∈ b, (⊢ p.1 :: a) /\ (⊢ p.2 :: funiv)).
+Proof.
+  intros Hty ; inversion Hty ; try easy.
+  - subst.
+    right ; right ; eauto.
+  - exfalso.
+    now eapply noconf_univ_pi.
+Qed. 
+
+Lemma typing_pi_inv `{FullDomain} u a b :
+  (⊢ u :: fpi a b) ->
+  exists (f : fincode) (h : ValidFun f),
+    u = (fabs (mk_finfun f)) /\
+    (∀ p ∈ f, (⊢ p.1 :: a) /\ (⊢ p.2 :: fapp b p.1)).
+Proof.
+  intros Hty.
+  inversion Hty ; subst ; cbn.
+  - eexists fempty, _.
+    split.
+    1: by rewrite abs_funbot.
+    move => ? /femptyP //.
+  - exfalso.
+    now eapply noconf_univ_pi.
+  - exfalso.
+    now eapply noconf_univ_pi.
+  - eapply pi_inj in H1 as [-> ->].
+    eauto.
+Qed.
+
+Lemma typing_abs_inv `{FullDomain} u f :
+  (⊢ u :: fabs f) ->
+  u = fbot.
+Proof.
+  intros Hty.
+  inversion Hty ; subst ; cbn ; try easy.
+  - exfalso.
+    now eapply noconf_univ_abs.
+  - exfalso.
+    now eapply noconf_univ_abs.
+  - exfalso.
+    now eapply noconf_pi_abs.
+Qed.
+
+Lemma typing_incr `{FullDomain} u a b :
+  a ≤ b ->
+  (⊢ u :: a) ->
+  (⊢ u :: b).
+Proof.
+  intros h%le_ind_le h'.
+  induction h in h', u |- *.
+  - apply typing_bot_inv in h' ; subst.
+    constructor.
+  - apply typing_univ_inv in h' as [->|[->|(?&?&?&->&?)]].
+    all: now constructor.
+  - apply typing_pi_inv in h' as (f&?&?&Hf) ; subst.
+    constructor.
+    move => p Hin.
+    specialize (Hf _ Hin) as [Ha Hb] ; cbn in *.
+    eauto.
+  - apply typing_abs_inv in h' ; subst.
+    constructor.
+Qed.
+
+Lemma typing_lub `{FullDomain} (us : finset elt) (v : elt) (a : elt) :
+  least_upper_bound v us ->
+  (∀ u ∈ us, ⊢ u :: a) ->
+  ⊢ v :: a.
+Proof.
+Admitted.
+
+Lemma typing_app `{FullDomain} (w u a : elt) (b : finfun) :
+  (⊢ w :: fpi a b) ->
+  (⊢ u :: a) ->
+  exists w', w = fabs w' /\ (⊢ fapp w' u :: fapp b u).
+Proof.
+  move => /typing_pi_inv [f [h []]] ? ; subst.
+  move => Hf Hu.
+  eexists ; split ; [reflexivity|].
+  eapply typing_lub.
+  1: now apply mk_app.
+  move => ? /imageP /= [p []] /finsubsetP [Hin ?] ? ; subst.
+  specialize (Hf _ Hin) as [].
+  eapply typing_incr ; tea.
+  now apply mon_mon.
+Qed.
