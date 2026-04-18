@@ -2475,31 +2475,28 @@ Proof.
            (* L1: k[ui] <= v   
               L2: h     <= k  *)
 
-           destruct (valid_app_compatible Vh Vu) as 
-             [e1 [A1 [Ve1 CC1]]].
+           destruct (valid_app_exists Vh Vu) as 
+             [e1 [A1 Ve1]].
            rewrite A1 in EQ.
            move: (rk_app A1) => Re.
 
-           destruct (valid_app_compatible Vk Vu) as 
-             [e3 [A3 [Ve2 _]]]. rewrite A2 in A3. 
-           inversion A3. subst e3. clear A3.
+           have Vw2: valid w2. eapply (valid_app (f:= k) (u:=u)); eauto.
 
-           destruct (valid_app_compatible Vk Vui) as 
-             [e4 [A4 [Ve4 _]]]. rewrite A4 in L1.
-
+           destruct (app k ui) eqn:A4. 2: done.
+           have Ve4: valid e. eapply (valid_app(f:=k)(u:=ui)); eauto.
            move: (rk_app A4) => Re4.
 
-           destruct (valid_app_cons_compatible Leui Vf) as
-             [e5 [A5 [Ve5 _]]].
+           destruct (valid_app_exists(f:=(ui,vi)::h)(u:=ui)) as
+             [e5 [A5 Ve5]]; eauto.
 
            have L3: le e1 w2.
            { eapply (IHh k u); eauto. lia. } 
 
-           have L4: le e4 w2.
+           have L4: le e w2.
            { eapply (le_fun_mono_arg k ui u); eauto. lia. }
 
            have L5: le vi w2.
-           { eapply (le_trans (ih _ RK)(v:=e4)); eauto. lia. } 
+           { eapply (le_trans (ih _ RK)(v:=e)); eauto. lia. } 
 
            eapply (le_sup_lub (ih _ RK) L5 L3); eauto.
 
@@ -2606,6 +2603,7 @@ Proof.
        - move: h1 => /andP [h1 Lgh]. 
          have Vu: valid u. eauto using key_valid, valid_fun_head.
          have Vv: valid v. eauto using val_valid, valid_fun_head.
+         cbn in RK.
          apply /andP. split.
          + clear IHg Lgh.
            (* use le_trans for u,v *)
@@ -2613,38 +2611,15 @@ Proof.
            rewrite Ahu in h1. 
            destruct (valid_app_compatible Vk Vu) as [wk [Aku [Vwk Cwk]]].
            rewrite Aku.
-           have: le wh wk.
-           { unfold le_fun in h2.
-             move: h2 => /forallb_forall h2. 
-           specialize (h2 
-           have h3: le u u. eapply le_refl; eauto. cbn. lia.
-           destruct (valid_app_cons_compatible h3 Vug) as
-             [wg' [Agu [Vwg' Cwg']]]. clear h3.
-           destruct (compatible_lub_exists Cwg') as [wg EQ].
-           move: (rk_app Agu) => RKwg.
-           move: (@le_lub_right _ (ih _ RK) wg' v ltac:(cbn;lia)
-                     Cwg' _ EQ ltac:(eauto) ltac:(auto)) => LE.
-
-         + destruct (~~ is_nil g) eqn:Nf.
-           (* use ih for g for tail of list *) 
-           have Vg: valid_fun g. eauto using valid_fun_tail.
-           cbn in RK. specialize (IHg h k ltac:(lia) Vg Vh Vk Lgh h2).
-           clear Lgh h2.
-           apply /andP; split; auto.
-         
-
-      apply /forallb_forall. move=> [ui vi] Inf.
-      specialize (h1 _ Inf). cbn in h1.
-      destruct (app g ui) eqn:EQg; try done.
-
-      have Vui: valid ui. {
-        move: Vf => /andP [_ /forallb_forall Vf].
-        specialize (Vf _ Inf). cbn in Vf.
-        move: Vf => /andP [Vu Vv]. done.
-      }
-      move: (valid_app_exists Vh Vui) => [w [EQ Vw]].
-      rewrite EQ.
-      admit.
+           move: (rk_app Ahu) => Rwh.
+           move: (rk_app Aku) => Rwk.
+           have LEw: le wh wk.
+           { eapply (le_fun_mono h k u); eauto. lia. } 
+           eapply (@le_trans _ (ih _ RK) v wh wk); eauto. lia.
+         + destruct (~~ is_nil g) eqn:Ng.
+           ++ eapply (IHg h k); eauto. lia.
+              eauto using valid_fun_tail. 
+           ++ destruct g; try done.
      } 
 
   constructor.
