@@ -2401,7 +2401,7 @@ EvalFun-mon : (h k : FinFun) (u : FinEl) ->
     LeFunCode h k -> LeCode (EvalFun h u) (EvalFun k u)
 
  -- Sup is LUB: a ≤ c and b ≤ c implies Sup a b ≤ c
-LeCode-Sup-lub : (a b c : FinEl) -> LeCode a c -> LeCode b c ->
+** LeCode-Sup-lub : (a b c : FinEl) -> LeCode a c -> LeCode b c ->
     LeCode (Sup a b) c
 LeFunCode-append-combine : (g h k : FinFun) ->
     LeFunCode g k -> LeFunCode h k -> LeFunCode (append g h) k
@@ -2427,6 +2427,10 @@ Record OrderTheoreticLemmas k := MkLemmas {
   le_trans : forall u v w, max (rk u) (rk v) <= k -> 
      valid u -> valid v -> valid w -> le u v -> le v w -> le u w ;
 
+  (* lub is the Least Upper Bound *)
+  le_sup_lub : forall u v w1 w2, le u w2 -> le v w2 -> lub u v = Some w1 ->
+                            le w1 w2
+
 }.
 
 
@@ -2434,7 +2438,92 @@ Lemma OTLs : forall k, OrderTheoreticLemmas k.
 Proof.
   elim /strong_ind.
   move=> m ih.
-  
+
+  have le_fun_mono_arg:
+    forall h u1 u2, (max (max (rk_fun h) (rk u1)) (rk u2) < m)%nat -> 
+           valid_fun h -> valid u1 -> valid u2 ->
+           forall w1 w2, app h u1 = Some w1 -> app h u2 = Some w2 -> 
+                    le w1 w2.
+  { admit. }
+
+
+  have le_fun_mono : 
+    forall h k u, (max (max (rk_fun h) (rk_fun k)) (rk u) < m)%nat -> 
+           valid_fun h -> valid_fun k -> 
+           le_fun h k -> valid u ->  
+           forall w1 w2, app h u = Some w1 -> app k u = Some w2 -> 
+                    le w1 w2.
+  { 
+    induction h as [|[ui vi]h].
+    all: move=> k u RK Vf Vk LE Vu w1 w2 EQ A2.
+    - inversion EQ. done.
+    - rewrite app_spec in EQ. cbn in EQ. rewrite <- app_spec in EQ.
+      cbn in RK. move: (rk_app A2) => Rw2.
+      have Leu: le u u. { eapply le_refl. eapply (ih _ RK). lia. eauto. }
+      have Leui: le ui ui. { eapply le_refl. eapply (ih _ RK). lia.
+             eauto using key_valid, valid_fun_head. }
+
+      destruct (compatible ui u && le ui u) eqn:LEui.
+      + move: LEui => /andP [Cui LEui].
+        have Vui: valid ui. eauto using valid_fun_head, key_valid.
+        have Vvi: valid vi. eauto using valid_fun_head, val_valid.
+
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ have Vh: valid_fun h. eauto using valid_fun_tail.
+
+           move: LE => /andP [L1 L2]. cbn in RK.
+           (* L1: k[ui] <= v   
+              L2: h     <= k  *)
+
+           destruct (valid_app_compatible Vh Vu) as 
+             [e1 [A1 [Ve1 CC1]]].
+           rewrite A1 in EQ.
+           move: (rk_app A1) => Re.
+
+           destruct (valid_app_compatible Vk Vu) as 
+             [e3 [A3 [Ve2 _]]]. rewrite A2 in A3. 
+           inversion A3. subst e3. clear A3.
+
+           destruct (valid_app_compatible Vk Vui) as 
+             [e4 [A4 [Ve4 _]]]. rewrite A4 in L1.
+
+           move: (rk_app A4) => Re4.
+
+           destruct (valid_app_cons_compatible Leui Vf) as
+             [e5 [A5 [Ve5 _]]].
+
+           have L3: le e1 w2.
+           { eapply (IHh k u); eauto. lia. } 
+
+           have L4: le e4 w2.
+           { eapply (le_fun_mono_arg k ui u); eauto. lia. }
+
+           have L5: le vi w2.
+           { eapply (le_trans (ih _ RK)(v:=e4)); eauto. lia. } 
+
+           eapply (le_sup_lub (ih _ RK) L5 L3); eauto.
+
+        ++ destruct h; try done.
+           cbn in EQ. inversion EQ. clear EQ. 
+           rewrite lub_bot_r in H0. inversion H0. subst. clear H0.
+           cbn in LE. destruct (app k ui) eqn:A1. 2: done.
+           move: LE => /andP [L1 _].
+           have L2: le e w2.
+           { eapply (le_fun_mono_arg k ui u); eauto. lia. } 
+
+           move: (rk_app A1) => Re.
+           move: (le_trans (ih _ RK)(u:=w1)(v:=e)(w:=w2)) => h. 
+           eapply h; eauto using valid_app. lia.
+
+      + destruct (~~ is_nil h) eqn:Nh.
+        ++ eapply IHh; eauto.        
+           cbn in RK; lia.
+           eauto using valid_fun_tail.
+           cbn in LE. move: LE => /andP [_ LE]. eapply LE.
+        ++ destruct h; try done.
+           inversion EQ. eapply le_bot.
+  }
+
   have le_fun_cons_right : 
     forall f u v, (max (rk_fun f) (max (rk u) (rk v)) < m)%nat ->
            valid_fun f -> valid u -> valid v 
@@ -2507,11 +2596,43 @@ Proof.
   }
 
   have le_fun_trans : 
-    forall f g h, (max (rk_fun f) (rk_fun g) < m)%nat -> 
-             valid_fun f -> valid_fun g -> valid_fun h ->
-             le_fun f g -> le_fun g h -> le_fun f h.
+    forall g h k, (max (max (rk_fun g) (rk_fun h)) (rk_fun k) < m)%nat -> 
+             valid_fun g -> valid_fun h -> valid_fun k ->
+             le_fun g h -> le_fun h k -> le_fun g k.
      { 
-      move=> f g h M Vf Vg Vh /forallb_forall h1 /forallb_forall h2.
+       induction g as [|[u v]g].
+       all: move=>h k RK Vug Vh Vk h1 h2.
+       - done.
+       - move: h1 => /andP [h1 Lgh]. 
+         have Vu: valid u. eauto using key_valid, valid_fun_head.
+         have Vv: valid v. eauto using val_valid, valid_fun_head.
+         apply /andP. split.
+         + clear IHg Lgh.
+           (* use le_trans for u,v *)
+           destruct (valid_app_compatible Vh Vu) as [wh [Ahu [Vwh Cwh]]].
+           rewrite Ahu in h1. 
+           destruct (valid_app_compatible Vk Vu) as [wk [Aku [Vwk Cwk]]].
+           rewrite Aku.
+           have: le wh wk.
+           { unfold le_fun in h2.
+             move: h2 => /forallb_forall h2. 
+           specialize (h2 
+           have h3: le u u. eapply le_refl; eauto. cbn. lia.
+           destruct (valid_app_cons_compatible h3 Vug) as
+             [wg' [Agu [Vwg' Cwg']]]. clear h3.
+           destruct (compatible_lub_exists Cwg') as [wg EQ].
+           move: (rk_app Agu) => RKwg.
+           move: (@le_lub_right _ (ih _ RK) wg' v ltac:(cbn;lia)
+                     Cwg' _ EQ ltac:(eauto) ltac:(auto)) => LE.
+
+         + destruct (~~ is_nil g) eqn:Nf.
+           (* use ih for g for tail of list *) 
+           have Vg: valid_fun g. eauto using valid_fun_tail.
+           cbn in RK. specialize (IHg h k ltac:(lia) Vg Vh Vk Lgh h2).
+           clear Lgh h2.
+           apply /andP; split; auto.
+         
+
       apply /forallb_forall. move=> [ui vi] Inf.
       specialize (h1 _ Inf). cbn in h1.
       destruct (app g ui) eqn:EQg; try done.
