@@ -2391,12 +2391,12 @@ LeCode-Sup-right : (a b : FinEl) -> Comp a b -> Coherent a -> Coherent b ->
     LeCode b (Sup a b)
 * LeCode-trans : (x y z : FinEl) -> Coherent x -> Coherent y -> Coherent z ->
     LeCode x y -> LeCode y z -> LeCode x z
-LeFunCode-trans : (g h k : FinFun) ->
+** LeFunCode-trans : (g h k : FinFun) ->
     CoherentFunTail g -> CoherentFunTail h -> CoherentFunTail k ->
     LeFunCode g h -> LeFunCode h k -> LeFunCode g k
 LeFunCode-nil-any : (g k : FinFun) ->
     CoherentFunTail g -> CoherentFunTail k -> LeFunCode g nil -> LeFunCode g k
-EvalFun-mon : (h k : FinFun) (u : FinEl) ->
+** EvalFun-mon : (h k : FinFun) (u : FinEl) ->
     CoherentFunTail h -> CoherentFunTail k -> Coherent u ->
     LeFunCode h k -> LeCode (EvalFun h u) (EvalFun k u)
 
@@ -2424,7 +2424,7 @@ Record OrderTheoreticLemmas k := MkLemmas {
      compatible a b -> forall w, lub a b = Some w -> 
      valid a -> valid b -> le b w ;
 
-  le_trans : forall u v w, max (rk u) (rk v) <= k -> 
+  le_trans : forall u v w, max (max (rk u) (rk v)) (rk w) <= k -> 
      valid u -> valid v -> valid w -> le u v -> le v w -> le u w ;
 
   (* lub is the Least Upper Bound *)
@@ -2692,6 +2692,30 @@ Proof.
     admit.
 
   - (* le_trans *)
+    move=> u v w RK Vu Vv Vw L1 L2.
+    destruct u; destruct v; destruct w;
+      try solve [cbn in L1; cbn in L2; done].
+    + apply Nat.eqb_eq in L1.
+      apply Nat.eqb_eq in L2.
+      subst. cbn. eapply Nat.eqb_eq. done.
+    + rewrite le_succ. rewrite -> le_succ in L1, L2. 
+      cbn in RK.
+      eapply (@le_trans _ (ih _ RK) u v w); eauto.
+    + rewrite le_tpi.  rewrite -> le_tpi in L1, L2. 
+      cbn in RK. fold rk_fun in RK. 
+      move: Vu => /andP [Vu Vl]. 
+      move: Vv => /andP [Vv Vl0]. 
+      move: Vw => /andP [Vw Vl1].
+      move: L1 => /andP [Luv Lll0].
+      move: L2 => /andP [Lvw Ll0l1].
+      apply /andP. split.
+      eapply (@le_trans _ (ih _ RK) u v w); eauto. lia.
+      eapply (@le_fun_trans l l0 l1); eauto. lia.
+    + rewrite le_abs. rewrite -> le_abs in L1, L2.
+      cbn in RK. fold rk_fun in RK.
+      eapply (@le_fun_trans l l0 l1); eauto.
+ 
+  - (* le_sup_lub *)
     admit.
 
 Admitted.
