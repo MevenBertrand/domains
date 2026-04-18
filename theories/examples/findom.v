@@ -2382,6 +2382,8 @@ Qed.
 --
 *)
 
+Module OTL.
+
 (* 
 *LeCode-refl : (a : FinEl) -> Coherent a -> LeCode a a
 **LeFunCode-refl : (g : FinFun) -> CoherentFunTail g -> LeFunCode g g
@@ -2428,8 +2430,9 @@ Record OrderTheoreticLemmas k := MkLemmas {
      valid u -> valid v -> valid w -> le u v -> le v w -> le u w ;
 
   (* lub is the Least Upper Bound *)
-  le_sup_lub : forall u v w1 w2, le u w2 -> le v w2 -> lub u v = Some w1 ->
-                            le w1 w2
+  le_sup_lub : forall u v w1 w2, 
+      max (max (rk u) (rk v)) (rk w1) <= k ->
+      le u w2 -> le v w2 -> lub u v = Some w1 -> le w1 w2
 
 }.
 
@@ -2441,11 +2444,74 @@ Proof.
 
   have le_fun_mono_arg:
     forall h u1 u2, (max (max (rk_fun h) (rk u1)) (rk u2) < m)%nat -> 
-           valid_fun h -> valid u1 -> valid u2 ->
+           valid_fun h -> valid u1 -> valid u2 -> 
+           compatible u1 u2 -> le u1 u2 ->
            forall w1 w2, app h u1 = Some w1 -> app h u2 = Some w2 -> 
-                    le w1 w2.
-  { admit. }
-
+                    compatible w1 w2 /\ le w1 w2.
+  { induction h as [|[u v]h].
+    all: move=> u1 u2 RK Vh Vu1 Vu2 Cu Lu w1 w2 A1 A2.
+    - cbn in *. inversion A1. inversion A2. subst. split; done.
+    - rewrite -> app_spec in A1, A2. cbn in A1, A2.
+      rewrite <- app_spec in A1, A2.
+      cbn in RK.
+      destruct (compatible u u1 && le u u1) eqn:Lu1;
+        [move: Lu1 => /andP [Cu1 Lu1]|
+        rewrite Bool.andb_false_iff in Lu1].
+      all: destruct (app h u1) eqn:E1; try done.
+      all: move: (rk_app E1) => Ru1.
+      all: destruct (compatible u u2 && le u u2) eqn:Lu2;
+           [move: Lu2 => /andP [Cu2 Lu2]|
+            rewrite Bool.andb_false_iff in Lu2].
+      all: destruct (app h u2) eqn:E2; try done.
+      all: move: (rk_app E2) => Ru2.
+      + admit. (* both contribute *)
+      + have Lu3 : le u u2.  (* only second, a contradiction *)
+        { eapply (@le_trans _ (ih _ RK) u u1 u2); 
+          eauto using key_valid, valid_fun_head. lia. }
+        have Cu3 : compatible u u2.
+        { eapply comp_down; eauto. eapply compatible_refl; eauto. }
+        rewrite Cu3 in Lu2. rewrite Lu3 in Lu2.
+        destruct Lu2; done.
+      + (* only the first, ok *)
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ inversion A1; subst. clear A1.
+           have Vt: valid_fun h. 
+           { eauto using valid_fun_tail, val_valid. }
+           have Ve0: valid e0.
+           { eauto using (@valid_app h u2). } 
+           have [Ce0 Le0]: compatible w1 e0 /\ le w1 e0.
+           { eapply (IHh u1 u2); eauto using valid_fun_tail. lia. } 
+           have Le2: le e0 w2.
+           { eapply (@le_lub_right _ (ih _ RK) v e0); 
+               eauto using lub_compatible, 
+               valid_fun_head, val_valid. lia.
+           }
+           split.
+           { eapply comp_down; eauto.
+             eapply lub_compatible_trans; eauto using compatible_refl.
+             eapply compatible_sym.
+             eapply lub_compatible; eauto.
+           } 
+           { 
+             move: (rk_app E1) => RKw1.
+             eapply le_trans; eauto. 
+             admit.
+             eapply (@valid_app h u1); eauto.
+             admit.
+           } 
+        ++ destruct h; try done.
+           cbn in E1, E2. inversion E1; inversion E2; subst.
+           inversion A1; inversion A2; subst.
+           split. destruct w2; done. eapply le_bot.
+      + (* neither *)
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ inversion A1; inversion A2; subst. 
+           eapply (IHh u1 u2); eauto using valid_fun_tail. lia.
+        ++ destruct h; try done. 
+           inversion E1. inversion E2. subst.
+           inversion A1; inversion A2; subst. 
+           done.
+   }
 
   have le_fun_mono : 
     forall h k u, (max (max (rk_fun h) (rk_fun k)) (rk u) < m)%nat -> 
@@ -2498,7 +2564,9 @@ Proof.
            have L5: le vi w2.
            { eapply (le_trans (ih _ RK)(v:=e)); eauto. lia. } 
 
-           eapply (le_sup_lub (ih _ RK) L5 L3); eauto.
+           move: (rk_lub EQ) => Rw1.
+           eapply (@le_sup_lub _ (ih _ RK) vi e1 w1); eauto.
+           lia.
 
         ++ destruct h; try done.
            cbn in EQ. inversion EQ. clear EQ. 
@@ -2720,12 +2788,49 @@ Proof.
 
 Admitted.
 
+End OTL.
+
+Lemma le_refl : forall a, valid a -> le a a.
+Proof. 
+  move=> a. 
+  eapply (@OTL.le_refl (rk a)).
+  eapply OTL.OTLs.
+  done.
 Qed.
 
+Lemma le_lub_left : forall a b, 
+     compatible a b -> forall w, lub a b = Some w -> 
+     valid a -> valid b -> le a w.
+Proof. 
+  move=> a b.
+  eapply (@OTL.le_lub_left (max (rk a) (rk b))).
+  eapply OTL.OTLs.
+  done.
+Qed.
 
-eapply le_refl.
+Lemma le_lub_right : forall a b, 
+     compatible a b -> forall w, lub a b = Some w -> 
+     valid a -> valid b -> le b w.
+Proof.
+  move=> a b.
+  eapply OTL.le_lub_right. 2: reflexivity.
+  eapply OTL.OTLs.
+Qed.
 
-
+Lemma le_trans : forall u v w, 
+     valid u -> valid v -> valid w -> le u v -> le v w -> le u w.
+Proof. 
+  move=> u v w.
+  eapply OTL.le_trans. 2: reflexivity.
+  eapply OTL.OTLs.
+Qed.
+  
+Lemma le_sup_lub : forall u v w1 w2, 
+    le u w2 -> le v w2 -> lub u v = Some w1 ->
+    le w1 w2.
+Proof.
+  move=> u v w1 w2.
+  eapply OTL.le_sup_lub. 2: reflexivity.
 
 (* check out: Comp-value-EvalFun *)
 
