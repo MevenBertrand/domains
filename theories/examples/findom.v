@@ -2464,7 +2464,65 @@ Proof.
             rewrite Bool.andb_false_iff in Lu2].
       all: destruct (app h u2) eqn:E2; try done.
       all: move: (rk_app E2) => Ru2.
-      + admit. (* both contribute *)
+      + (* both contribute *)
+        have [Ve Ve0]: valid e /\ valid e0.
+        { destruct (~~ is_nil h) eqn:Nh.        
+          split; 
+          [eapply (@valid_app h u1)|
+           eapply (@valid_app h u2)];
+            eauto using valid_fun_tail.
+          destruct h; try done.
+          inversion E1. inversion E2. auto.
+        } 
+        have Vu: valid u. eauto using valid_fun_head, key_valid, val_valid.
+        have Vv: valid v. eauto using valid_fun_head, key_valid, val_valid.
+        have Vw1: valid w1. eapply valid_lub in A1; eauto.
+        have Vw2: valid w2. eapply valid_lub in A2; eauto.
+
+        move: (rk_app E1) => Re.
+        move: (rk_app E2) => Re0.
+        move: (rk_lub A1) => Rw1.
+        move: (rk_lub A2) => Rw2.
+
+        have [IHc IHl]: compatible e e0 /\ le e e0.
+        { destruct (~~ is_nil h) eqn:Nh.
+          - eapply (IHh u1 u2); eauto using valid_fun_tail. lia.
+          - destruct h; try done. 
+            inversion E1. inversion E2. auto.
+        }             
+        have Cve:  compatible v e. eapply lub_compatible; eauto.
+        have Cve0: compatible v e0. eapply lub_compatible; eauto.
+
+        (*         w2
+                   /
+        lub = w1 e0
+           / \  /\
+          v   e   v     *)
+
+        have LE1 : le e w1. 
+        { eapply (@le_lub_right _ (ih _ RK)); 
+            eauto using valid_fun_head, key_valid, val_valid. lia. }
+
+        have LE2 : le e0 w2.
+        { eapply (@le_lub_right _ (ih _ RK)); 
+            eauto using valid_fun_head, key_valid, val_valid. lia. }
+
+        have LE3: le e w2.
+        { eapply (@le_trans _ (ih _ RK) e e0 w2); eauto. lia.  } 
+
+        have LE4 : le v w2.
+        { eapply (@le_lub_left _ (ih _ RK)) in A2; eauto. lia. }
+
+        have LE5 : le w1 w2.
+        { eapply (@le_sup_lub _ (ih _ RK) v e w1 w2) in A1; eauto. lia. }
+
+        
+        have Cw1w2: compatible w1 w2.
+        { 
+          eapply comp_down; eauto. eapply compatible_refl; eauto.
+        } 
+        split; eauto.
+
       + have Lu3 : le u u2.  (* only second, a contradiction *)
         { eapply (@le_trans _ (ih _ RK) u u1 u2); 
           eauto using key_valid, valid_fun_head. lia. }
@@ -2472,6 +2530,7 @@ Proof.
         { eapply comp_down; eauto. eapply compatible_refl; eauto. }
         rewrite Cu3 in Lu2. rewrite Lu3 in Lu2.
         destruct Lu2; done.
+
       + (* only the first, ok *)
         destruct (~~ is_nil h) eqn:Nh.
         ++ inversion A1; subst. clear A1.
@@ -2492,12 +2551,15 @@ Proof.
              eapply compatible_sym.
              eapply lub_compatible; eauto.
            } 
-           { 
+           {
              move: (rk_app E1) => RKw1.
-             eapply le_trans; eauto. 
-             admit.
+             move: (rk_app E2) => RKe0.
+             move: (rk_lub A2) => RKw2.
+             eapply le_trans; eauto. lia.
              eapply (@valid_app h u1); eauto.
-             admit.
+             eapply (@valid_lub v e0); eauto.
+             eauto using lub_compatible, 
+               valid_fun_head, val_valid. 
            } 
         ++ destruct h; try done.
            cbn in E1, E2. inversion E1; inversion E2; subst.
