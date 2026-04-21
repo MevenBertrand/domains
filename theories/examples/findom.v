@@ -3049,331 +3049,26 @@ Proof.
   eapply OTL.OTLs.
 Qed.
 
-(* check out: Comp-value-EvalFun *)
+Opaque le.
 
+Definition eqb_fun f1 f2 := 
+  le_fun f1 f2 && le_fun f2 f1.
 
-Axiom le_refl : forall u, valid u -> le u u.
-
-Axiom le_fun_refl : forall f, valid_fun f -> le_fun f f. 
-
-Axiom valid_app_exists : forall f u,
-  valid_fun f -> valid u ->
-  { w | app f u = Some w }.
-
-Axiom le_fun_extend :
-  forall f g, 
-  valid_fun f -> valid_fun g -> compatible_fun f g -> le_fun f (f ++ g).
-
-Axiom le_trans : 
-  forall u v w, valid u -> valid v -> valid w -> le u v -> le v w -> le u w.
-
-Axiom lub_le_l : forall u v w, valid u -> valid v -> 
-                          lub u v = Some w -> le u w = true.
-
-(*
-(* If an application is defined, and is not bot, then there 
-   must be some tuple in the finite function that contributes to it. 
-   If it is bot, then maybe there is no tuple.
-   *)
-
-Axiom tuple_exists : forall g u w, 
-    valid u -> valid w -> 
-    app_alt g u = Some w -> w <> bot ->
-     exists ui, exists vi, In (ui,vi) g /\ le vi w /\ le ui u.
-Lemma tuple_exists' g u w : 
-  valid u -> valid w -> 
-  app_alt g u = Some w -> w <> bot ->
-     exists ui, exists vi, In (ui,vi) g /\ le vi w /\ le ui u.
+Lemma app_respects u1 u2 (Vu1 : valid_fun u1) (Vu2 : valid_fun u2)
+  v1 v2 (Vv1 : valid v1) (Vv2 : valid v2) :  
+  eqb_fun u1 u2 -> eqb v1 v2 -> 
+  exists w1, exists w2, (app u1 v1) = Some w1 /\ (app u2 v2) = Some w2 /\ compatible w1 w2 /\ le w1 w2 /\ le w2 w1.
 Proof.
-  move:u w.
-  induction g.
-  cbn. 
-  - move=> u w Vu Vw h. inversion h. done.
-  - move=> u w Vu Vw h Ne. cbn in h.
-    destruct a as [ui vi].
-    destruct (app_alt g u) eqn: h1. 2: { destruct (le ui u); done. } 
-    destruct (le ui u) eqn: h2.
-    + exists ui. exists vi. split; auto. left. done. split.
-      eapply lub_le_l. admit. admit. eauto. auto.
-    + inversion h. subst. 
-      destruct (IHg _ _ Vu Vw h1 Ne) as [uj [vj [h3 h4]]].
-      exists uj. exists vj.
-      split. right. auto. auto.
-Admitted.
-*)
-
-(* application is total for compatible functions *)
-Lemma valid_app_exists' f u :
-  valid_fun f -> valid u -> { w | app f u = Some w }.
-Proof.
-  move=> Vf Vu.
-  move: (valid_fun_compatible Vf) => Cf.
-  unfold app.
-  remember (map (fun '(ui,vi) => if le ui u then vi else bot) f) as l.
-  eapply pairwise_lub_exists.
-  subst. 
-  unfold pairwise_compatible.
-  have Cff: compatible_fun f f. exact Cf.
-  unfold compatible_fun in Cf.
-  move: Cf => /forallb_forall Cf.
-  apply /forallb_forall.
-  move=> x Inx. 
-  rewrite in_map_iff in Inx.
-  destruct Inx as [[ui vi] [h1 h2]].
-  specialize (Cf _ h2). cbn in Cf.
-  move: Cf => /forallb_forall Cf.
-  apply /forallb_forall.
-  move=> y Iny. 
-  rewrite in_map_iff in Iny.
-  destruct Iny as [[uj vj] [h3 h4]].
-  specialize (Cf _ h4). cbn in Cf.
-  destruct (le ui u) eqn:h5; 
-  destruct (le uj u) eqn:h6; subst; cbn.
-  move: Cf => /implyP Cf.
-  eapply Cf.
-  eapply bounded_compatible; eauto.
-  destruct x; done.
-  destruct y; done.
-  done.
-Qed.
-
-(*
-Lemma valid_pairwise f u : 
-  valid_fun f -> 
-  pairwise_compatible 
-    (map (fun '(ui, vi) => if le ui u then vi else bot) f). 
-Proof.
-  move=> Vf.
-  remember (map (fun '(ui, vi) => if le ui u then vi else bot) f) as g.
-  unfold pairwise_compatible.
-  apply /forallb_forall. 
-  move=> x Ingx.
-  have Ingx': In x g. auto.
-  apply /forallb_forall.
-  move=> y Ingy.
-  have Ingy': In y g. auto.
-  subst.
-  rewrite -> in_map_iff in Ingx'.
-  rewrite -> in_map_iff in Ingy'.
-  move: Ingx' => [[ux vx] [hx1 hx2]].
-  move: Ingy' => [[uy vy] [hy1 hy2]].
-  move: (valid_fun_compatible Vf) => /forallb_forall Cf. 
-  specialize (Cf _ hx2). cbn in Cf.
-  move: Cf => /forallb_forall Cf.
-  specialize (Cf _ hy2). cbn in Cf.
-  move: Cf => /implyP Cf.
-  destruct (le ux u) eqn:h3;
-    destruct (le uy u) eqn:h4; subst.
-  - eapply Cf.
-    eapply bounded_compatible; eauto.
-  - destruct x; done.
-  - destruct y; done.
-  - done.
-Qed.
-*)
-
-Lemma valid_tpi a f : 
-  valid (tpi a f) = valid a && valid_fun f.
-reflexivity. Qed.
-
-(** le is trainsitive *)
-Lemma le_trans' : 
-  forall u v w, valid u -> valid v -> valid w -> le u v -> le v w -> le u w.
-Proof.
-  have lemma: 
-    forall k, forall u v w, max (rk u) (rk v) <= k ->
-                  valid u -> valid v -> valid w -> le u v -> le v w -> le u w.
-  {
-    elim /strong_ind.
-    move=> m ih.
-    have lemma2: forall f g h, (max (rk_fun f) (rk_fun g) < m)%nat -> 
-                 valid_fun f -> valid_fun g -> valid_fun h ->
-                 le_fun f g -> le_fun g h -> le_fun f h.
-     { 
-      move=> f g h M Vf Vg Vh /forallb_forall h1 /forallb_forall h2.
-      apply /forallb_forall. move=> [ui vi] Inf.
-      specialize (h1 _ Inf). cbn in h1.
-      destruct (app g ui) eqn:EQg; try done.
-      unfold app in EQg.
-      have Vui: valid ui. { admit.  } 
-      move: (valid_app_exists Vh Vui) => [w EQ].
-      rewrite EQ.
-      admit.
-     }
-    move=> u v w h Vu Vv Vw L1 L2.
-    destruct u; destruct v; destruct w; try done.
-    - admit.
-    - rewrite le_succ in L1. rewrite le_succ in L2.
-      cbn in h. rewrite le_succ.
-      eapply ih; eauto.
-    - rewrite le_tpi in L1. 
-      move: L1 => /andP [L1 L3].
-      rewrite le_tpi in L2.
-      move: L2 => /andP [L2 L4].
-      rewrite valid_tpi in Vu. 
-      move: Vu => /andP [Vu Vl]. 
-      rewrite valid_tpi in Vv. 
-      move: Vv => /andP [Vv Vl0]. 
-      rewrite valid_tpi in Vw. 
-      move: Vw => /andP [Vw Vl1]. 
-
-      cbn in h. fold rk_fun in h.
-      
-      rewrite le_tpi.
-      erewrite ih; eauto. cbn. 
-      eapply lemma2; eauto. all: try lia.
-      all: admit.
-    - rewrite le_abs in L1. rewrite le_abs in L2.
-      rewrite le_abs. eapply lemma2; eauto. 
-      cbn in h. fold rk_fun in h. 
-      all: admit.
-  } 
-  intros. eapply lemma; eauto.
+  move=> /andP [Lu1 Lu2] Ev.
+  move: (valid_app_compatible Vu1 Vv1) => [w1 [EQ1 [Vw1 CW1]]].
+  move: (valid_app_compatible Vu2 Vv2) => [w2 [EQ2 [Vw2 CW2]]].
+  exists w1. exists w2. split; eauto. split; eauto.
 Admitted.
 
+End Raw.
 
-Lemma le_fun_extend' :
-  forall f g, 
-  valid_fun f -> valid_fun g -> compatible_fun f g -> le_fun f (f ++ g).
-Proof.
-  move=> f g Vf Vg Cfg. 
-  unfold le_fun.
-  apply /forallb_forall.
-  move=> [u v] Inf.
-  have Vu: valid u. admit.
-  have Vv: valid v. admit.
-  have [fu [h1 [h2 Vfu]]] : exists e, app f u = Some e /\ le v e /\ valid e.
-  { move: (le_fun_refl Vf) => /forallb_forall h. 
-    specialize (h _ Inf). cbn in h.
-    destruct (app f u) eqn:h1.
-    exists e. repeat split; eauto. admit. done. } 
-  erewrite app_append; try reflexivity.
-  destruct (valid_app_exists (u := u) Vg) as [gu EQ]; auto.
-  have lemma: forall f g u,
-    compatible_fun f g -> 
-    app f u = Some fu ->
-    app g u = Some gu -> 
-    compatible fu gu.
-  { clear.
-    admit.
-  }
-  move: (lemma _ _ _ Cfg h1 EQ) => CC.
-  destruct (compatible_lub_exists CC) as [w h3].
-  rewrite h1. rewrite EQ. cbn. rewrite h3.
-  eapply (le_trans (u:=v) (v:=fu) (w:=w)); eauto.
-  admit. (* valid w *)
-  eapply (lub_le_l (u:= fu) (v:=gu) (w:=w)); eauto.
-  admit. (* valid gu *)
-Admitted.
-
-
-(** valid functions are reflexive **)
-Lemma le_fun_refl' : 
-  forall f, valid_fun f -> le_fun f f.
-Proof.
-  move=> f Vf.
-  apply /forallb_forall. move=> [u v] Inf.
-  have Vu: valid u. admit.
-  have Vv: valid v. admit.
-  move: (valid_app_exists Vf Vu) => [w EQ]. rewrite EQ.
-  rewrite app_spec in EQ.
-  move: EQ Inf.
-  induction f.
-  - cbn. done.
-  - destruct a as [ui vi]. cbn.
-    move=> h.
-Admitted.
-
-(* lub is an upper bound for its left argument *)
-Lemma lub_le_l' : 
-  forall u v w, valid u -> valid v -> lub u v = Some w -> le u w = true.
-Proof.
-  induction u.
-  all: move=> v w Vu Vv h.
-  all: try solve [destruct w; try done].
-  all: try solve [destruct v; inversion h; subst; auto].
-  - (* univ *)
-    destruct v; inversion h; subst; cbn in *. 
-    apply Nat.eqb_refl. 
-    destruct (n =? n0) eqn:EQ; try done.
-    inversion H0. cbn. apply Nat.eqb_refl.
-  - (* succ *)
-    destruct v; inversion h; subst; cbn in *. 
-    + (* needs le_refl *) eapply le_refl; eauto. 
-    + destruct (lub u v) eqn:EQ; try done. 
-      inversion H0. subst. cbn. eapply IHu; eauto.
-  - (* tpi *)
-    destruct v; cbn in h; inversion h; subst.
-    + (* needs le_refl *) eapply le_refl; eauto.
-    + destruct (compatible_fun l l0) eqn:E. 2: done.
-      destruct (lub u v) eqn:E2. 2: done.
-      cbn in h. inversion h. 
-      move: Vu => /andP [Vu Vl]. 
-      move: Vv => /andP [Vv Vl0].
-      fold valid in *. fold (valid_fun l) in Vl. fold (valid_fun l0) in Vl0.
-      rewrite le_tpi. apply /andP. split; eauto. 
-      (* needs le_fun_extend *)
-      eapply le_fun_extend; eauto.
-  - (* abs *)
-    destruct v; cbn in h; inversion h; subst.
-    + (* needs le_refl *) eapply le_refl; eauto.
-    + destruct (compatible_fun l l0) eqn:E. 2: done.
-      cbn in h. inversion h.
-      rewrite le_abs. eapply le_fun_extend; eauto.
-Qed.
-
-
-(* This isn't quite right yet. *)
-Lemma bounded_compatible': forall u ui uj, 
-    le ui u -> le uj u -> compatible ui uj.
-have lemma:
-  forall k, forall u ui uj, max (rk ui) (max (rk uj) (rk u)) <= k ->
-                  le ui u -> le uj u -> compatible ui uj.
-  {
-  elim /strong_ind. move=> m ih.
-  have lemma :
-    forall f fi fj,
-      (max (rk_fun fi) (max (rk_fun fj) (rk_fun f)) < m)%nat ->
-                  le_fun fi f -> le_fun fj f -> compatible_fun fi fj.
-  {
-    move=> f fi fj h hi hj.
-    unfold compatible_fun.
-    apply /forallb_forall.
-    move=> [ui vi] Infi.
-    apply /forallb_forall.
-    move=> [uj vj] Infj.
-    apply /implyP. move=> Ci.
-    move: hi => /forallb_forall hi.
-    specialize (hi _ Infi). cbn in hi.
-    move: hj => /forallb_forall hj.
-    specialize (hj _ Infj). cbn in hj.
-    destruct (app f ui) eqn:Ai. 2: done.
-    destruct (app f uj) eqn:Aj. 2: done.
-    move: (rk_app Ai) => rke.
-    move: (rk_app Aj) => rke0.
-    admit. (* ???? *)
-  } 
-  move=> u ui uj Le h1 h2.
-  destruct ui; destruct uj; destruct u; try done. 
-  - cbn. cbn in h1. cbn in h2. admit. (* ok *)
-  - cbn in h1. cbn in h2. cbn. eapply ih; eauto. cbn in Le. lia.
-  - rewrite le_tpi in h1. rewrite le_tpi in h2. cbn.
-    cbn in Le. fold rk_fun in Le.
-    move: h1 => /andP [h11 h12].
-    move: h2 => /andP [h21 h22].
-    apply /andP. split.
-    eapply ih; eauto. lia.
-    eapply lemma; eauto. lia.
-  - rewrite le_abs in h1. rewrite le_abs in h2.
-    cbn. cbn in Le. fold rk_fun in Le.
-    eapply lemma; eauto. 
-  } 
-  intros; eapply lemma; eauto.
-Admitted.
-
-(* -------------------------------------------- *)
-
-
+Module Unused.
+Import Raw.
 
 (* -------------------------------------------- *)
 
@@ -3478,7 +3173,7 @@ Abort.
 
 
 (* tail could be nil *)
-Lemma valid_fun_tail a f : valid_fun (a :: f) -> valid_fun f.
+Lemma valid_fun_tail_false a f : valid_fun (a :: f) -> valid_fun f.
 Proof.
   unfold valid_fun. destruct a as [ui vi].
   cbn.
@@ -3507,49 +3202,13 @@ Abort.
 (* Compatible elements have the same universe level???
    No, this is not true b/c bot is compatible 
    with any term.
+*)
 
 Lemma compatible_level u v :
   compatible u v -> level u = level v.
 Abort.
 
-*)
 
-
-
-(*
-Lemma le_app ui vi f: 
-   In (ui, vi) f -> forall w, app f ui = Some w -> le vi w.
-Proof.
-  move=>Leui. 
-  induction f; intro h. done.
-  move: h=>[->|h] w.
-  - (* found ui,vi *)
-    rewrite app_spec. cbn. clear IHf.
-    rewrite Leui. 
-    destruct (app_alt f ui) eqn:h2. 2: done.
-    eapply lub_le_l.
-  - (* elsewhere *) 
-    move: (IHf h) => ih.
-    rewrite app_spec. cbn.
-    destruct a as [uj vj].
-    destruct (app_alt f ui) eqn:h2. 
-    + destruct (le uj ui) eqn:h3. 
-      move=> h4. 
-      rewrite app_spec in ih.
-      specialize (ih _ h2).
-      eapply lub_sym in h4.
-      eapply lub_le_l in h4.
-      
-    all: try solve[move=>h4; inversion h4].
-    move=>h4.
-    rewrite app_spec in IHf.
-*)
-
-
-(* --------------------------------------------------- *)
-
-Definition eqb_fun f1 f2 := 
-  le_fun f1 f2 && le_fun f2 f1.
 
 Lemma level_fun_respects
   u (Vu : valid_fun u) v (Vv : valid_fun v) :
@@ -3571,11 +3230,12 @@ Lemma le_respects u1 u2 (Vu1 : valid u1) (Vu2 : valid u2)
   eqb u1 u2 -> eqb v1 v2 -> le u1 v1 = le u2 v2. 
 Admitted.
 
-Lemma app_respects u1 u2 (Vu1 : valid_fun u1) (Vu2 : valid_fun u2)
-  v1 v2 (Vv1 : valid v1) (Vv2 : valid v2) :  
-  eqb_fun u1 u2 -> eqb v1 v2 -> app u1 v1 = app u2 v2. 
-Admitted.
 
+End Unused.
+
+
+Module Types.
+Import Raw.
 
 (** well typed elements: raw version *)
 (* TODO: make this relation imply validity *)
@@ -3619,16 +3279,17 @@ Lemma wt_code u a : wt u a -> exists j, wt a (tuniv j).
 Admitted.
 
 
-End Raw.
+End Types.
+
 
 (* -------------------------------------------------------- *)
 
 (* Module of valid finite functions *)
 Module Valid.
 
-Definition elt := 
+Definition elt : Set := 
   { u : Raw.elt & Raw.valid u }.
-Definition finfun := 
+Definition finfun : Set := 
   { f : list (Raw.elt * Raw.elt) & Raw.valid_fun f }.
 
 Definition bot : elt. exists Raw.bot. auto. Defined.
@@ -3647,36 +3308,13 @@ Definition tabs (f : finfun) : elt.
 exists (Raw.abs (projT1 f)). destruct f as [rf h1]. cbn. eapply h1.
 Defined.
 
-Definition compatible (u v : elt) := 
-  Raw.compatible (projT1 u) (projT1 v).
 
-(** * le *)
 
-Definition lub (u v : elt) (h : compatible u v) : elt. 
-Proof.
-  destruct (Raw.compatible_lub_exists h) as [w Lw].
-  exists w. eapply (Raw.valid_lub (projT2 u) (projT2 v) Lw).
-Defined.
-
-Lemma lub_bot_l : forall v h, @lub bot v h = v.
-move=> [rv Vv] h. cbn in h. destruct rv.
-unfold lub. destruct Raw.compatible_lub_exists.
-cbn in e. inversion e. subst. 
-Admitted.
-
-Lemma lub_bot_r : forall v h, @lub v bot h = v.
-Admitted.
-
-Lemma lub_tuniv k h : @lub (tuniv k) (tuniv k) h = tuniv k.
-Admitted.
-
-(** * le *)
-
-Definition le (u v : elt) : bool :=
-  Raw.le (projT1 u) (projT1 v).
-
+(* le *)
+Definition le : elt -> elt -> bool := 
+  fun u v => (Raw.compatible (projT1 u) (projT1 v) && Raw.le (projT1 u) (projT1 v)).
 Definition le_fun (u v : finfun) : bool :=
-  Raw.le_fun (projT1 u) (projT1 v).
+  Raw.compatible_fun (projT1 u) (projT1 v) && Raw.le_fun (projT1 u) (projT1 v).
 
 Lemma le_bot : forall u, le bot u = true.
 move=> [ru Vu]. unfold le. cbn. destruct ru.
@@ -3686,16 +3324,17 @@ Qed.
 Lemma le_tnat : le tnat tnat = true.
 Admitted.
 
+
 (** equal *)
 
-Definition veq (u : elt) (v: elt) : Prop := 
-  Raw.eqb (projT1 u) (projT1 v).
-Definition veq_fun (u v : finfun) : Prop := 
+Definition eqb : elt -> elt -> bool := 
+  fun u v => le u v && le v u.
+Definition eqb_fun (u v : finfun) : Prop := 
   le_fun u v && le_fun v u.
 
-Lemma veq_bot_inv u : veq bot u -> u = bot.
+Lemma eqb_bot_inv u : eqb bot u -> u = bot.
 Proof.
-  intro h. unfold veq in h. 
+  intro h. unfold eqb in h. 
   destruct u as [ru Vu].
   cbn in h.
   destruct ru; cbn in h; try done.
@@ -3704,19 +3343,19 @@ Proof.
   ext.
 Qed.
 
-Lemma veq_zero_inv u : veq zero u -> u = zero.
+Lemma eqb_zero_inv u : eqb zero u -> u = zero.
 Proof. 
-  destruct u as [ru Vu]. unfold zero, veq. cbn.
+  destruct u as [ru Vu]. unfold zero, eqb. cbn.
   destruct ru; cbn; try done.
   intro h.
   f_equal.
   ext.
 Qed.
 
-Lemma veq_succ_inv u v : veq (succ u) v -> 
-                         exists u', v = succ u' /\ veq u u.
+Lemma eqb_succ_inv u v : eqb (succ u) v -> 
+                         exists u', v = succ u' /\ eqb u u.
 Proof.
-  destruct v as [rv Vv]. unfold veq. cbn.
+  destruct v as [rv Vv]. unfold eqb. cbn.
   destruct rv; cbn; try done.
   unfold Raw.eqb. repeat rewrite Raw.le_succ.
   cbn in Vv.
@@ -3728,65 +3367,28 @@ Admitted.
 
 (** application *)
 
-Definition In_fun (w : elt * elt) (f : finfun) :=
-  let '(u,v):= w in 
-  List.In ((projT1 u), (projT1 v)) (projT1 f).
-
-Definition app (f : finfun) (v : elt) : elt.
-  move: f => [rf Vf].
-  move: v => [rv Vv].
-  destruct (Raw.valid_app_exists Vf Vv) as [w h].
-  exists w. eapply Raw.valid_app; eauto.
+Definition app (f : elt) (u : elt) : elt.
+exists (match (projT1 f) with 
+    | Raw.abs rf => match (Raw.app rf (projT1 u)) with 
+                   | Some v => v
+                   | None => Raw.bot             
+                   end
+    | _ => Raw.bot 
+   end).
+destruct f as [rf Vf]. destruct u as [ru Vu].
+cbn. destruct rf; try done.
+move: (Raw.valid_app_exists Vf Vu) => [w [EQ Vw]].
+rewrite EQ. done.
 Defined.
 
-(* If a property holds for all mappings of a finfun, 
-   then it holds for all mappings of any other equivalent 
-   finfun. 
-
-NB: this seems unlikely to be true. Do we need requirements on P?
-
- *)
-Lemma In_fun_respects g1 g2 (P : elt -> elt -> Prop) :
-  veq_fun g1 g2 ->
-    (forall ui vi, In_fun (ui,vi) g1 -> P ui vi) <->
-    (forall ui vi, In_fun (ui,vi) g2 -> P ui vi).
+Lemma app_respects : forall (f1 f2 : elt) (u1 u2 : elt), 
+  eqb f1 f2 -> 
+  eqb u1 u2 ->
+  eqb (app f1 u1) (app f2 u2).
+Proof.
 Admitted.
 
-(** well typed elements *)
-
-Inductive wt : elt -> elt -> Prop := 
-  | wt_bot a j :
-    wt a (tuniv j) ->
-    wt bot a 
-
-  | wt_tuniv i j :
-    (i < j)%nat -> 
-    wt (tuniv i) (tuniv j)
-
-  | wt_tnat j :
-    wt tnat (tuniv j)
-
-  | wt_zero : 
-    wt zero tnat
-
-  | wt_succ u : 
-    wt u tnat -> 
-    wt (succ u) tnat
-
-  | wt_tpi a g j : 
-    wt a (tuniv j) -> 
-    (forall ui vi, In_fun (ui,vi) g -> wt ui a /\ wt vi (tuniv j)) ->
-    wt (tpi a g) (tuniv j)
-
-  | wt_tabs a f g : 
-    (forall ui vi, In_fun (ui,vi) f -> wt ui a /\ wt vi (app g ui)) ->
-    wt (tabs f) (tpi a g)
-  .
-
-
 (*
-If u : a and a b, then u : b. If u : a, v : a, and u and v are compatible,
-then u ∨ v : a.
 
 Lemma lemma2 : 
 
@@ -3829,36 +3431,37 @@ Proof.
   intros e1 e2 h1.
   inversion h1. subst.
 Admitted.  
-
+*)
 
 End Valid.
 
-#[export] Instance eq_elt_equivalence : Equivalence Valid.veq.
-unfold Valid.veq.
+#[export] Instance eq_elt_equivalence : Equivalence Valid.eqb.
+unfold Valid.eqb.
 constructor.
 - intros [u Vu].
   cbn.
 Admitted.
 
-#[export] Instance eqfun_elt_equivalence : Equivalence Valid.veq_fun.
+#[export] Instance eqfun_elt_equivalence : Equivalence Valid.eqb_fun.
 Admitted.
 
-Instance Proper_app : Proper (Valid.veq_fun ==> Valid.veq ==> Logic.eq) Valid.app.
+Instance Proper_app : Proper (Valid.eqb ==> Valid.eqb ==> Logic.eq) Valid.app.
 intros x y Exy. intros w v Ewv.
 Admitted.
 
 
-Instance Proper_wt : Proper (Valid.veq ==> Valid.veq ==> Logic.eq) Valid.wt.
+(*
+Instance Proper_wt : Proper (Valid.eqb ==> Valid.eqb ==> Logic.eq) Valid.wt.
 Proof. 
   intros u1 u2 Equ a1 a2 Eqa.
 Admitted.
-
+*)
 
 Module Q.
 
-Definition elt  := quot Valid.veq. 
+Definition elt  := quot Valid.eqb. 
 
-Definition finfun := quot Valid.veq_fun.
+Definition finfun := quot Valid.eqb_fun.
 
 Parameter valid_fun : list (elt * elt) -> Prop.
 
@@ -3891,8 +3494,8 @@ Definition le_fun_valid :
 Admitted. 
 (*  List.forallb (fun '(ui,vi) => lub (app_valid Vg ui) vi) f. *)
 
-Definition eq_fun (f : Valid.finfun) (g : Valid.finfun) := 
-  forall (u : Valid.elt), Valid.veq (Valid.app f u) (Valid.app g u).
+Definition eq_fun (f : Valid.elt) (g : Valid.elt) := 
+  forall (u : Valid.elt), Valid.eqb (Valid.app f u) (Valid.app g u).
 
 
 Definition elt_ind : forall (P : elt -> Prop) (Pf : finfun -> Prop), 
@@ -3954,6 +3557,3 @@ Inductive wt : elt -> elt -> Prop :=
 Inductive type : elt -> Prop := .
 
 End Q.
-*)
-
-End Valid.
