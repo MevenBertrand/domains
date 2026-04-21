@@ -6,22 +6,43 @@ Require Import findom.
 Import ScopedNotations.
 Import SubstNotations.
 
-Module Type D.
-  Axiom elt   : Type.
-  Axiom app   : elt -> elt -> elt.
-  Axiom tnat  : elt.
-  Axiom tuniv : nat -> elt.
-  Axiom zero  : elt.
-  Axiom succ  : elt -> elt.
-  Axiom abs   : (elt -> elt) -> elt.
-  Axiom tpi   : elt -> (elt -> elt) -> elt.
+Check Valid.elt.
+
+Module Type DOMAIN.
+  (* NOTE: sets are closed under lubs *)
+  Definition elt : Type    := Valid.elt -> Prop.
+
+  (* proj d u := lub (u /\ w | w in d) *)
+  Definition proj : elt -> Valid.elt -> Valid.elt.
+    Admitted.
+
+  (* 
+  Lemma proj_lower : forall d u,  proj d u <= u. Admitted.
+  *)
+
+  Lemma proj_idem  : forall d u, proj d (proj d u) = proj d u. Admitted.
+
+  (* what restrictions do we have on the finfuns? *)
+  Definition funelt : Type := Valid.finfun -> Prop.
+  Axiom apply : forall (f : funelt) (u : elt), elt. (* ???? *) 
+   
+  Axiom tnat   : elt.
+  Axiom tuniv  : nat -> elt.
+  Axiom zero   : elt.
+  Axiom succ   : elt -> elt.
+  Axiom abs    : (elt -> elt) -> elt.
+  Axiom tpi    : elt -> (elt -> elt) -> elt.
+  Axiom app    : elt -> elt -> elt.
+    
 
   Axiom bot    : elt.
   Axiom le     : elt -> elt -> Prop.
-  
-  (* type test: p A a returns a when a : A and bot o/w *)
-  Axiom p     : elt -> elt -> elt.
-End D.
+
+  (* type test: p A a returns a when a : A and ??? *)
+  Axiom p     : elt -> elt -> elt. 
+End DOMAIN.
+
+Module Denot (D : DOMAIN).
 
 (* somehow we need some restrictions on the functions for 
    abs and tpi *)
@@ -36,6 +57,7 @@ Fixpoint denot {n} (t : Tm n)(ρ : fin n -> D.elt) : D.elt :=
   | abs A M => D.abs  (fun u => denot M (D.p (denot A ρ) u .: ρ))
   | tpi A B => D.tpi  (denot A ρ) 
                 (fun u => denot B (D.p (denot A ρ) u .: ρ))
+  | nrec _ m0 m1 => D.bot
   end.
 
 (* --------------------------------- *)
@@ -172,3 +194,7 @@ with ctx {n} (Γ : Ctx n) : Prop :=
     (forall n, type Γ (Γ n)) ->
     ctx Γ.
   
+
+(* k is the complexity of a *)
+Fixpoint LR_type (a : D.elt) (k : nat) : tm zero -> Prop := 
+with LR_conv (a : D.elt) : tm zero -> tm zero -> Prop.
