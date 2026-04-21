@@ -363,6 +363,7 @@ Fixpoint level_fun (f : list (elt * elt)) :=
 
 (* --------------------------------------------------------- *)
 
+(*
 Fixpoint list_ap {A B } (f : list (A -> B)) (x : list A) : list B := 
   List.flat_map (fun x1 => List.flat_map (fun x2 => (x1 x2 :: nil)) x) f.
 
@@ -376,7 +377,7 @@ Axiom level_rk_enum_sound :
   forall k r e, List.In e (level_rk_enum k r) -> rk e <= r /\ level e <= k.
 Axiom level_rk_enum_complete : 
   forall k r e, rk e <= r -> level e <= k -> List.In e (level_rk_enum k r).
-
+*)
 
 
 (* Work on enumerating all elements of a certain level/rank
@@ -472,13 +473,6 @@ Fixpoint le' (u v : elt) k : bool :=
       | 0 => false 
       | S m => le_fun f g m
       end
-  (* do we need this case? *)
-  (*
-  | abs f , bot => 
-      match k with 
-      | 0 => false
-      | S m => List.forallb (fun '(ui,vi) => le' vi bot m) f
-      end *)
   | _ , _ => false
   end.
 
@@ -511,6 +505,7 @@ Definition le_fun f g :=
 Definition lt u v := le u v && ~~(le v u).
 Definition sem_eqb (u v:elt) := le u v && le v u.
 Definition sem_eqb_fun f g := le_fun f g && le_fun g f.
+
 
 (***** EXAMPLES *******)
 
@@ -601,25 +596,22 @@ Fixpoint app_alt (f : list (elt * elt)) (u : elt) : option elt :=
 
 Lemma app_spec : app = app_alt.
 Proof.
-Admitted. 
-(*
-  smpl extensionality.
+  ext.
   induction x.
-  - smpl extensionality. cbn. auto.
-  - smpl extensionality. intros u.
+  - ext. cbn. auto.
+  - ext. 
     destruct a as [ui vi].
     cbn.
-    destruct (le ui u) eqn:LE.
+    destruct (compatible ui x0 && le ui x0) eqn:LE.
     + rewrite <- IHx. 
       reflexivity.
     + rewrite <- IHx.
       unfold basics.option_bind. 
       replace (lub bot) with (Some (A:=elt)). 
-      2: { smpl extensionality. intro y. reflexivity. } 
+      2: { ext. reflexivity. } 
       rewrite option_eta.
       reflexivity.
 Qed. 
-*)
 
 
 (* --------------------------------------------------------- *)
@@ -715,91 +707,19 @@ Proof.
 Qed.
 
 
-(*
-Fixpoint compatible_fun' (f : list (elt * elt)) : Prop :=
-  match f with 
-  | nil => true
-  | (ui,vi) :: ft => 
-      compatible_fun' ft /\
-      forall u, le ui u -> forall w, app ft u = Some w -> compatible vi w 
-  end.
-
-Lemma compatible_fun_compatible_fun' f :
-  compatible_fun f f -> compatible_fun' f.
-Proof. 
-  induction f. done.
-  destruct a as [ui vi].
-  move=> /andP [/andP [h1 h2]] /forallb_forall h3.
-  have Cf: compatible_fun f f.
-  { apply /forallb_forall.
-    move=> [uj vj] Inj.
-    specialize (h3 _ Inj). cbn in h3.
-    move: h3 => /andP [h3 h4]. eapply h4.
-  } 
-  cbn. split; auto.
-  move=> u Le w APP.
-Abort.
-*)
-
 (** * Raw Theory about compatibility *)
 
 (* This is more difficult than it should be. Need to prove
    it by strong induction on the depth of both terms. 
 *)
-Lemma compatible_sym : forall u v, compatible u v -> compatible v u.
-Proof.
-  have LEMMA: 
-     forall (k : nat) (u v : elt), 
-       Init.Nat.max (rk u) (rk v) <= k -> 
-       compatible u v -> compatible v u.
-  { 
-    elim /strong_ind.
-    move=> m ih.
-    have LEMMA2 : 
-          forall f g, (max (rk_fun f) (rk_fun g) < m)%nat -> 
-          compatible_fun f g -> compatible_fun g f.
-      {
-        move=> f g Le2 /forallb_forall h2. 
-        apply /forallb_forall.
-        intros [ui vi] Inl0.  
-        apply /forallb_forall.
-        intros [uj vj] Inl.
-        apply /implyP.
-        specialize (h2 _ Inl). cbn in h2.
-        move: h2 => /forallb_forall h2.
-        specialize (h2 _ Inl0). cbn in h2.
-        move: h2 => /implyP h2.
-        move: (In_rk_fun2 Inl) => Levj. 
-        move: (In_rk_fun2 Inl0) => Levi. 
-        intro x. eapply ih; eauto. lia.
-        eapply h2.
-        eapply ih; eauto. 
-        move: (In_rk_fun1 Inl) => Leuj. 
-        move: (In_rk_fun1 Inl0) => Leui. 
-        lia.
-      }
-    
-    move=>u v Le. 
-    destruct u; destruct v; cbn in *; try done.
-    all: try match goal with [ H : S _ <=  _ |- _ ] => 
-        destruct (le_S_pred H) as [m0 [-> LL]] end.
-    - cbn. rewrite PeanoNat.Nat.eqb_sym. done.
-    - eauto.
-    - fold rk_fun in *.
-      move=> /andP [h1 h2].
-      apply /andP; split.
-      + eapply ih; eauto. lia.
-      + move: h2. eapply LEMMA2; eauto. lia.
-    - fold rk_fun in *.
-      eapply LEMMA2; eauto.
-  } 
-  move=> u v. eapply LEMMA; eauto.
-Qed.  
 
-Lemma compatible_fun_sym : 
-  forall f g, compatible_fun f g -> compatible_fun g f.
+Lemma compatible_fun_sym' f g 
+  (ih : forall (u v : elt), 
+      Init.Nat.max (rk u) (rk v) <= (max (rk_fun f) (rk_fun g)) ->
+      compatible u v -> compatible v u) :
+  compatible_fun f g -> compatible_fun g f.
 Proof.
-  move=> f g /forallb_forall h2. 
+  move=> /forallb_forall h2. 
   apply /forallb_forall.
   intros [ui vi] Inl0.  
   apply /forallb_forall.
@@ -811,9 +731,51 @@ Proof.
   move: h2 => /implyP h2.
   move: (In_rk_fun2 Inl) => Levj. 
   move: (In_rk_fun2 Inl0) => Levi. 
-  intro x. eapply compatible_sym; eauto. 
+  intro x. eapply ih; eauto. lia.
   eapply h2.
-  eapply compatible_sym; eauto. 
+  eapply ih; eauto. 
+  move: (In_rk_fun1 Inl) => Leuj. 
+  move: (In_rk_fun1 Inl0) => Leui. 
+  lia.
+Qed.
+
+
+
+Lemma compatible_sym' : forall (k : nat) (u v : elt), 
+  Init.Nat.max (rk u) (rk v) <= k ->
+  compatible u v -> compatible v u.
+Proof.
+    elim /strong_ind.
+    move=> m ih.
+    move=>u v Le. 
+    destruct u; destruct v; cbn in *; try done.
+    all: try match goal with [ H : S _ <=  _ |- _ ] => 
+        destruct (le_S_pred H) as [m0 [-> LL]] end.
+    - cbn. rewrite PeanoNat.Nat.eqb_sym. done.
+    - eauto.
+    - fold rk_fun in *.
+      move=> /andP [h1 h2].
+      apply /andP; split.
+      + eapply ih; eauto. lia.
+      + move: h2. eapply compatible_fun_sym'; eauto. 
+        eapply (@ih (Init.Nat.max (rk_fun l) (rk_fun l0)) ltac:(lia)).
+    - fold rk_fun in *.
+      eapply compatible_fun_sym'; eauto.
+Qed.
+
+Lemma compatible_sym : forall (u v : elt), 
+  compatible u v -> compatible v u.
+Proof.
+  intros u v.
+  eapply compatible_sym'; eauto.
+Qed.  
+
+Lemma compatible_fun_sym : 
+  forall f g, compatible_fun f g -> compatible_fun g f.
+Proof. 
+  intros f g.
+  eapply compatible_fun_sym'; eauto.
+  eapply compatible_sym'; eauto.
 Qed.
 
 
@@ -1707,31 +1669,6 @@ Proof.
   erewrite lub_list_app; eauto. 
 Qed.
 
-(* If we have a non-bot result from application, there must be 
-   some tuple in the function that triggered it. *)
-(*
-Lemma app_inv g u e : 
-  no_bot_result g -> 
-  app g u = Some e ->
-  ~~ (le e bot) ->
-  exists ui, exists vi, List.In (ui,vi) g /\ le ui u.
-Proof.
-  move: u e.
-  rewrite app_spec.
-  induction g as [|[ui vi]t].
-  all: intros u e NR AA NB.
-  - cbn in AA. inversion AA. subst. done.
-  - cbn in AA. 
-    destruct (le ui u) eqn:h2.
-    destruct (app_alt t u) eqn:h4. 2: done.
-    exists ui. exists vi. split. left. done. done.
-    cbn in NR. move: NR => /andP [ _ NR].
-    specialize (IHt _ _ NR AA NB).
-    destruct IHt as [uj [vj [h1 h3]]].  
-    exists uj. exists vj. split. right. done. done.
-Qed. *)
-
-
 (* We can append compatible functions together *)
 Definition valid_append f g : 
     valid_fun f 
@@ -1964,8 +1901,6 @@ Proof.
 Qed.
 
   
-(* ------------------------------------------------------- *)
-
 (*
 ------------------------------------------------------------------------
 -- Part 7f: Comp-down — downward closure of compatibility
@@ -2326,40 +2261,6 @@ Qed.
 Lemma app_append_eq k : forall h xi, compatible_fun k h -> 
   forall w1 w2, app k xi = Some w1 -> 
            app h xi = Some w2 ->
-  exists w, app (k ++ h) xi = Some w /\ lub w1 w2 = Some w.
-Proof.
-  induction k as [|[u v]k].
-  all: move=> h xi CF w1 w2 AP1 AP2.
-  - move: (@le_fun_app_bot nil xi ltac:(done)) => h1. 
-    rewrite h1 in AP1. inversion AP1. subst. clear AP1.
-    rewrite app_nil_l. rewrite AP2. cbn. exists w2.  eauto.
-  - rewrite app_spec. cbn. rewrite <- app_spec.
-    rewrite app_spec in AP1. cbn in AP1. rewrite <- app_spec in AP1.
-    move: CF => /andP [h1 h2].
-    destruct (compatible u xi && le u xi) eqn:LE.
-    + destruct (app k xi) eqn:A3; try done.
-      edestruct IHk as [w [E1 E2]]; eauto.
-      clear h2. rewrite E1.
-      (* at this point we have 
-
-                    w1    (k+h)[xi]=w
-                   /   \  /     \
-                 v   k[xi]=e    h[xi]=w2
-
-         we need to show that  lub v w == lub w1 w2
-           i.e. lub v w == lub v (lub e w2)
-                        == lub (lub v e) w2
-                        == lub w1 w2
-
-       *)
-      admit.
-    + admit. (* erewrite IHk; eauto. *)
-Abort.
-
-
-Lemma app_append_eq k : forall h xi, compatible_fun k h -> 
-  forall w1 w2, app k xi = Some w1 -> 
-           app h xi = Some w2 ->
   app (k ++ h) xi = lub w1 w2.
 Proof.
   induction k as [|[u v]k].
@@ -2440,18 +2341,418 @@ Record OrderTheoreticLemmas k := MkLemmas {
 
 }.
 
+(* First prove all of the lemmas about finfun's assuming 
+   the top-level lemmas.
+*)
+Lemma le_fun_mono_arg :
+    forall h u1 u2 k, 
+      OrderTheoreticLemmas k ->
+        (max (max (rk_fun h) (rk u1)) (rk u2)) <= k -> 
+           valid_fun h -> valid u1 -> valid u2 -> 
+           compatible u1 u2 -> le u1 u2 ->
+           forall w1 w2, app h u1 = Some w1 -> app h u2 = Some w2 -> 
+                    compatible w1 w2 /\ le w1 w2.
+Proof.
+  induction h as [|[u v]h].
+    all: move=> u1 u2 k OTL RK Vh Vu1 Vu2 Cu Lu w1 w2 A1 A2.
+    - cbn in *. inversion A1. inversion A2. subst. split; done.
+    - rewrite -> app_spec in A1, A2. cbn in A1, A2.
+      rewrite <- app_spec in A1, A2.
+      cbn in RK.
+      destruct (compatible u u1 && le u u1) eqn:Lu1;
+        [move: Lu1 => /andP [Cu1 Lu1]|
+        rewrite Bool.andb_false_iff in Lu1].
+      all: destruct (app h u1) eqn:E1; try done.
+      all: move: (rk_app E1) => Ru1.
+      all: destruct (compatible u u2 && le u u2) eqn:Lu2;
+           [move: Lu2 => /andP [Cu2 Lu2]|
+            rewrite Bool.andb_false_iff in Lu2].
+      all: destruct (app h u2) eqn:E2; try done.
+      all: move: (rk_app E2) => Ru2.
+      + (* both contribute *)
+        have [Ve Ve0]: valid e /\ valid e0.
+        { destruct (~~ is_nil h) eqn:Nh.        
+          split; 
+          [eapply (@valid_app h u1)|
+           eapply (@valid_app h u2)];
+            eauto using valid_fun_tail.
+          destruct h; try done.
+          inversion E1. inversion E2. auto.
+        } 
+        have Vu: valid u. eauto with valid. 
+        have Vv: valid v. eauto with valid.
+        have Vw1: valid w1. eapply valid_lub in A1; eauto.
+        have Vw2: valid w2. eapply valid_lub in A2; eauto.
+
+        move: (rk_app E1) => Re.
+        move: (rk_app E2) => Re0.
+        move: (rk_lub A1) => Rw1.
+        move: (rk_lub A2) => Rw2.
+
+        have [IHc IHl]: compatible e e0 /\ le e e0.
+        { destruct (~~ is_nil h) eqn:Nh.
+          - eapply (IHh u1 u2); eauto using valid_fun_tail. lia.
+          - destruct h; try done. 
+            inversion E1. inversion E2. auto.
+        }             
+        have Cve:  compatible v e. eapply lub_compatible; eauto.
+        have Cve0: compatible v e0. eapply lub_compatible; eauto.
+
+        (*         w2
+                   /
+        lub = w1 e0
+           / \  /\
+          v   e   v     *)
+
+        have LE1 : le e w1. 
+        { eapply (@le_lub_right _ OTL); 
+            eauto using valid_fun_head, key_valid, val_valid. lia. }
+
+        have LE2 : le e0 w2.
+        { eapply (@le_lub_right _  OTL); 
+            eauto using valid_fun_head, key_valid, val_valid. lia. }
+
+        have LE3: le e w2.
+        { eapply (@le_trans _ OTL e e0 w2); eauto. lia.  } 
+
+        have LE4 : le v w2.
+        { eapply (@le_lub_left _ OTL) in A2; eauto. lia. }
+
+        have LE5 : le w1 w2.
+        { eapply (@le_sup_lub _ OTL v e w1 w2) in A1; eauto. lia. }
+
+        
+        have Cw1w2: compatible w1 w2.
+        { 
+          eapply comp_down; eauto. eapply compatible_refl; eauto.
+        } 
+        split; eauto.
+
+      + have Lu3 : le u u2.  (* only second, a contradiction *)
+        { eapply (@le_trans _ OTL u u1 u2); 
+          eauto using key_valid, valid_fun_head. lia. }
+        have Cu3 : compatible u u2.
+        { eapply comp_down; eauto. eapply compatible_refl; eauto. }
+        rewrite Cu3 in Lu2. rewrite Lu3 in Lu2.
+        destruct Lu2; done.
+
+      + (* only the first, ok *)
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ inversion A1; subst. clear A1.
+           have Vt: valid_fun h. 
+           { eauto using valid_fun_tail, val_valid. }
+           have Ve0: valid e0.
+           { eauto using (@valid_app h u2). } 
+           have [Ce0 Le0]: compatible w1 e0 /\ le w1 e0.
+           { eapply (IHh u1 u2); eauto using valid_fun_tail. lia. } 
+           have Le2: le e0 w2.
+           { eapply (@le_lub_right _ OTL v e0); 
+               eauto using lub_compatible, 
+               valid_fun_head, val_valid. lia.
+           }
+           split.
+           { eapply comp_down; eauto.
+             eapply lub_compatible_trans; eauto using compatible_refl.
+             eapply compatible_sym.
+             eapply lub_compatible; eauto.
+           } 
+           {
+             move: (rk_app E1) => RKw1.
+             move: (rk_app E2) => RKe0.
+             move: (rk_lub A2) => RKw2.
+             eapply le_trans; eauto. lia.
+             eapply (@valid_app h u1); eauto.
+             eapply (@valid_lub v e0); eauto.
+             eauto using lub_compatible, 
+               valid_fun_head, val_valid. 
+           } 
+        ++ destruct h; try done.
+           cbn in E1, E2. inversion E1; inversion E2; subst.
+           inversion A1; inversion A2; subst.
+           split. destruct w2; done. eapply le_bot.
+      + (* neither *)
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ inversion A1; inversion A2; subst. 
+           eapply (IHh u1 u2); eauto using valid_fun_tail. lia.
+        ++ destruct h; try done. 
+           inversion E1. inversion E2. subst.
+           inversion A1; inversion A2; subst. 
+           done.
+Qed.
+
+
+Lemma le_fun_mono m (ih : OrderTheoreticLemmas m) h k u :
+      (max (max (rk_fun h) (rk_fun k)) (rk u) <= m) -> 
+       valid_fun h -> valid_fun k -> 
+       le_fun h k -> valid u ->  
+       forall w1 w2, app h u = Some w1 -> app k u = Some w2 -> 
+                le w1 w2.
+Proof.
+    move: k u.
+    induction h as [|[ui vi]h].
+    all: move=> k u RK Vf Vk LE Vu w1 w2 EQ A2.
+    - inversion EQ. done.
+    - rewrite app_spec in EQ. cbn in EQ. rewrite <- app_spec in EQ.
+      cbn in RK. move: (rk_app A2) => Rw2.
+      have Leu: le u u. { eapply le_refl. eapply ih. lia. eauto. }
+      have Leui: le ui ui. { eapply le_refl. eapply ih. lia.
+             eauto using key_valid, valid_fun_head. }
+
+      destruct (compatible ui u && le ui u) eqn:LEui.
+      + move: LEui => /andP [Cui LEui].
+        have Vui: valid ui. eauto using valid_fun_head, key_valid.
+        have Vvi: valid vi. eauto using valid_fun_head, val_valid.
+
+        destruct (~~ is_nil h) eqn:Nh.
+        ++ have Vh: valid_fun h. eauto using valid_fun_tail.
+
+           move: LE => /andP [L1 L2]. cbn in RK.
+           (* L1: k[ui] <= v   
+              L2: h     <= k  *)
+
+           destruct (valid_app_exists Vh Vu) as 
+             [e1 [A1 Ve1]].
+           rewrite A1 in EQ.
+           move: (rk_app A1) => Re.
+
+           have Vw2: valid w2. eapply (valid_app (f:= k) (u:=u)); eauto.
+
+           destruct (app k ui) eqn:A4. 2: done.
+           have Ve4: valid e. eapply (valid_app(f:=k)(u:=ui)); eauto.
+           move: (rk_app A4) => Re4.
+
+           destruct (valid_app_exists(f:=(ui,vi)::h)(u:=ui)) as
+             [e5 [A5 Ve5]]; eauto.
+
+           have L3: le e1 w2.
+           { eapply (IHh k u); eauto. lia. } 
+
+           have L4: le e w2.
+           { eapply (@le_fun_mono_arg k ui u); eauto. lia. }
+
+           have L5: le vi w2.
+           { eapply (le_trans ih (v:=e)); eauto. lia. } 
+
+           move: (rk_lub EQ) => Rw1.
+           eapply (@le_sup_lub _ ih vi e1 w1); eauto.
+           lia.
+
+        ++ destruct h; try done.
+           cbn in EQ. inversion EQ. clear EQ. 
+           rewrite lub_bot_r in H0. inversion H0. subst. clear H0.
+           cbn in LE. destruct (app k ui) eqn:A1. 2: done.
+           move: LE => /andP [L1 _].
+           have L2: le e w2.
+           { eapply (@le_fun_mono_arg k ui u); eauto. lia. } 
+
+           move: (rk_app A1) => Re.
+           move: (le_trans ih(u:=w1)(v:=e)(w:=w2)) => h. 
+           eapply h; eauto using valid_app. lia.
+
+      + destruct (~~ is_nil h) eqn:Nh.
+        ++ eapply IHh; eauto.        
+           cbn in RK; lia.
+           eauto using valid_fun_tail.
+           cbn in LE. move: LE => /andP [_ LE]. eapply LE.
+        ++ destruct h; try done.
+           inversion EQ. eapply le_bot.
+Qed.  
+
+Lemma le_fun_cons_right m (ih : OrderTheoreticLemmas m) : 
+    forall f u v, (max (rk_fun f) (max (rk u) (rk v)) <= m) ->
+           valid_fun f -> valid u -> valid v 
+           -> coherent_with f (u,v) -> le_fun f ((u,v) :: f).
+Admitted.
+
+
+Lemma le_fun_extend_left m (ih : OrderTheoreticLemmas m) :
+    forall f g, (max (rk_fun f) (rk_fun g) <= m)%nat ->
+           valid_fun f -> valid_fun g 
+           -> compatible_fun f g -> le_fun f (f ++ g).
+Proof.
+    induction f as [|[u v]f].
+    all: move=> g RK Vf Vg Cfg. done.
+    cbn in RK.
+    specialize ih. 
+    specialize (IHf g ltac:(lia)).
+    rewrite le_cons.
+    rewrite app_spec. cbn. rewrite <- app_spec.
+    rewrite compatible_cons_def in Cfg.
+    fold (coherent_with g (u, v)) in Cfg.
+    have Vu : valid u. eauto using key_valid, valid_fun_head.
+    have Vv : valid v. eauto using val_valid, valid_fun_head.
+
+    move: Cfg => /andP [h1 Cfg].
+    have CU: compatible u u. eapply compatible_refl; eauto.
+    have LU: le u u. eapply le_refl; eauto. lia.
+    rewrite CU.
+    rewrite LU.
+    cbn.
+    have [w1 [EQ1 Vw1]] : exists w1, app f u = Some w1 /\ valid w1.
+    { destruct (~~ is_nil f) eqn:Nf.
+      + have Vt: valid_fun f. eapply valid_fun_tail; eauto.
+        eapply (valid_app_exists Vt Vu). 
+      + destruct f; try done.
+        exists bot. cbn. auto.
+    }             
+    destruct (valid_app_exists Vg Vu) as [w2 [EQ2 Vw2]].
+    move: (app_append EQ1 EQ2) => EQ3. cbn in EQ3.
+    have C12: (compatible w1 w2).
+    { eapply compatible_app; eauto. } 
+    destruct (compatible_lub_exists C12) as [w EQ4].
+    rewrite EQ4 in EQ3. rewrite EQ3.
+    move: (rk_app EQ2) => Rkw2.
+    move: (rk_app EQ1) => Rkw1.
+    move: (rk_lub EQ4) => Rkw.
+      
+    have Cvw2: compatible v w2.
+    { eapply (Comp_value_app (f:=g)(xi:=u)(w:=w2)); eauto. }
+    have Cvw1 : compatible v w1.
+    { eapply (Comp_value_app (f:=f)(u:=u)(v:=v)(xi:=u)(w:=w1)); eauto.
+      eapply compat. eapply valid_fun_head; eauto. }
+    have Cvw : compatible v w.
+    { apply compatible_sym.
+      eapply (@compatible_lub w1 w2 v w).
+      - apply compatible_sym. exact Cvw1.
+      - apply compatible_sym. exact Cvw2.
+      - exact EQ4. }
+    destruct (compatible_lub_exists Cvw) as [e EQ5].
+    rewrite EQ5.
+    have Vw : valid w. { eapply (valid_lub (u:=w1)(v:=w2)); eauto. }
+    move: (rk_lub EQ5) => Rke.
+    apply /andP; split.
+    - (* le v e *)
+      eapply (@le_lub_left _ ih v w); eauto. lia.
+    - (* le_fun f ((u,v) :: f ++ g) *)
+      destruct (~~ is_nil f) eqn:Nf.
+      + have Vt: valid_fun f. eapply valid_fun_tail; eauto.
+        have Cohf : coherent_with f (u,v).
+        { eapply compat. eapply valid_fun_head; eauto. }
+        have Cohfg : coherent_with (f ++ g) (u,v).
+        { eapply coherent_with_append; eauto. }
+        have Vfg : valid_fun (f ++ g).
+        { eapply valid_append; eauto. }
+        have Hfg : le_fun (f++g) ((u,v) :: f ++ g).
+        { eapply (@le_fun_cons_right _ ih (f++g) u v); eauto. 
+          rewrite rk_fun_app. lia. } 
+        unfold le_fun in Hfg.
+        rewrite forallb_app in Hfg.
+        move: Hfg => /andP [Hfg _].
+        exact Hfg.
+      + destruct f; try done.
+Qed.
+
+Lemma le_fun_extend_right m (ih : OrderTheoreticLemmas m) : 
+    forall f g, (max (rk_fun f) (rk_fun g) <= m) ->
+           valid_fun f -> valid_fun g 
+           -> compatible_fun g f -> le_fun f (g ++ f).
+Proof.
+  {
+    admit. 
+(*    induction f as [|[u v]f].
+    all: move=> g RK Vf Vg Cfg. done.
+    cbn in RK.
+    specialize ih. 
+    specialize (IHf g ltac:(lia)).
+    rewrite le_cons.
+    rewrite app_spec. cbn. rewrite <- app_spec.
+    rewrite compatible_cons_def in Cfg.
+    fold (coherent_with g (u, v)) in Cfg.
+    have Vu : valid u. eauto using key_valid, valid_fun_head.
+    have Vv : valid v. eauto using val_valid, valid_fun_head.
+
+    move: Cfg => /andP [h1 Cfg].
+    have CU: compatible u u. eapply compatible_refl; eauto.
+    have LU: le u u. eapply le_refl; eauto. lia.
+    rewrite CU.
+    rewrite LU.
+    cbn.
+    destruct (~~ is_nil f) eqn:Nf.
+    have Vt: valid_fun f. eapply valid_fun_tail; eauto.
+    destruct (valid_app_exists Vt Vu) as [w1 [EQ1 Vw1]].
+    destruct (valid_app_exists Vg Vu) as [w2 [EQ2 Vw2]].
+    move: (app_append_eq Cfg EQ1 EQ2) => EQ3. 
+    admit.
+    admit. *)
+Admitted.
+
+
+Lemma le_fun_refl  m (ih : OrderTheoreticLemmas m) f :
+    (rk_fun f <= m)%nat -> valid_fun f -> le_fun f f.
+Proof.
+    induction f as [|[u v]f].
+    all: move=> RK Vf. done. 
+    cbn in RK.
+    have Vu: valid u. eauto using valid_fun_head, key_valid.
+    have Vv: valid v. eauto using valid_fun_head, val_valid.
+    rewrite le_cons.
+    rewrite app_spec. cbn. rewrite <- app_spec.
+    rewrite compatible_refl; eauto.
+    erewrite le_refl; eauto. 2: lia.
+    cbn. 
+    destruct (~~ is_nil f) eqn:Nf.
+    + move: (valid_fun_tail Vf Nf) => Vt.
+      have LEu: le u u. eapply le_refl; eauto. lia.
+      destruct (valid_app_cons_compatible LEu Vf) as [w [E1 [Vw Cw]]].
+      rewrite E1.
+      apply compatible_sym in Cw.
+      destruct (compatible_lub_exists Cw) as [w0 Lub].
+      rewrite Lub.
+      apply rk_app in E1.
+      erewrite le_lub_left; eauto. 2: lia. cbn.
+      have Lf: le_fun f f. eapply IHf; eauto. lia.
+      eapply (@le_fun_cons_right _ ih f u v); eauto. lia.
+      eapply compat. eapply valid_fun_head; eauto.
+    + destruct f; try done.
+      cbn. rewrite lub_bot_r.
+      erewrite le_refl; eauto. lia.
+Qed.
+
+Lemma le_fun_trans m (ih : OrderTheoreticLemmas m) : 
+    forall g h k, (max (max (rk_fun g) (rk_fun h)) (rk_fun k) <= m)%nat -> 
+             valid_fun g -> valid_fun h -> valid_fun k ->
+             le_fun g h -> le_fun h k -> le_fun g k.
+Proof.
+  induction g as [|[u v]g].
+  all: move=>h k RK Vug Vh Vk h1 h2.
+  - done.
+  - move: h1 => /andP [h1 Lgh]. 
+    have Vu: valid u. eauto using key_valid, valid_fun_head.
+    have Vv: valid v. eauto using val_valid, valid_fun_head.
+    cbn in RK.
+    apply /andP. split.
+    + clear IHg Lgh.
+      (* use le_trans for u,v *)
+      destruct (valid_app_compatible Vh Vu) as [wh [Ahu [Vwh Cwh]]].
+      rewrite Ahu in h1. 
+      destruct (valid_app_compatible Vk Vu) as [wk [Aku [Vwk Cwk]]].
+      rewrite Aku.
+      move: (rk_app Ahu) => Rwh.
+      move: (rk_app Aku) => Rwk.
+      have LEw: le wh wk.
+      { eapply (@le_fun_mono _ ih h k u); eauto. lia. } 
+      eapply (@le_trans _ ih v wh wk); eauto. lia.
+    + destruct (~~ is_nil g) eqn:Ng.
+      ++ eapply (IHg h k); eauto. lia.
+         eauto using valid_fun_tail. 
+      ++ destruct g; try done.
+Qed.
 
 Lemma OTLs : forall k, OrderTheoreticLemmas k.
 Proof.
   elim /strong_ind.
   move=> m ih.
-
-  have le_fun_mono_arg:
+(*
+  (* built into Monotone in the interface *)
+  have le_fun_mono_arg':
     forall h u1 u2, (max (max (rk_fun h) (rk u1)) (rk u2) < m)%nat -> 
            valid_fun h -> valid u1 -> valid u2 -> 
            compatible u1 u2 -> le u1 u2 ->
            forall w1 w2, app h u1 = Some w1 -> app h u2 = Some w2 -> 
                     compatible w1 w2 /\ le w1 w2.
+  { intros.
+    eapply le_fun_mono_arg; eauto. } 
+(*
   { induction h as [|[u v]h].
     all: move=> u1 u2 RK Vh Vu1 Vu2 Cu Lu w1 w2 A1 A2.
     - cbn in *. inversion A1. inversion A2. subst. split; done.
@@ -2578,15 +2879,18 @@ Proof.
            inversion A1; inversion A2; subst. 
            done.
    }
-
-  have le_fun_mono : 
+*)
+  (* finfun_leP *)
+  have le_fun_mono' : 
     forall h k u, (max (max (rk_fun h) (rk_fun k)) (rk u) < m)%nat -> 
            valid_fun h -> valid_fun k -> 
            le_fun h k -> valid u ->  
            forall w1 w2, app h u = Some w1 -> app k u = Some w2 -> 
                     le w1 w2.
   { 
-    induction h as [|[ui vi]h].
+    intros. eapply le_fun_mono; eauto.
+  } 
+(*    induction h as [|[ui vi]h].
     all: move=> k u RK Vf Vk LE Vu w1 w2 EQ A2.
     - inversion EQ. done.
     - rewrite app_spec in EQ. cbn in EQ. rewrite <- app_spec in EQ.
@@ -2653,7 +2957,7 @@ Proof.
            cbn in LE. move: LE => /andP [_ LE]. eapply LE.
         ++ destruct h; try done.
            inversion EQ. eapply le_bot.
-  }
+  } *)
 
 
   have le_fun_cons_right : 
@@ -2835,7 +3139,7 @@ Proof.
               eauto using valid_fun_tail. 
            ++ destruct g; try done.
      } 
-
+*)
   constructor.
 
   - (* le_refl *)
@@ -2891,11 +3195,12 @@ Proof.
          fold compatible in *. 
          rewrite le_tpi. apply /andP. split; eauto. 
          eapply le_lub_left; eauto. lia.
-         eapply le_fun_extend_left; eauto. fold rk_fun in RK. lia.
+         eapply le_fun_extend_left; eauto. fold rk_fun in RK. fold rk_fun. lia.
     + (* abs *)
       destruct v; cbn in h; inversion h; subst.
       ++ cbn in Vu. 
-         rewrite le_abs. eapply le_fun_refl; eauto.
+         rewrite le_abs. eapply le_fun_refl; eauto. 
+         eapply ih. cbn in RK. fold rk_fun in RK. lia.
       ++ destruct (compatible_fun l l0) eqn:E. 2: done.
          cbn in h. inversion h.
          rewrite le_abs. 
@@ -2936,12 +3241,13 @@ Proof.
          fold compatible in *. 
          rewrite le_tpi. apply /andP. split; eauto. 
          eapply le_lub_right; eauto. lia.
-         eapply le_fun_extend_right; eauto. fold rk_fun in RK. lia.
+         eapply le_fun_extend_right; eauto. fold rk_fun in RK. fold rk_fun. lia.
          
     + (* abs *)
       destruct u; cbn in h; inversion h; subst.
       ++ cbn in Vv. 
          rewrite le_abs. eapply le_fun_refl; eauto.
+         cbn in RK. fold rk_fun in RK. eauto.
       ++ destruct (compatible_fun l0 l) eqn:E. 2: done.
          cbn in h. inversion h.
          rewrite le_abs. 
@@ -2967,10 +3273,10 @@ Proof.
       move: L2 => /andP [Lvw Ll0l1].
       apply /andP. split.
       eapply (@le_trans _ (ih _ RK) u v w); eauto. lia.
-      eapply (@le_fun_trans l l0 l1); eauto. lia.
+      eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto. lia.
     + rewrite le_abs. rewrite -> le_abs in L1, L2.
       cbn in RK. fold rk_fun in RK.
-      eapply (@le_fun_trans l l0 l1); eauto.
+      eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto.
  
   - (* le_sup_lub *)
     move=> u v w1 w2 RK LE1 LE2 LUB.
@@ -3001,33 +3307,31 @@ Proof.
       inversion LUB. inversion EQ2. subst. inversion EQ2. subst.
       rewrite le_abs.
       eapply le_fun_extend; eauto.
-Admitted.
+Qed.
 
 End OTL.
 
-Lemma le_refl : forall a, valid a -> le a a.
-Proof. 
-  move=> a. 
-  eapply (@OTL.le_refl (rk a)).
-  eapply OTL.OTLs.
-  done.
+Lemma le_fun_refl f : valid_fun f -> le_fun f f.
+Proof.
+  eapply OTL.le_fun_refl. eapply OTL.OTLs. reflexivity.
 Qed.
 
-Lemma le_lub_left : forall a b, 
+Lemma le_refl a : valid a -> le a a.
+Proof. 
+  eapply OTL.le_refl. eapply OTL.OTLs. reflexivity.
+Qed.
+
+Lemma le_lub_left a b : 
      compatible a b -> forall w, lub a b = Some w -> 
      valid a -> valid b -> le a w.
 Proof. 
-  move=> a b.
-  eapply (@OTL.le_lub_left (max (rk a) (rk b))).
-  eapply OTL.OTLs.
-  done.
+  eapply OTL.le_lub_left. eapply OTL.OTLs. reflexivity.
 Qed.
 
-Lemma le_lub_right : forall a b, 
+Lemma le_lub_right a b :
      compatible a b -> forall w, lub a b = Some w -> 
      valid a -> valid b -> le b w.
 Proof.
-  move=> a b.
   eapply OTL.le_lub_right. 2: reflexivity.
   eapply OTL.OTLs.
 Qed.
@@ -3039,31 +3343,47 @@ Proof.
   eapply OTL.le_trans. 2: reflexivity.
   eapply OTL.OTLs.
 Qed.
+
+Lemma le_fun_trans u v w :
+     valid_fun u -> valid_fun v -> valid_fun w -> le_fun u v -> le_fun v w -> le_fun u w.
+Proof. 
+  eapply OTL.le_fun_trans. 2: reflexivity.
+  eapply OTL.OTLs.
+Qed.
+
   
-Lemma le_sup_lub : forall u v w1 w2, 
+Lemma le_sup_lub u v w1 w2 :
     le u w2 -> le v w2 -> lub u v = Some w1 ->
     le w1 w2.
 Proof.
-  move=> u v w1 w2.
   eapply OTL.le_sup_lub. 2: reflexivity.
   eapply OTL.OTLs.
 Qed.
 
-Opaque le.
+
+Lemma finfun_leP_reverse f1 f2 : 
+  (forall u w1 w2, app f1 u = Some w1 -> app f2 u = Some w2 -> 
+              compatible w1 w2 && le w1 w2) -> 
+  le_fun f1 f2.
+Admitted.
+
+Lemma app_respects u1 u2 (Vu1 : valid_fun u1) (Vu2 : valid_fun u2)
+  v1 v2 (Vv1 : valid v1) (Vv2 : valid v2) :  
+  le_fun u1 u2 -> le v1 v2 -> 
+  exists w1, exists w2, (app u1 v1) = Some w1 /\ (app u2 v2) = Some w2 /\ 
+                compatible w1 w2 /\ le w1 w2.
+Proof.
+  move=> Lu Lv.
+  move: (valid_app_compatible Vu1 Vv1) => [w1 [EQ1 [Vw1 CW1]]].
+  move: (valid_app_compatible Vu2 Vv2) => [w2 [EQ2 [Vw2 CW2]]].
+
+
+Admitted.
+
 
 Definition eqb_fun f1 f2 := 
   le_fun f1 f2 && le_fun f2 f1.
 
-Lemma app_respects u1 u2 (Vu1 : valid_fun u1) (Vu2 : valid_fun u2)
-  v1 v2 (Vv1 : valid v1) (Vv2 : valid v2) :  
-  eqb_fun u1 u2 -> eqb v1 v2 -> 
-  exists w1, exists w2, (app u1 v1) = Some w1 /\ (app u2 v2) = Some w2 /\ compatible w1 w2 /\ le w1 w2 /\ le w2 w1.
-Proof.
-  move=> /andP [Lu1 Lu2] Ev.
-  move: (valid_app_compatible Vu1 Vv1) => [w1 [EQ1 [Vw1 CW1]]].
-  move: (valid_app_compatible Vu2 Vv2) => [w2 [EQ2 [Vw2 CW2]]].
-  exists w1. exists w2. split; eauto. split; eauto.
-Admitted.
 
 End Raw.
 
@@ -3261,12 +3581,14 @@ Inductive wt : elt -> elt -> Prop :=
 
   | wt_tpi a g j : 
     wt a (tuniv j) -> 
-    (forall ui vi, List.In (ui,vi) g -> wt ui a /\ wt vi (tuniv j)) ->
+    (forall ui vi, 
+        List.In (ui,vi) g -> wt ui a /\ wt vi (tuniv j)) ->
     valid_fun g ->
     wt (tpi a g) (tuniv j)
 
   | wt_tabs a f g w :     
-    (forall ui vi, List.In (ui,vi) f -> app g ui = Some w -> wt ui a /\ wt vi w) ->
+    (forall ui vi, 
+        List.In (ui,vi) f -> app g ui = Some w -> wt ui a /\ wt vi w) ->
     valid_fun f ->
     valid_fun g -> 
     wt (abs f) (tpi a g)
