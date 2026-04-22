@@ -460,5 +460,147 @@ Lemma lemma4_2 w a f :
   forall ui vi r t, In (ui, vi) w ->
            app w ui = Some r -> app f ui = Some t -> wt r t.
 Admitted.       
+
                                        
-  
+(*
+ if u : a then lv(u) <= lv(a) and if u : Uk then lv(u) < k 
+*)
+
+Lemma wt_rk u a :
+  wt u a -> level u <= level a.
+Proof.
+  move=> h. 
+  induction h.
+  7: { 
+    cbn. fold level_fun.
+Abort.
+
+
+Lemma wt_abs_pred u v w b f :
+  wt (abs ((u,v)::w)) (tpi b f) -> ~~is_nil w ->
+  wt (abs w) (tpi b f).
+Proof.
+  move=> WT Nw. inversion WT. subst.
+  move: H5 => /andP [Vb Vf]. fold valid in Vb , Vf.
+  fold (valid_fun f) in Vf.
+  move: (valid_fun_tail H4 Nw) => Vt.
+  move: (valid_fun_head H4) => Vh. 
+    eapply wt_abs; eauto.
+    + move=> uj vj wj Inj. 
+      eapply (H2 uj vj wj ltac:(right;eauto)). 
+    + move=> uj vj wj Inj. 
+      eapply (H3 uj vj wj ltac:(right;eauto)). 
+    + eapply wt_valid_ty; eauto.
+Qed.
+
+(* 
+Lemma 5 If w : Π b f and b <= a, then for any u : a there exists v : b such that v <= u and w(u) = w(v).
+
+Proof We write w = (u1 → l1,...,un → ln) with ui : b and 
+   li : f (ui). We then
+have w(u) = w(v) 
+   with v = ∨{ui | ui <= u} and v : b by Lemma 2.
+
+*)
+
+Lemma app_down w b f : 
+  wt (abs w) (tpi b f) -> forall u a, 
+      le b a -> 
+      wt u a -> exists v, wt v b /\ le v u /\ app w u = app w v.
+Proof.
+  induction w as [|[ui vi]w].
+  - move=> WT. inversion WT. done.
+  - move=> WT. 
+    move=> u a LE WTu.
+    have Vu: valid u. eauto with valid.
+    have Vui: valid ui. 
+    { eapply wt_valid_tm in WT. eauto with valid. } 
+    have Vvi: valid vi. 
+    { eapply wt_valid_tm in WT. eauto with valid. } 
+    have Vf: valid_fun f || is_nil f.
+    { eapply wt_valid_ty in WT. move: WT => /andP [_ ?]. eauto. } 
+
+    destruct (~~is_nil w) eqn:Nw.
+    + move: (wt_abs_pred WT Nw) => WTw.
+      rewrite app_spec. cbn. rewrite <- app_spec.
+      move: (wt_valid_tm WT) => Vwi.
+      have Vw: valid_fun w. eauto with valid.
+      destruct (valid_app_exists Vw Vu) as [t [EQw Vt]].      
+      move: (IHw WTw u a LE WTu) => [v [WTv [LEv EQv]]].
+      (*
+      destruct (compatible ui u && le ui u) eqn:h1.
+      destruct (compatible ui v && le ui v) eqn:LEuiv.
+      ++ exists v. repeat split; eauto.
+         rewrite <- EQv. rewrite EQ.
+         move:h1 => /andP [h1 h3].
+         apply compatible_sym in h1.
+         move:(comp_down LEv h1) => h2. 
+         apply compatible_sym in h2. rewrite h2. cbn.
+        *)
+      admit.
+    + destruct w; try done.
+      cbn.
+      have [rf [Vrf EQrf]] :
+        exists rf, valid rf /\ app f ui = Some rf.
+      { move: Vf => /orP [Vf|Vf].
+        destruct (valid_app_exists Vf Vui) as [rf [Vrf EQrf]].
+        eexists; eauto.
+        exists bot. split; eauto.
+        destruct f; try done.
+      } 
+      have WTui : wt ui b.
+      { inversion WT. eapply H2; eauto. left; reflexivity. } 
+      destruct (compatible ui u && le ui u) eqn:EQu.
+      ++ move: EQu => /andP [Cui Lui].
+         exists ui. 
+         repeat split; eauto.  
+         rewrite compatible_refl; eauto. 
+         cbn. rewrite le_refl; eauto.
+      ++ exists bot.
+         repeat split; eauto.
+         econstructor; eauto. eapply wt_valid_ty; eauto.
+         eapply le_bot.
+         have Cu: compatible ui bot. destruct ui; done.
+         rewrite Cu. cbn.
+         destruct (le ui bot) eqn:LEu. 2: done.
+         apply le_bot_inv in LEu. subst. 
+         rewrite le_bot in EQu. 
+         rewrite Bool.andb_false_iff in EQu.
+         cbn in EQu. destruct EQu; try done.
+         destruct u; try done.
+Admitted.
+
+(*
+move: H5 => /andP [Vb Vf]. fold valid in Vb , Vf.
+      fold (valid_fun f) in Vf.
+      inversion H4. 
+      move: (valid_fun_tail H0 Nw) => Vt.
+      move: (valid_fun_head H0) => Vh. clear H0.
+      have WTw: (wt (abs w) (tpi b f)).
+      { eapply wt_abs.
+        move=> uj vj wj Inj. 
+        eapply (H2 uj vj wj ltac:(right;eauto)). 
+        move=> uj vj wj Inj. 
+        eapply (H3 uj vj wj ltac:(right;eauto)). 
+        eauto.
+        apply /andP; fold valid. split; auto.
+      } 
+*)
+
+Inductive is_type : elt -> Prop := 
+  | is_bot : is_type bot
+  | is_tuniv i : is_type (tuniv i)
+  | is_tnat : is_type tnat
+  | is_tpi a f : 
+    is_type a -> 
+    (forall u v, In (u,v) f -> wt u a) ->
+    (forall u v, In (u,v) f -> is_type v) ->
+    is_type (tpi a f).
+
+(* 
+If a : Uj , then a type. 
+If a type, b type, and a,b are compatible, then a ∨ b type. 
+If Π a (u1 → t1,...,un → tn) type and u1 → t1,...,un → tn is a
+minimal description, then ui : a and ti type.
+*)
+   
