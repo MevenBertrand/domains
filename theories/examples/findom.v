@@ -2053,6 +2053,19 @@ Proof.
     + erewrite IHk; eauto. 
 Qed.
 
+(* If f is valid  then f is not below nil. *)
+Lemma valid_fun_not_le_fun_nil f :
+  valid_fun f -> not (le_fun f nil).
+Proof.
+  move=> Vf Lfn.
+  move: (valid_fun_nonnil Vf) => Ne.
+  destruct f as [|[u v] f]; try done.
+  move: (valid_fun_no_bot Vf) => /forallb_forall NBf.
+  specialize (NBf (u,v) ltac:(left; eauto)). simpl in NBf.
+  move: Lfn => /forallb_forall Lfn.
+  specialize (Lfn (u,v) ltac:(left; eauto)). simpl in Lfn.
+  rewrite Lfn in NBf. done. 
+Qed.
 
 (*
 ------------------------------------------------------------------------
@@ -2370,62 +2383,6 @@ Proof.
       eapply IHf; eauto. lia.
 Qed.
 
-(*
-Lemma le_fun_cons_right m (ih : OrderTheoreticLemmas m) :
-    forall f u v, (max (rk_fun f) (max (rk u) (rk v)) <= m) ->
-           valid_fun f -> valid u -> valid v
-           -> coherent_with f (u,v) -> le_fun f ((u,v) :: f).
-Proof.
-  have Refl: forall f, (rk_fun f <= m)%nat -> valid_fun f -> le_fun f f.
-  {
-    induction f as [|[u1 v1] f IHf].
-    - done.
-    - move=> RK Vf.
-      have Vu1: valid u1. { eapply key_valid. eapply valid_fun_head; eauto. }
-      have Vv1: valid v1. { eapply val_valid. eapply valid_fun_head; eauto. }
-      cbn in RK.
-      rewrite le_fun_cons.
-      rewrite app_spec. cbn. rewrite <- app_spec.
-      rewrite compatible_refl; eauto.
-      erewrite (@le_refl _ ih); eauto. 2: lia.
-      cbn.
-      destruct (~~ is_nil f) eqn:Nf.
-      + have Vt: valid_fun f. eapply valid_fun_tail; eauto.
-        have LEu1: le u1 u1. { eapply (@le_refl _ ih); eauto. lia. }
-        destruct (valid_app_cons_compatible LEu1 Vf) as [w [E1 [Vw Cw]]].
-        rewrite E1.
-        apply compatible_sym in Cw.
-        destruct (compatible_lub_exists Cw) as [w0 Lub].
-        rewrite Lub.
-        move: (rk_app E1) => Re.
-        have Vw0: valid w0. { eapply (valid_lub (u:=v1)(v:=w)); eauto. }
-        move: (rk_lub Lub) => Rw0.
-        apply /andP; split.
-        { eapply (@le_lub_left _ ih v1 w); eauto. lia. }
-        eapply (@le_fun_weaken_cons m ih f f u1 v1).
-        { cbn. lia. }
-        { exact Vt. }
-        { exact Vu1. }
-        { exact Vv1. }
-        { eapply valid_fun_subterms; exact Vt. }
-        { eapply compat. eapply valid_fun_head; exact Vf. }
-        { eapply IHf. lia. exact Vt. }
-      + destruct f; try done.
-        cbn. rewrite lub_bot_r.
-        apply /andP; split. 2: done.
-        eapply (@le_refl _ ih); eauto. lia.
-  }
-  move=> f u v RK Vf Vu Vv Coh.
-  eapply (@le_fun_weaken_cons m ih f f u v).
-  - cbn. lia.
-  - exact Vf.
-  - exact Vu.
-  - exact Vv.
-  - eapply valid_fun_subterms; exact Vf.
-  - exact Coh.
-  - eapply Refl. lia. exact Vf.
-Qed.
-*)
 
 Lemma le_fun_refl  m (ih : OrderTheoreticLemmas m) f :
     (rk_fun f <= m)%nat -> valid_fun f -> le_fun f f.
@@ -2764,11 +2721,25 @@ Proof.
       move: Vl  => /orP [Vl | Vl];
       move: Vl0 => /orP [Vl0| Vl0];
       move: Vl1 => /orP [Vl1| Vl1].
-      1: { eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto. lia. } 
+      1: { eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto. lia. }
       all: apply /forallb_forall.
       all: intros [ui vi] Inl.
-      all: admit.
-               
+      all: exfalso.
+      (* case L,L,R: l, l0 valid, l1 is_nil *)
+      1: { destruct l1; [|done].
+           move: (valid_fun_nonnil Vl0) => NNl0.
+           destruct l0 as [|[u0 v0] l0']; [done|].
+           eapply (valid_fun_not_le_fun_nil Vl0 Ll0l1).
+           }
+      (* case L,R,L: l valid, l0 is_nil, l1 valid *)
+      1: { destruct l0; [|done].
+           eapply (valid_fun_not_le_fun_nil Vl Lll0). }
+      (* case L,R,R: l valid, l0 is_nil, l1 is_nil *)
+      1: { destruct l0; [|done].
+           eapply (valid_fun_not_le_fun_nil Vl Lll0). }
+      (* case R,*,*: l is_nil *)
+      all: destruct l; [done|done].
+
     + rewrite le_abs. rewrite -> le_abs in L1, L2.
       cbn in RK. fold rk_fun in RK.
       eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto.
@@ -2802,7 +2773,7 @@ Proof.
       inversion LUB. inversion EQ2. subst. inversion EQ2. subst.
       rewrite le_abs.
       eapply le_fun_extend; eauto.
-Admitted.
+Qed.
 
 End OTL.
 
@@ -3053,33 +3024,41 @@ Proof.
       have Cohmin' : coherent_with (minimize ((u', v') :: f'')) (u,v).
       { eapply coherent_with_sublist; [eapply minimize_incl|]. eauto. }
       specialize (IHf' Vf').
-      cbn [minimize].
-      destruct (redundant u v (minimize ((u', v') :: f''))) eqn:Hred.
-      * rewrite le_fun_cons.
-        destruct (valid_app_exists Vmin' Vu) as [w [Eapp _]].
-Admitted.
-(*
-        rewrite Eapp /=.
-        apply /andP; split.
-        -- move: Hred. unfold redundant. rewrite Eapp /=. done.
-        -- apply IHf'.
-      * rewrite le_fun_cons.
-        rewrite app_spec. cbn. rewrite <- app_spec.
+      set m := minimize ((u', v') :: f'').
+      have Emin : minimize ((u,v) :: (u',v') :: f'') =
+        if redundant u v m then m else (u,v) :: m.
+      { reflexivity. }
+      rewrite Emin.
+      destruct (redundant u v m) eqn:Hred.
+      * (* Redundant case: head (u,v) is dropped, so we need
+           le_fun ((u,v) :: (u',v') :: f'') m. *)
+        apply /forallb_forall.
+        move=> [ui vi] Inui. cbn.
+        destruct Inui as [Eq|Inui].
+        -- inversion Eq. subst ui vi.
+           unfold redundant in Hred. exact Hred.
+        -- move: IHf' => /forallb_forall IHf'.
+           specialize (IHf' _ Inui). cbn in IHf'. exact IHf'.
+      * (* Not redundant case: head (u,v) is kept. *)
         have CU : compatible u u. { eapply compatible_refl; auto. }
         have LU : le u u. { eapply le_refl; auto. }
-        rewrite CU LU /=.
         destruct (valid_app_exists Vmin' Vu) as [e [E Ve]].
-        rewrite E.
         have Cve : compatible v e.
-        { eapply (Comp_value_app (f := minimize ((u',v') :: f''))
+        { eapply (Comp_value_app (f := m)
                                  (xi := u) (w := e)); eauto. }
         destruct (compatible_lub_exists Cve) as [t Et].
-        rewrite Et.
-        have Vt : valid t. { eapply valid_lub; eauto. }
+        have Vt : valid t. { eapply valid_lub in Et; eauto. }
         have Lvt : le v t. { eapply le_lub_left; eauto. }
-        rewrite Lvt /=.
+        have Eapp : app ((u, v) :: m) u = Some t.
+        { rewrite app_spec. cbn. rewrite CU LU /=.
+          rewrite <- app_spec. subst m. rewrite E. exact Et. }
+        rewrite le_fun_cons.
+        rewrite Eapp.
+        rewrite Lvt.
+        rewrite Bool.andb_true_l.
+        subst m.
         eapply le_fun_weaken_cons; eauto.
-Qed. *)
+Qed.
 
 (* Equivalence of the original and its minimized form. *)
 Lemma eqb_fun_minimize f :
