@@ -2822,11 +2822,243 @@ Proof.
 Qed.
 
 
-Lemma finfun_leP_reverse f1 f2 : 
-  (forall u w1 w2, app f1 u = Some w1 -> app f2 u = Some w2 -> 
-              compatible w1 w2 && le w1 w2) -> 
+Lemma finfun_leP_reverse f1 f2 :
+  valid_fun f1 ->
+  valid_fun f2 ->
+  (forall u w1 w2, valid u ->
+              app f1 u = Some w1 -> app f2 u = Some w2 ->
+              compatible w1 w2 && le w1 w2) ->
   le_fun f1 f2.
+Proof.
+  move=> Vf1 Vf2 h.
+  have Lrefl: le_fun f1 f1. { eapply le_fun_refl; eauto. }
+  apply /forallb_forall.
+  move=> [ui vi] In.
+  move: (valid_fun_subterms_prop Vf1 In) => [Vui Vvi].
+  move: (valid_app_exists Vf1 Vui) => [w1 [E1 Vw1]].
+  move: (valid_app_exists Vf2 Vui) => [w2 [E2 Vw2]].
+  rewrite E2.
+  specialize (h _ _ _ Vui E1 E2).
+  move: h => /andP [_ Lw12].
+  move: Lrefl => /forallb_forall Lrefl.
+  move: (Lrefl _ In) => /=.
+  rewrite E1. move=> Lvi1.
+  eapply le_trans with (v := w1); eauto.
+Qed.
+
+(* --------------------------------------------------------- *)
+(** * Minimization *)
+(* --------------------------------------------------------- *)
+
+(* Top-level wrapper for OTL.le_fun_weaken_cons, without rank bounds. *)
+Lemma le_fun_weaken_cons f h u v :
+  valid_fun h -> valid u -> valid v ->
+  forallb (fun '(ui,vi) => valid ui && valid vi) f ->
+  coherent_with h (u, v) ->
+  le_fun f h -> le_fun f ((u, v) :: h).
+Proof.
+  eapply OTL.le_fun_weaken_cons. 2: reflexivity.
+  eapply OTL.OTLs.
+Qed.
+
+(* A tuple (u, v) is redundant in the context of a function `rest` when
+   applying `rest` to u already produces a result at least as large as v. *)
+Definition redundant (u v : elt) (rest : list (elt * elt)) : bool :=
+  match app rest u with
+  | Some w => le v w
+  | None => false
+  end.
+
+(* Right-to-left minimization: process each pair and keep it only if it
+   is not redundant with respect to the minimized tail. *)
+Fixpoint minimize (f : list (elt * elt)) : list (elt * elt) :=
+  match f with
+  | nil => nil
+  | (u, v) :: f' =>
+      let m := minimize f' in
+      if redundant u v m then m else (u, v) :: m
+  end.
+
+(* A function is minimal if no minimization is possible. *)
+Definition minimal (f : list (elt * elt)) : bool :=
+  Nat.eqb (length f) (length (minimize f)).
+
+Lemma app_nil_eq u : app nil u = Some bot.
+Proof. reflexivity. Qed.
+
+Lemma minimize_incl f : forall x, In x (minimize f) -> In x f.
+Proof.
+  induction f as [|[u v] f' IHf'].
+  - cbn. auto.
+  - cbn. intro x.
+    destruct (redundant u v (minimize f')) eqn:E.
+    + move=> In. right. eauto.
+    + move=> [->|In]. left; auto. right; eauto.
+Qed.
+
+Lemma coherent_with_sublist f g p :
+  (forall x, In x g -> In x f) ->
+  coherent_with f p ->
+  coherent_with g p.
+Proof.
+  destruct p as [u v]. move=> Sub CH.
+  unfold coherent_with in *.
+  apply /forallb_forall.
+  move: CH => /forallb_forall CH.
+  move=> [uj vj] Ing. apply (CH _ (Sub _ Ing)).
+Qed.
+
+Lemma compatible_fun_sublist f g :
+  (forall x, In x g -> In x f) ->
+  compatible_fun f f ->
+  compatible_fun g g.
+Proof.
+  move=> Sub CF.
+  unfold compatible_fun in *.
+  apply /forallb_forall.
+  move=> [ui vi] Ini.
+  apply /forallb_forall.
+  move=> [uj vj] Inj.
+  move: CF => /forallb_forall CF.
+  move: (CF _ (Sub _ Ini)) => /forallb_forall CFi.
+  apply (CFi _ (Sub _ Inj)).
+Qed.
+
+Lemma no_bot_result_sublist f g :
+  (forall x, In x g -> In x f) ->
+  no_bot_result f ->
+  no_bot_result g.
+Proof.
+  move=> Sub NB.
+  unfold no_bot_result in *.
+  apply /forallb_forall.
+  move: NB => /forallb_forall NB.
+  move=> x In. eapply NB. apply Sub. auto.
+Qed.
+
+Lemma valid_subterms_sublist f g :
+  (forall x, In x g -> In x f) ->
+  forallb (fun '(ui,vi) => valid ui && valid vi) f ->
+  forallb (fun '(ui,vi) => valid ui && valid vi) g.
+Proof.
+  move=> Sub V.
+  apply /forallb_forall.
+  move: V => /forallb_forall V.
+  move=> x In. eapply V. apply Sub. auto.
+Qed.
+
+Lemma minimize_not_nil f :
+  valid_fun f -> ~~ is_nil (minimize f).
+Proof.
+  induction f as [|[u v] f' IHf'].
+  - done.
+  - move=> Vf.
+    have Vhead : CFT u v f'. { eapply valid_fun_head; eauto. }
+    have NBv : ~~ le v bot. { eapply (val_nbot Vhead). }
+    cbn [minimize].
+    destruct (redundant u v (minimize f')) eqn:Hred.
+    + destruct f' as [|[u' v'] f''].
+      * cbn [minimize] in Hred. unfold redundant in Hred.
+        rewrite app_nil_eq in Hred.
+        rewrite Hred in NBv. done.
+      * have Vf' : valid_fun ((u', v') :: f''). { eapply valid_fun_tail; eauto. }
+        apply IHf'. auto.
+    + done.
+Qed.
+
+Lemma valid_minimize f :
+  valid_fun f -> valid_fun (minimize f).
+Proof.
+  move=> Vf.
+  have NN: ~~ is_nil (minimize f). { eapply minimize_not_nil; eauto. }
+  have Sub: forall x, In x (minimize f) -> In x f. { eapply minimize_incl. }
+  unfold valid_fun.
+  apply /andP; split. apply /andP; split. apply /andP; split.
+  - eapply compatible_fun_sublist; eauto. eapply valid_fun_compatible; eauto.
+  - eapply no_bot_result_sublist; eauto. eapply valid_fun_no_bot; eauto.
+  - done.
+  - eapply valid_subterms_sublist; eauto. eapply valid_fun_subterms; eauto.
+Qed.
+
+(* Easy direction: the minimized form is below the original. *)
+Lemma le_fun_minimize_orig f :
+  valid_fun f -> le_fun (minimize f) f.
+Proof.
+  move=> Vf.
+  have Lrefl: le_fun f f. { eapply le_fun_refl; eauto. }
+  apply /forallb_forall.
+  move=> [ui vi] In.
+  have Inf: List.In (ui, vi) f. { eapply minimize_incl; eauto. }
+  move: Lrefl => /forallb_forall Lrefl.
+  specialize (Lrefl _ Inf). cbn in Lrefl. auto.
+Qed.
+
+(* Hard direction: the original is below the minimized form. *)
+Lemma le_fun_orig_minimize f :
+  valid_fun f -> le_fun f (minimize f).
+Proof.
+  induction f as [|[u v] f' IHf'].
+  - done.
+  - move=> Vf.
+    have Vhead : CFT u v f'. { eapply valid_fun_head; eauto. }
+    have Vu : valid u. { eapply (key_valid Vhead). }
+    have Vv : valid v. { eapply (val_valid Vhead). }
+    have NBv : ~~ le v bot. { eapply (val_nbot Vhead). }
+    have Cohvf' : coherent_with f' (u,v). { eapply (compat Vhead). }
+    have Vsub : forallb (fun '(ui,vi) => valid ui && valid vi) f'.
+    { move: (valid_fun_subterms Vf) => /=.
+      move=> /andP [_ ?]. done. }
+    destruct f' as [|[u' v'] f''].
+    + cbn [minimize]. unfold redundant.
+      rewrite app_nil_eq.
+      have Hfalse : le v bot = false. { by apply negbTE. }
+      rewrite Hfalse.
+      eapply le_fun_refl; eauto.
+    + have Vf' : valid_fun ((u', v') :: f''). { eapply valid_fun_tail; eauto. }
+      have Vmin' : valid_fun (minimize ((u', v') :: f'')). { eapply valid_minimize; eauto. }
+      have Cohmin' : coherent_with (minimize ((u', v') :: f'')) (u,v).
+      { eapply coherent_with_sublist; [eapply minimize_incl|]. eauto. }
+      specialize (IHf' Vf').
+      cbn [minimize].
+      destruct (redundant u v (minimize ((u', v') :: f''))) eqn:Hred.
+      * rewrite le_fun_cons.
+        destruct (valid_app_exists Vmin' Vu) as [w [Eapp _]].
 Admitted.
+(*
+        rewrite Eapp /=.
+        apply /andP; split.
+        -- move: Hred. unfold redundant. rewrite Eapp /=. done.
+        -- apply IHf'.
+      * rewrite le_fun_cons.
+        rewrite app_spec. cbn. rewrite <- app_spec.
+        have CU : compatible u u. { eapply compatible_refl; auto. }
+        have LU : le u u. { eapply le_refl; auto. }
+        rewrite CU LU /=.
+        destruct (valid_app_exists Vmin' Vu) as [e [E Ve]].
+        rewrite E.
+        have Cve : compatible v e.
+        { eapply (Comp_value_app (f := minimize ((u',v') :: f''))
+                                 (xi := u) (w := e)); eauto. }
+        destruct (compatible_lub_exists Cve) as [t Et].
+        rewrite Et.
+        have Vt : valid t. { eapply valid_lub; eauto. }
+        have Lvt : le v t. { eapply le_lub_left; eauto. }
+        rewrite Lvt /=.
+        eapply le_fun_weaken_cons; eauto.
+Qed. *)
+
+(* Equivalence of the original and its minimized form. *)
+Lemma eqb_fun_minimize f :
+  valid_fun f -> eqb_fun f (minimize f).
+Proof.
+  move=> Vf.
+  unfold eqb_fun.
+  apply /andP; split.
+  - eapply le_fun_orig_minimize; auto.
+  - eapply le_fun_minimize_orig; auto.
+Qed.
+
+(* -------------------------------------------------- *)
 
 Lemma app_respects u1 u2 (Vu1 : valid_fun u1) (Vu2 : valid_fun u2)
   v1 v2 (Vv1 : valid v1) (Vv2 : valid v2) :  
@@ -2993,8 +3225,6 @@ Qed.
 
 (* Minimality: how can we reason about it? *)
 
-
-(* Should we use eqb or eqb? *)
 Fixpoint remove (u:elt) (v:elt) (f : list (elt * elt)) := 
   match f with 
   | nil => nil
@@ -3009,7 +3239,10 @@ Definition minimal (f : list (elt * elt)) : bool :=
 
 (* NOTE: Steve points out that 
            [(zero, bot)] is minimal because we
-           cannot have an empty list *)
+           cannot have an empty list
+   
+
+ *)
 
 
 (* -------------------------------------------- *)
@@ -3122,37 +3355,6 @@ Admitted.
 End Unused.
 
 
-Module Types.
-Import Raw.
-
-(* --------------------------------------------------------- *)
-
-(* The level of an element is its maximum universe level *)
-
-Fixpoint level (u : elt) : nat :=
-  let fix level_fun f :=
-    match f with
-      | nil => 0
-      | (ui, vi) :: tl => max (max (level ui) (level vi)) (level_fun tl)
-    end in
-  match u with 
-  | bot => 0 
-  | tnat => 0
-  | tuniv k => k
-  | zero => 0
-  | succ v => level v
-  | tpi a f => max (level a) (level_fun f)
-  | abs f => level_fun f
-  end.
-
-Fixpoint level_fun (f : list (elt * elt)) :=
- match f with
-      | nil => 0
-      | (ui, vi) :: tl =>
-          max (max (level ui) (level vi)) (level_fun tl)
- end.
-
-
 (* --------------------------------------------------------- *)
 
 (*
@@ -3222,70 +3424,8 @@ Proof.
         * destruct e; cbn in h1; cbn; try done.
 *)      
 
-(* Compatible elements have the same universe level???
-   No, this is not true b/c bot is compatible 
-   with any term.
-*)
-
-Lemma compatible_level u v :
-  compatible u v -> level u = level v.
-Abort.
-
-Lemma level_fun_respects
-  u (Vu : valid_fun u) v (Vv : valid_fun v) :
-  eqb_fun u v -> 
-  level_fun u = level_fun v.
-Proof.
-Abort.
 
 
-
-
-(** well typed elements: raw version *)
-(* TODO: make this relation imply validity *)
-
-Inductive wt : elt -> elt -> Prop := 
-  | wt_bot a j :
-    wt a (tuniv j) ->
-    wt bot a 
-
-  | wt_tuniv i j :
-    (i < j)%nat -> 
-    wt (tuniv i) (tuniv j)
-
-  | wt_tnat j :
-    wt tnat (tuniv j)
-
-  | wt_zero : 
-    wt zero tnat
-
-  | wt_succ u : 
-    wt u tnat -> 
-    wt (succ u) tnat
-
-  | wt_tpi a g j : 
-    wt a (tuniv j) -> 
-    (forall ui vi, 
-        List.In (ui,vi) g -> wt ui a /\ wt vi (tuniv j)) ->
-    valid_fun g ->
-    wt (tpi a g) (tuniv j)
-
-  | wt_tabs a f g w :     
-    (forall ui vi, 
-        List.In (ui,vi) f -> app g ui = Some w -> wt ui a /\ wt vi w) ->
-    valid_fun f ->
-    valid_fun g -> 
-    wt (abs f) (tpi a g)
-  .
-
-Lemma wt_valid u a : wt u a -> valid u /\ valid a.
-Admitted.
-
-Lemma wt_code u a : wt u a -> exists j, wt a (tuniv j).
-Admitted.
-
-
-End Types.
 
 
 (* -------------------------------------------------------- *)
