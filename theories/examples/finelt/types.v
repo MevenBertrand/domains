@@ -28,14 +28,24 @@ Import findom.Raw.
 
 
 Lemma le_fun_mono h k u :
-       valid_fun h -> valid_fun k -> 
-       le_fun h k -> valid u ->  
-       forall w1 w2, app h u = Some w1 -> app k u = Some w2 -> 
+       valid_fun h -> valid_fun k ->
+       le_fun h k -> valid u ->
+       forall w1 w2, app h u = Some w1 -> app k u = Some w2 ->
                 le w1 w2.
 Proof.
   eapply OTL.le_fun_mono. eapply OTL.OTLs. reflexivity.
 Qed.
-  
+
+Lemma le_fun_mono_arg h u1 u2 :
+       valid_fun h -> valid u1 -> valid u2 ->
+       compatible u1 u2 -> le u1 u2 ->
+       forall w1 w2, app h u1 = Some w1 -> app h u2 = Some w2 ->
+                compatible w1 w2 /\ le w1 w2.
+Proof.
+  eapply OTL.le_fun_mono_arg with (k := max (max (rk_fun h) (rk u1)) (rk u2)).
+  eapply OTL.OTLs. reflexivity.
+Qed.
+
 (* The level of an element is its maximum universe level *)
 
 Fixpoint level (u : elt) : nat :=
@@ -342,7 +352,7 @@ Proof.
       destruct (in_app_or _ _ _ InApp) as [Ing|Inl]; eauto.
     + apply /andP. fold valid (valid_fun (g ++ l)).
       split. eauto.
-      move: H3 => /andP [_ /orP [Vg|Vg]]. 
+      move: H3 => /andP [_ /orP [Vg|Vg]].
       fold valid (valid_fun g) in Vg.
       all: move: H11 => /andP [_ /orP [Vl|Vl]];
            fold valid (valid_fun l) in Vl.
@@ -350,23 +360,125 @@ Proof.
       ++ left. eapply valid_append; eauto.
       ++ destruct l; try done.
          rewrite app_nil_r. left; auto.
-      ++ destruct g; try done. 
+      ++ destruct g; try done.
          cbn. left; auto.
       ++ destruct l; destruct g; try done.
          cbn. right; done.
-  - admit.
-Admitted.
+  - (* u = abs f, v = abs l *)
+    cbn in LUB.
+    destruct (compatible_fun f l) eqn:C1; try done.
+    inversion LUB; subst w; clear LUB.
+    inversion Wtv as [| | | | | |a2 l2 g2 Hui2 Hvi2 Vabs2 Vtpi2]; subst;
+      clear Wtv.
+    have Vf : valid_fun f by cbn in H1.
+    have Vl : valid_fun l by cbn in Vabs2.
+    have Vfl : valid_fun (f ++ l) by eapply valid_append; eauto.
+    eapply wt_abs; eauto.
+    + move=> ui vi wi Inapp A.
+      destruct (in_app_or _ _ _ Inapp) as [Inf|Inl]; eauto.
+    + move=> ui vi wi Inapp A.
+      destruct (in_app_or _ _ _ Inapp) as [Inf|Inl]; eauto.
+Qed.
 
 (* Corollary 2 If w : Πaf and u : a, then w(u) : f (u). *)
 
-Lemma wt_app w a f : 
-  wt (abs w) (tpi a f) -> 
+Lemma wt_abs_pred u v w b f :
+  wt (abs ((u,v)::w)) (tpi b f) -> ~~is_nil w ->
+  wt (abs w) (tpi b f).
+Proof.
+  move=> WT Nw. inversion WT. subst.
+  move: H5 => /andP [Vb Vf]. fold valid in Vb , Vf.
+  fold (valid_fun f) in Vf.
+  move: (valid_fun_tail H4 Nw) => Vt.
+  move: (valid_fun_head H4) => Vh.
+    eapply wt_abs; eauto.
+    + move=> uj vj wj Inj.
+      eapply (H2 uj vj wj ltac:(right;eauto)).
+    + move=> uj vj wj Inj.
+      eapply (H3 uj vj wj ltac:(right;eauto)).
+    + eapply wt_valid_ty; eauto.
+Qed.
+
+(* Helper: extract app f u and its validity when valid (tpi a f) holds. *)
+Lemma app_tpi_valid a f u :
+  valid (tpi a f) -> valid u ->
+  forall t, app f u = Some t -> valid t.
+Proof.
+  move=> V Vu t A.
+  cbn in V. move: V => /andP [_ /orP [Vf|Nf]].
+  - fold (valid_fun f) in Vf. eapply valid_app; eauto.
+  - destruct f; try done. cbn in A. inversion A. done.
+Qed.
+
+(* Helper: existence of app f u when valid (tpi a f) holds. *)
+Lemma app_tpi_exists a f u :
+  valid (tpi a f) -> valid u ->
+  exists t, app f u = Some t /\ valid t.
+Proof.
+  move=> V Vu.
+  cbn in V. move: V => /andP [_ /orP [Vf|Nf]].
+  - fold (valid_fun f) in Vf. eapply valid_app_exists; eauto.
+  - destruct f; try done. exists bot. cbn. auto.
+Qed.
+
+Lemma wt_app w a f :
+  wt (abs w) (tpi a f) ->
   forall u r t, wt u a -> app w u = Some r -> app f u = Some t -> wt r t.
-Proof. 
-  move=> WT u r t WTu A1 A2.
-  inversion WT. subst. clear WT.
-  unfold app in A1.
-Admitted.
+Proof.
+  induction w as [|[ui vi] w'].
+  - (* w = nil: app nil u = Some bot, so r = bot *)
+    move=> WT u r t WTu A1 A2.
+    rewrite app_nil_eq in A1. inversion A1. subst r.
+    have Vtpi : valid (tpi a f) by eauto with valid.
+    have Vu : valid u by eauto with valid.
+    have Vt : valid t by eapply app_tpi_valid; eauto.
+    eapply wt_bot; eauto.
+  - move=> WT u r t WTu A1 A2.
+    have Vu : valid u by eauto with valid.
+    have Vtpi : valid (tpi a f) by eauto with valid.
+    have Vabs : valid (abs ((ui,vi) :: w')) by eauto with valid.
+    have Vw : valid_fun ((ui,vi) :: w') by done.
+    have Vt : valid t. { eapply (app_tpi_valid Vtpi Vu A2). }
+    have Vui : valid ui by eapply key_valid; eauto using valid_fun_head.
+    have Vvi : valid vi by eapply val_valid; eauto using valid_fun_head.
+    (* Extract per-entry typing info from WT *)
+    inversion WT as [| | | | | |aX wX fX HuiAll HviAll VabsX VtpiX EwX EafX]; subst.
+    (* HviAll: forall ui' vi' w0, In (ui',vi') ((ui,vi)::w') -> app f ui' = Some w0 -> wt vi' w0 *)
+    (* Get app w' u = Some r' *)
+    have [r' [Ar' Vr']] : exists r', app w' u = Some r' /\ valid r'.
+    { destruct (~~ is_nil w') eqn:Nw.
+      { eapply valid_app_exists; eauto using valid_fun_tail. }
+      destruct w'; try done. exists bot; cbn; auto. }
+    rewrite app_spec in A1. cbn in A1. rewrite <- app_spec in A1.
+    rewrite Ar' in A1.
+    (* r' is well-typed at t: either by IH (w' non-nil with wt_abs_pred) or r' = bot *)
+    have WTr' : wt r' t.
+    { destruct (~~ is_nil w') eqn:Nw.
+      { have WTw' : wt (abs w') (tpi a f) by eapply wt_abs_pred; eauto.
+        eapply IHw'; eauto. }
+      destruct w'; try done. cbn in Ar'. inversion Ar'. subst r'.
+      eapply wt_bot; eauto. }
+    destruct (compatible ui u && le ui u) eqn:EQui.
+    + (* ui compatible with u and ui <= u: r = lub vi r' *)
+      move: EQui => /andP [Cui LEui].
+      (* Get wi = app f ui and show wt vi wi *)
+      have [wi [Awi Vwi]] : exists wi, app f ui = Some wi /\ valid wi
+        by eapply app_tpi_exists; eauto.
+      have WTvi_wi : wt vi wi by eapply HviAll; [left; reflexivity | eauto].
+      (* wi <= t by monotonicity of app f (or trivially if f is nil) *)
+      have LEwit : le wi t.
+      { cbn in Vtpi. move: Vtpi => /andP [_ /orP [Vf|Nf]].
+        { fold (valid_fun f) in Vf.
+          have [_ LE] : compatible wi t /\ le wi t.
+          { eapply le_fun_mono_arg with (h := f) (u1 := ui) (u2 := u); eauto. }
+          exact LE. }
+        destruct f; try done. cbn in Awi, A2.
+        inversion Awi. inversion A2. subst. eapply le_bot. }
+      have WTvi_t : wt vi t by eapply wt_le; eauto.
+      eapply wt_lub with (u := vi) (v := r'); eauto.
+    + (* no contribution from (ui,vi): r = r' *)
+      inversion A1. subst r. done.
+Qed.
 
 
 (*
@@ -476,24 +588,7 @@ Proof.
 Abort.
 
 
-Lemma wt_abs_pred u v w b f :
-  wt (abs ((u,v)::w)) (tpi b f) -> ~~is_nil w ->
-  wt (abs w) (tpi b f).
-Proof.
-  move=> WT Nw. inversion WT. subst.
-  move: H5 => /andP [Vb Vf]. fold valid in Vb , Vf.
-  fold (valid_fun f) in Vf.
-  move: (valid_fun_tail H4 Nw) => Vt.
-  move: (valid_fun_head H4) => Vh. 
-    eapply wt_abs; eauto.
-    + move=> uj vj wj Inj. 
-      eapply (H2 uj vj wj ltac:(right;eauto)). 
-    + move=> uj vj wj Inj. 
-      eapply (H3 uj vj wj ltac:(right;eauto)). 
-    + eapply wt_valid_ty; eauto.
-Qed.
-
-(* 
+(*
 Lemma 5 If w : Π b f and b <= a, then for any u : a there exists v : b such that v <= u and w(u) = w(v).
 
 Proof We write w = (u1 → l1,...,un → ln) with ui : b and 
@@ -503,89 +598,110 @@ have w(u) = w(v)
 
 *)
 
-Lemma app_down w b f : 
-  wt (abs w) (tpi b f) -> forall u a, 
-      le b a -> 
+(* le u v (for valid v) implies compatible u v. *)
+Lemma le_compatible u v : valid v -> le u v -> compatible u v.
+Proof.
+  move=> Vv LE.
+  eapply comp_down; eauto. eapply compatible_refl; eauto.
+Qed.
+
+(* Stronger form: for any x with le v x and le x u, app w u = app w x. *)
+Lemma app_down_strong w b f :
+  wt (abs w) (tpi b f) -> forall u a,
+      le b a ->
+      wt u a ->
+      exists v, wt v b /\ le v u /\
+        (forall x, valid x -> le v x -> le x u -> app w u = app w x).
+Proof.
+  induction w as [|[ui vi] w'].
+  - move=> WT. inversion WT. done.
+  - move=> WT u a LE WTu.
+    have Vu : valid u by eauto with valid.
+    have Vtpi : valid (tpi b f) by eauto with valid.
+    have Vabs : valid (abs ((ui,vi) :: w')) by eauto with valid.
+    have Vb : valid b.
+    { cbn in Vtpi. move: Vtpi => /andP [? _]. done. }
+    have Vw : valid_fun ((ui,vi) :: w') by done.
+    have Vui : valid ui by eapply key_valid; eauto using valid_fun_head.
+    have Vvi : valid vi by eapply val_valid; eauto using valid_fun_head.
+    have [wi [Awi Vwi]] : exists wi, app f ui = Some wi /\ valid wi
+      by eapply app_tpi_exists; eauto.
+    inversion WT as [| | | | | |aX wX fX Hui2 Hvi2 VabsX VtpiX]; subst.
+    have WTui_b : wt ui b by eapply Hui2; [left; reflexivity | exact Awi].
+    destruct (~~ is_nil w') eqn:Nw.
+    + (* w' non-nil: use IH *)
+      have WTw' : wt (abs w') (tpi b f) by eapply wt_abs_pred; eauto.
+      destruct (IHw' WTw' u a LE WTu) as [v' [WTv' [LEv' IH2]]].
+      have Vv' : valid v' by eapply wt_valid_tm; eauto.
+      destruct (le ui u) eqn:LEui.
+      * (* le ui u = true *)
+        have Cui : compatible ui u by eapply le_compatible; eauto.
+        have Cuiv' : compatible ui v'.
+        { apply compatible_sym. eapply comp_down; eauto.
+          apply compatible_sym; eauto. }
+        destruct (compatible_lub_exists Cuiv') as [v_new EQv].
+        have Vv_new : valid v_new. { eapply (valid_lub Vui Vv' EQv). }
+        have LE_uivn : le ui v_new. { eapply (le_lub_left Cuiv' EQv Vui Vv'). }
+        have LE_vvn : le v' v_new. { eapply (le_lub_right Cuiv' EQv Vui Vv'). }
+        have LE_vnu : le v_new u. { eapply (@le_sup_lub ui v' v_new u LEui LEv' EQv). }
+        have WT_vnew : wt v_new b. { eapply wt_lub; [exact WTui_b | exact WTv' | exact EQv]. }
+        exists v_new. split; [|split]; eauto.
+        move=> x Vx LE_vnx LE_xu.
+        have LE_uix : le ui x by eapply le_trans with (v := v_new); eauto.
+        have LE_v'x : le v' x by eapply le_trans with (v := v_new); eauto.
+        have Cuix : compatible ui x by eapply le_compatible; eauto.
+        have App_eq : app w' u = app w' x by apply IH2; eauto.
+        rewrite app_spec. cbn. rewrite <- app_spec.
+        rewrite Cui LEui Cuix LE_uix /=.
+        rewrite App_eq. reflexivity.
+      * (* le ui u = false *)
+        exists v'. split; [|split]; eauto.
+        move=> x Vx LE_v'x LE_xu.
+        have LE_uix : le ui x = false.
+        { destruct (le ui x) eqn:E; try reflexivity.
+          have Luiu : le ui u by eapply le_trans with (v := x); eauto.
+          rewrite LEui in Luiu. done. }
+        have App_eq : app w' u = app w' x by apply IH2; eauto.
+        rewrite app_spec. cbn. rewrite <- app_spec.
+        rewrite LEui LE_uix !Bool.andb_false_r /=.
+        exact App_eq.
+    + (* w' nil *)
+      destruct w'; try done.
+      destruct (le ui u) eqn:LEui.
+      * (* le ui u = true *)
+        have Cui : compatible ui u by eapply le_compatible; eauto.
+        exists ui. split; [|split]; eauto.
+        move=> x Vx LE_uix LE_xu.
+        have Cuix : compatible ui x by eapply le_compatible; eauto.
+        rewrite app_spec. cbn.
+        rewrite Cui LEui Cuix LE_uix /=.
+        rewrite !lub_bot_r. reflexivity.
+      * (* le ui u = false *)
+        exists bot. split; [|split].
+        -- eapply wt_bot; eauto.
+        -- eapply le_bot.
+        -- move=> x Vx LE_botx LE_xu.
+           have LE_uix : le ui x = false.
+           { destruct (le ui x) eqn:E; try reflexivity.
+             have Luiu : le ui u by eapply le_trans with (v := x); eauto.
+             rewrite LEui in Luiu. done. }
+           rewrite app_spec. cbn.
+           rewrite LEui LE_uix !Bool.andb_false_r /=.
+           reflexivity.
+Qed.
+
+Lemma app_down w b f :
+  wt (abs w) (tpi b f) -> forall u a,
+      le b a ->
       wt u a -> exists v, wt v b /\ le v u /\ app w u = app w v.
 Proof.
-  induction w as [|[ui vi]w].
-  - move=> WT. inversion WT. done.
-  - move=> WT. 
-    move=> u a LE WTu.
-    have Vu: valid u. eauto with valid.
-    have Vui: valid ui. 
-    { eapply wt_valid_tm in WT. eauto with valid. } 
-    have Vvi: valid vi. 
-    { eapply wt_valid_tm in WT. eauto with valid. } 
-    have Vf: valid_fun f || is_nil f.
-    { eapply wt_valid_ty in WT. move: WT => /andP [_ ?]. eauto. } 
+  move=> WT u a LE WTu.
+  destruct (app_down_strong WT LE WTu) as [v [WTv [LEv HStr]]].
+  have Vv : valid v by eapply wt_valid_tm; eauto.
+  exists v. split; [|split]; eauto.
+  eapply HStr; eauto. eapply le_refl; eauto.
+Qed.
 
-    destruct (~~is_nil w) eqn:Nw.
-    + move: (wt_abs_pred WT Nw) => WTw.
-      rewrite app_spec. cbn. rewrite <- app_spec.
-      move: (wt_valid_tm WT) => Vwi.
-      have Vw: valid_fun w. eauto with valid.
-      destruct (valid_app_exists Vw Vu) as [t [EQw Vt]].      
-      move: (IHw WTw u a LE WTu) => [v [WTv [LEv EQv]]].
-      (*
-      destruct (compatible ui u && le ui u) eqn:h1.
-      destruct (compatible ui v && le ui v) eqn:LEuiv.
-      ++ exists v. repeat split; eauto.
-         rewrite <- EQv. rewrite EQ.
-         move:h1 => /andP [h1 h3].
-         apply compatible_sym in h1.
-         move:(comp_down LEv h1) => h2. 
-         apply compatible_sym in h2. rewrite h2. cbn.
-        *)
-      admit.
-    + destruct w; try done.
-      cbn.
-      have [rf [Vrf EQrf]] :
-        exists rf, valid rf /\ app f ui = Some rf.
-      { move: Vf => /orP [Vf|Vf].
-        destruct (valid_app_exists Vf Vui) as [rf [Vrf EQrf]].
-        eexists; eauto.
-        exists bot. split; eauto.
-        destruct f; try done.
-      } 
-      have WTui : wt ui b.
-      { inversion WT. eapply H2; eauto. left; reflexivity. } 
-      destruct (compatible ui u && le ui u) eqn:EQu.
-      ++ move: EQu => /andP [Cui Lui].
-         exists ui. 
-         repeat split; eauto.  
-         rewrite compatible_refl; eauto. 
-         cbn. rewrite le_refl; eauto.
-      ++ exists bot.
-         repeat split; eauto.
-         econstructor; eauto. eapply wt_valid_ty; eauto.
-         eapply le_bot.
-         have Cu: compatible ui bot. destruct ui; done.
-         rewrite Cu. cbn.
-         destruct (le ui bot) eqn:LEu. 2: done.
-         apply le_bot_inv in LEu. subst. 
-         rewrite le_bot in EQu. 
-         rewrite Bool.andb_false_iff in EQu.
-         cbn in EQu. destruct EQu; try done.
-         destruct u; try done.
-Admitted.
-
-(*
-move: H5 => /andP [Vb Vf]. fold valid in Vb , Vf.
-      fold (valid_fun f) in Vf.
-      inversion H4. 
-      move: (valid_fun_tail H0 Nw) => Vt.
-      move: (valid_fun_head H0) => Vh. clear H0.
-      have WTw: (wt (abs w) (tpi b f)).
-      { eapply wt_abs.
-        move=> uj vj wj Inj. 
-        eapply (H2 uj vj wj ltac:(right;eauto)). 
-        move=> uj vj wj Inj. 
-        eapply (H3 uj vj wj ltac:(right;eauto)). 
-        eauto.
-        apply /andP; fold valid. split; auto.
-      } 
-*)
 
 Inductive is_type : elt -> Prop := 
   | is_bot : is_type bot
@@ -603,4 +719,19 @@ If a type, b type, and a,b are compatible, then a ∨ b type.
 If Π a (u1 → t1,...,un → tn) type and u1 → t1,...,un → tn is a
 minimal description, then ui : a and ti type.
 *)
-   
+
+Lemma wt_is_type a i : 
+  wt a (tuniv i) -> is_type a.
+Admitted.
+
+Lemma is_type_lub a b :
+  is_type a -> is_type b -> forall c, lub a b = Some c -> is_type c.
+Admitted.
+
+Lemma is_type_dom a f : 
+  is_type (tpi a f) -> is_type a.
+Admitted.
+
+Lemma is_type_cod a f :
+  is_type (tpi a f) -> forall ui w, wt ui a -> app f ui = Some w -> is_type w.
+Admitted.

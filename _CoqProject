@@ -58,8 +58,13 @@ theories/directed.v
 # theories/examples/st_lam.v
 # theories/examples/st_lam_fix.v
 
-theories/examples/findom.v
+theories/examples/finelt/findom.v
+theories/examples/finelt/types.v
 
 theories/autosubst/core.v
 theories/autosubst/fintype.v
-theories/examples/syntax.v
+theories/examples/syntax/syntax.v
+theories/examples/syntax/renaming.v
+theories/examples/syntax/fin_util.v
+theories/examples/syntax/typing.v
+
