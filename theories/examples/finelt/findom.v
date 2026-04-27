@@ -3451,30 +3451,61 @@ Definition elt : Set :=
 Definition finfun : Set := 
   { f : list (Raw.elt * Raw.elt) & Raw.valid_fun f }.
 
+
 Definition bot : elt. exists Raw.bot. auto. Defined.
 Definition tnat : elt. exists Raw.tnat. auto. Defined.
 Definition tuniv (j: nat) : elt. exists (Raw.tuniv j). auto. Defined.
 Definition zero : elt. exists Raw.zero. auto. Defined.
 Definition succ (u : elt) : elt.
 exists (Raw.succ (projT1 u)). cbn. eapply projT2. Defined.
-(* NOTE: f can be nil for tpi *)
-Definition tpi (a : elt) (f : finfun) : elt.
+
+
+(* NOTE: f can be nil for tpi, so there are two ways to construct 
+   valid tpi's *)
+Definition tpi_empty (a : elt) : elt.
+  exists (Raw.tpi (projT1 a) nil).
+  apply /andP. fold Raw.valid. 
+  split. destruct a. cbn. done.
+  apply /orP. right. done.
+Defined.
+
+Definition tpi_finfun (a : elt) (f : finfun) : elt.
 exists (Raw.tpi (projT1 a) (projT1 f)).
 cbn. apply /andP. split. eapply projT2.
 destruct f as [rf h1]. cbn.
-unfold Raw.valid_fun in h1. 
-Admitted.
+apply /orP. left. eapply h1.
+Defined. 
+
 Definition tabs (f : finfun) : elt.
 exists (Raw.abs (projT1 f)). destruct f as [rf h1]. cbn. eapply h1.
 Defined.
 
-
-
 (* le *)
 Definition le : elt -> elt -> bool := 
-  fun u v => (Raw.compatible (projT1 u) (projT1 v) && Raw.le (projT1 u) (projT1 v)).
+  fun u v => (Raw.compatible (projT1 u) (projT1 v) 
+           && Raw.le (projT1 u) (projT1 v)).
+
 Definition le_fun (u v : finfun) : bool :=
-  Raw.compatible_fun (projT1 u) (projT1 v) && Raw.le_fun (projT1 u) (projT1 v).
+  Raw.compatible_fun (projT1 u) (projT1 v) 
+  && Raw.le_fun (projT1 u) (projT1 v).
+
+Lemma le_refl : forall u, le u u.
+move=> [u Vu]. unfold le.
+rewrite Raw.le_refl; eauto.
+rewrite Raw.compatible_refl; eauto.
+Qed.
+
+Lemma le_trans : forall u v w, le u v -> le v w -> le u w.
+Proof.
+move=> [u Vu] [v Vv] [w Vw].
+move=> /andP [Cu Lu] /andP [Cv Lv].
+apply /andP. 
+cbn [projT1] in *.
+split.
+eapply Raw.comp_down; eauto.
+eapply (@Raw.le_trans u v w); eauto.
+Qed.
+
 
 Lemma le_bot : forall u, le bot u = true.
 move=> [ru Vu]. unfold le. cbn. destruct ru.
@@ -3484,6 +3515,16 @@ Qed.
 Lemma le_tnat : le tnat tnat = true.
 Admitted.
 
+Lemma le_respects : forall (u1 u2 v1 v2 : elt), 
+  Raw.eqb (projT1 u1) (projT1 u2) ->
+  Raw.eqb (projT1 v1) (projT1 v2) ->
+  (le u1 v1) ==> (le u2 v2).
+Proof.
+  move=> [u1 Vu1] [u2 Vu2] [v1 Vv1] [v2 Vv2]. 
+  unfold le. cbn [projT1].
+  move=> /andP [Lu1 Lu2] /andP [Lv1 Lv2].
+  apply /implyP. move=> /andP [Cuv1 Luv1].
+Admitted.
 
 (** equal *)
 
@@ -3524,7 +3565,6 @@ Proof.
   ext.
 Admitted.
 
-
 (** application *)
 
 Definition app (f : elt) (u : elt) : elt.
@@ -3547,6 +3587,24 @@ Lemma app_respects : forall (f1 f2 : elt) (u1 u2 : elt),
   eqb (app f1 u1) (app f2 u2).
 Proof.
 Admitted.
+
+Definition singleton (u v : elt) : elt.
+destruct (le v bot) eqn:h.
+- exact bot.
+- exists (Raw.abs (cons (projT1 u,projT1 v) nil)).
+  destruct u as [u Vu].
+  destruct v as [v Vv].
+  have h1: ~~ (Raw.le v Raw.bot).
+  { destruct v; try done. } clear h.
+  cbn [Raw.valid projT1 bot].
+  cbn [Raw.no_bot_result forallb snd].
+  rewrite h1.
+  cbn [Raw.compatible_fun forallb].
+  rewrite Raw.compatible_refl; eauto.
+  rewrite Raw.compatible_refl; eauto.
+  rewrite Vu. rewrite Vv.
+  done.
+Defined.
 
 (*
 

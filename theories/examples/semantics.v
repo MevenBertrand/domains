@@ -73,8 +73,6 @@ Definition Ctx_app {n} : Ctx n -> Tm n -> Ctx (S n) :=
 
 Notation "Γ ++ A" := (Ctx_app Γ A).
 
-
-
 Inductive typing {n} (Γ : Ctx n) : Tm n -> Tm n -> Prop := 
   | tvar x : 
     ctx Γ ->
