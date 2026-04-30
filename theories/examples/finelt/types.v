@@ -172,6 +172,8 @@ Inductive wt : elt -> elt -> Prop :=
     wt (tpi a g) (tuniv j)
 
   | wt_abs a f g :  
+    (* TODO: we don't need the g[ui]=w premise in this first 
+       one. *)
     (forall ui vi w, 
         List.In (ui,vi) f -> app g ui = Some w -> wt ui a) ->
     (forall ui vi w, 
@@ -182,8 +184,43 @@ Inductive wt : elt -> elt -> Prop :=
     wt (abs f) (tpi a g)
   .
 
+(* app f ui = lub { vj | uj <= ui  and (uj,vj) in f } *)
+
+(* For some functions: we might want this property
+ 
+    (ui,vi) in f, (uj,vj) in f,   ui <= uj implies vi <= vj 
+
+   This gives us for any (ui,vi) in f,
+    app f ui = Some vi    
+    (* exactly, don't need to look at other tuples *)
+
+    
+   example: consider F:
+     (succ (succ bot),  { (1,1) }  )
+     (succ bot, { (0,0) } )
+
+
+   minimal but violates the property because 
+      F (suc (succ bot)) = { (0,0), (1,1) }
+
+   this property + minimal means unique representation for sets of pairs
+   
+*)
+
+(* If we restrict to these elements, then we can think about this 
+   stronger typing rule for functions *)
+Lemma wt_abs_ext a f g :
+    (forall u, exists v, wt v a /\ app f u = app f v) ->
+    (forall u w v, app g u = Some w -> app f u = Some v -> wt v w) ->
+    (* make sure both tm and type are valid *)
+    (valid (abs f)) ->
+    (valid (tpi a g)) <-> 
+    wt (abs f) (tpi a g)
+  .
+Abort.
+
 Lemma wt_valid_tm u a : wt u a -> valid u.
-induction 1; eauto.
+induction 1; eauto.  
 Qed.
 
 Lemma wt_valid_ty u a : wt u a -> valid a.

@@ -100,7 +100,8 @@ Inductive typing : forall {n} (Γ : Ctx n), Tm n -> Tm n -> Prop :=
     typing Γ A (tuniv i) ->
     typing (Γ ++ A) B (tuniv i) -> 
     typing Γ (tpi A B) (tuniv i)
-  | t_cum n (Γ : Ctx n) A i j : 
+  | t_cum n (Γ : Ctx n) A i j :
+    (* TODO: change this to <= ? *)
     typing Γ A (tuniv i) -> (i < j)%nat -> 
     typing Γ A (tuniv j)
   | t_univ n (Γ : Ctx n) i j : 
@@ -332,7 +333,7 @@ Proof.
       reflexivity.
     + (* tcum *)
       eapply t_cum'; eauto.
-      eapply renaming_typing'; eauto.
+      eapply renaming_typing'; eauto. 
   (* conv *)
   - intros h tR tΔ.
     dependent destruction h; subst.
