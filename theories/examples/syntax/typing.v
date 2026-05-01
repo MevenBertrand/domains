@@ -195,11 +195,56 @@ Definition t_univ' {n} (Γ : Ctx n) A (i j : nat):
   i < j -> tuniv j = A -> ctx Γ ->
   typing Γ (tuniv i) A.
 intros h1 <- h. eapply t_univ; eauto. Qed.
-Definition t_cum' {n} (Γ : Ctx n) A i j B : 
-    typing Γ A (tuniv i) -> (i < j)%nat -> 
+Definition t_cum' {n} (Γ : Ctx n) A i j B :
+    typing Γ A (tuniv i) -> (i < j)%nat ->
     tuniv j = B ->
     typing Γ A B.
 Proof. intros; subst; eauto using t_cum. Qed.
+
+Definition c_app1' {n} (Γ : Ctx n) A B N N' M C i :
+    typing Γ A (tuniv i) ->
+    typing (Γ ++ A) B (tuniv i) ->
+    conv Γ N N' (tpi A B) ->
+    typing Γ M A ->
+    B[M..] = C ->
+    conv Γ (app N M) (app N' M) C.
+Proof. intros; subst; eauto using c_app1. Qed.
+
+Definition c_app2' {n} (Γ : Ctx n) A B N M M' C i :
+    typing Γ A (tuniv i) ->
+    typing (Γ ++ A) B (tuniv i) ->
+    typing Γ N (tpi A B) ->
+    conv Γ M M' A ->
+    B[M..] = C ->
+    conv Γ (app N M) (app N M') C.
+Proof. intros; subst; eauto using c_app2. Qed.
+
+Definition c_beta' {n} (Γ : Ctx n) A B M N C D i :
+    typing Γ A (tuniv i) ->
+    typing (Γ ++ A) B (tuniv i) ->
+    typing (Γ ++ A) N B ->
+    typing Γ M A ->
+    N[M..] = C ->
+    B[M..] = D ->
+    conv Γ (app (abs A N) M) C D.
+Proof. intros; subst; eauto using c_beta. Qed.
+
+Definition c_nrec_Z' {n} (Γ : Ctx n) M0 M1 (T : Tm (S n)) C i :
+    typing (Γ ++ tnat) T (tuniv i) ->
+    typing Γ M0 (T[zero..]) ->
+    typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩)) ->
+    T[zero..] = C ->
+    conv Γ (app (nrec T M0 M1) zero) M0 C.
+Proof. intros; subst; eauto using c_nrec_Z. Qed.
+
+Definition c_nrec_S' {n} (Γ : Ctx n) T M0 M1 e C i :
+    typing (Γ ++ tnat) T (tuniv i) ->
+    typing Γ M0 (T[zero..]) ->
+    typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩)) ->
+    T[(succ e)..] = C ->
+    conv Γ (app (nrec T M0 M1) (succ e))
+      (app (app M1 e) (app (nrec T M0 M1) e)) C.
+Proof. intros; subst; eauto using c_nrec_S. Qed.
 
 #[export] Hint Resolve t_var'  t_univ': syntax.
 
@@ -268,21 +313,21 @@ with renaming_type_conv {n} (Γ : Ctx n) A B {m} (Δ:Ctx m) δ :
 with ctx_extend {n} {Γ:Ctx n}{A:Tm n} :
   ctx Γ -> type Γ A -> ctx (Γ ++ A)
 *).
-Proof. 
-  have renaming_typing': 
-    forall n (Γ : Ctx n) a A m (Δ:Ctx m) δ B,
-      Γ |-e a ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
-         B = A⟨δ⟩ ->
-         Δ |-e a⟨δ⟩ ∈ B.
-  { admit. }
-  have renaming_conv' :
-    forall n (Γ : Ctx n) a b A m (Δ:Ctx m) δ B,
-      Γ |-e a ≡ b ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
-         B = A⟨δ⟩ ->
-         Δ |-e a⟨δ⟩ ≡ b⟨δ⟩ ∈ B.
-  { admit. } 
+Proof.
   (* typing *)
-  - intros h tR wtΔ. 
+  - have renaming_typing':
+      forall n (Γ : Ctx n) a A m (Δ:Ctx m) δ B,
+        Γ |-e a ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
+           B = A⟨δ⟩ ->
+           Δ |-e a⟨δ⟩ ∈ B.
+    { intros until B. intros h tR cD ->. eapply renaming_typing; eauto. }
+    have renaming_conv' :
+      forall n (Γ : Ctx n) a b A m (Δ:Ctx m) δ B,
+        Γ |-e a ≡ b ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
+           B = A⟨δ⟩ ->
+           Δ |-e a⟨δ⟩ ≡ b⟨δ⟩ ∈ B.
+    { intros until B. intros h tR cD ->. eapply renaming_conv; eauto. }
+    intros h tR wtΔ.
     dependent destruction h; subst.
     all: asimpl.
     all: try solve [econstructor; eauto with renaming; cbn].
@@ -314,16 +359,17 @@ Proof.
     + (* nrec *)
       have EC: ctx (Δ ++ tnat).
       { eapply c_cons; eauto with renaming.
-        eapply t_nat; eauto. } 
-      eapply t_nrec; eauto with renaming. 
+        eapply t_nat; eauto. }
+      eapply t_nrec; eauto with renaming.
       eapply renaming_typing' in h1; eauto with renaming.
       eapply typing_renaming_lift with (τ:=tnat) in tR; eauto.
       reflexivity.
       eapply renaming_typing' in h2; eauto. asimpl. eauto.
       eapply renaming_typing' in h3; eauto with renaming.
-      asimpl. 
-      f_equal. f_equal. 
-      admit. (* ugh! Autosubst!  *)
+      asimpl.
+      f_equal. f_equal.
+      unfold rho. asimpl.
+      eapply ext_fin. intros [k|]; asimpl; reflexivity.
     + (* tpi *)
       eapply t_tpi; eauto with renaming.
       eapply renaming_typing'; eauto with renaming.
@@ -334,13 +380,33 @@ Proof.
       eapply t_cum'; eauto.
       eapply renaming_typing'; eauto. 
   (* conv *)
-  - intros h tR tΔ.
+  - have renaming_typing':
+      forall n (Γ : Ctx n) a A m (Δ:Ctx m) δ B,
+        Γ |-e a ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
+           B = A⟨δ⟩ ->
+           Δ |-e a⟨δ⟩ ∈ B.
+    { intros until B. intros h tR cD ->. eapply renaming_typing; eauto. }
+    have renaming_conv' :
+      forall n (Γ : Ctx n) a b A m (Δ:Ctx m) δ B,
+        Γ |-e a ≡ b ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
+           B = A⟨δ⟩ ->
+           Δ |-e a⟨δ⟩ ≡ b⟨δ⟩ ∈ B.
+    { intros until B. intros h tR cD ->. eapply renaming_conv; eauto. }
+    intros h tR tΔ.
     dependent destruction h; subst.
     all: asimpl.
     all: try solve [econstructor; eauto with renaming].
-    + admit.
+    + (* c_conv *)
+      eapply c_conv.
+      eapply renaming_conv in h1; eauto.
+      eapply renaming_conv' in h2; eauto. cbn. reflexivity.
     + (* c_app1 *)
-      admit.
+      have EC: ctx (Δ ++ A⟨δ⟩).
+      { eapply c_cons; eauto with renaming.
+        eapply renaming_typing in H; eauto with renaming. }
+      eapply c_app1' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+        eauto using renaming_typing' with renaming.
+      asimpl. reflexivity.
     + (* c_app2 *)
       admit.
     + (* c_beta *)
