@@ -158,13 +158,6 @@ Definition InvConv
   /\ (forall u, EvalRel M ρ u -> EvalRel N ρ u) 
   /\ (forall u, EvalRel N ρ u -> EvalRel M ρ u). 
 
-(*
-theorem1 : {n : Nat} {G : Ctx n} {M A : Expr n} ->
-    HasType G M A ->
-    (rho : EnvApprox n) -> Fits G rho ->
-    InvTyp G M A rho
-*)
-
 Fixpoint typing_EvalRel {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) 
    (h : typing Γ M A) {struct h} :
    forall ρ, fits Γ ρ -> InvTyped Γ M A ρ

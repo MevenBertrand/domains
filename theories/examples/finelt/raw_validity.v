@@ -247,6 +247,68 @@ Proof.
 Qed.
 
 
+Lemma EvalRel_shift n (M : Tm n) (ρ : Env n) a  
+  m  (ξ : fin n -> fin m) (ρ' : Env m) :
+  (forall x, ρ x = ρ' (ξ x)) ->
+  EvalRel M⟨ξ⟩ ρ' a <-> EvalRel M ρ a.
+Proof.
+  move: m ξ ρ ρ' a.
+  induction M.
+  all: move=> m ξ ρ ρ' a EQ.
+  all: try done.
+  - cbn. rewrite <- EQ. done.
+  - cbn. destruct a; try done.
+    split. 
+    all: move=> [i [a [WT [ER [Vf h]]]]].
+    all: exists i, a.
+    all: repeat split; eauto.
+    all: try rewrite -> IHM1 in ER; try rewrite IHM1; eauto.
+    all: move=> ui vi Ini.
+    all: specialize (h ui vi Ini).
+    all: destruct h as [x [Le [WT2 E2]]].
+    all: exists x; repeat split; eauto.       
+    rewrite <- (IHM2 _ (up_ren ξ) _ (x .: ρ')). eauto.
+    auto_case.
+    rewrite (IHM2 _ (up_ren ξ) (x .: ρ)); eauto.
+    auto_case.
+  - (* app *) cbn.
+    destruct (is_bot a); try done.
+    split.
+    all: move=> [u [E1 E2]].
+    all: exists u.
+    rewrite -> IHM1 in E1; eauto.
+    rewrite -> IHM2 in E2; eauto.
+    rewrite -> IHM1 ; eauto.
+    rewrite -> IHM2 ; eauto.
+  - (* succ *)
+    cbn.
+    destruct (is_bot a); try done.
+    split.
+    all: move=> [Va [u [L E1]]].
+    all: split; auto.
+    all: exists u.
+    all: split; auto.
+    rewrite -> IHM in E1; eauto.
+    rewrite -> IHM ; eauto.
+  - (* tpi *)
+    cbn.
+    destruct a; try done.
+    split.
+    all: move=> [Va [i [WT [ER h]]]].
+    all: split; auto.
+    all: exists i.
+    all: repeat split; auto.
+    all: try rewrite IHM1 in ER; auto; try rewrite IHM1; auto.
+    all: destruct h as [Nf|[Vf h]].
+    all: try solve [left; eauto].
+    all: right; split; eauto.
+    all: move=> u v Inl.
+    all: destruct (h u v Inl) as [x [Le [WTx E2]]].
+    all: exists x; repeat split; auto.
+    all: try rewrite IHM2 in E2; auto; try rewrite IHM2; eauto.
+    all: auto_case.
+Qed.
+
 (* Fundamental theorem for the logical relation 
    
    We want to show that well-typed terms are in the 
@@ -255,11 +317,11 @@ Qed.
    - If Γ |- M : A (typing) then
 
 
-     if Γ |= ρ ~ σ  (ValSigma)
+     if Γ |= ρ ~ σ  (ValSub)
 
-          which implies  Γ |- σ  (typing_subst null)
+          and  Γ |- σ  (typing_subst ctx_empty)
 
-                    and  Γ |= ρ  (Fits)   
+          and  Γ |= ρ  (fits)   
 
 
      for all u, a, such that h ∈ u : a   (wt)
@@ -272,7 +334,7 @@ Qed.
 
    - If Γ |- M = N : A  (conv) 
 
-     and  Γ |- σ1  Γ |- σ2 (typing_subst null)
+     and  Γ |- σ1  Γ |- σ2 (typing_subst ctx_empty)
 
      and  Γ |= ρ  (fits)   
 
@@ -280,7 +342,7 @@ Qed.
  
      and h ∈ u : a   (wt)
 
-     and Γ |= ρ ~ σ1 == σ2   (EqValSigma)
+     and Γ |= ρ ~ σ1 == σ2   (EqValSub)
 
      then
 
@@ -291,48 +353,181 @@ Qed.
 (* A closing substitution: σ *)
 Definition Sub m := fin m -> Tm O.
 
+(*
+ValidSub2 : {h g : Nat} -> Ctx h -> Ctx g -> Sub h g -> EnvApprox g -> Set
+ValidSub2 {h} {g} H G sigma rho =
+  (i : Fin g) -> (u : FinEl) -> (cu : Coherent u) ->
+  LeCode u (lookupEnv i rho) ->
+  (a : FinEl) -> EvalRel (lookup G i) rho a -> FinMem u a ->
+  Val2 H (sigma i) (substExpr sigma (lookup G i)) u a
+*)
+
 (* A valid closing substitution σ maps every term to one that 
-   can be interpreted *) 
-Definition ValidSub {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g)  : Prop := 
-  forall i a u (h : wt u a), 
-    valid u -> le u (ρ i) -> 
-    EvalRel (lookup i Γ) ρ a ->
-    Val (σ i) (lookup i Γ)[σ] h. 
+   can be interpreted. *) 
+Definition ValSub {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g)  : Prop := 
+  forall i,
+  forall u, valid u -> le u (ρ i) ->
+    forall a, EvalRel (lookup i Γ) ρ a ->
+    forall (h : wt u a), 
+      Val (σ i) (lookup i Γ)[σ] h. 
 
 
-Lemma ValidSub_empty : ValidSub ctx_empty null null.
-unfold ValidSub. done. Qed.
+Lemma ValSub_empty : ValSub ctx_empty null null.
+unfold ValSub. done. Qed.
 
-Lemma ValidSub_cons {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) 
-  v A (M : Tm 0) : 
-  (forall u a (h : wt u a), valid u -> le u v -> EvalRel A ρ a ->
-        Val M A[σ] h) -> 
-  ValidSub Γ ρ  σ -> 
-  ValidSub (Γ ++ A) (v .: ρ) (M .: σ). 
-Admitted.
-
-Lemma ValidSub_fits {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
-  ValidSub Γ ρ σ -> fits Γ ρ.
-Admitted.
-
-Lemma ValidSub_typing_subst {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
-  ValidSub Γ ρ σ -> typing_subst ctx_empty σ Γ.
+Lemma ValSub_cons {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) A v (M : Tm 0): 
+    (forall u, valid u -> le u v -> forall a (h : wt u a),
+    EvalRel A ρ a -> 
+    Val M A[σ] h) -> 
+    ValSub Γ ρ σ -> 
+    ValSub (Γ ++ A) (v .: ρ) (M .: σ). 
+Proof.
+  intros hyp0 VS.
+  unfold ValSub in *.
+  move=> i u0 Vu0 Le0 a0 E0 WT0.
+  destruct i as [i|].
+  - (* succ case *) 
+    cbn in *. asimpl.
+    eapply VS; eauto.
+    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+  - (* zero case *)
+    cbn in *. asimpl.
+    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+Qed.    
+    
+(*
+Lemma ValSub_typing_subst {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
+  ValSub Γ ρ σ -> typing_subst ctx_empty σ Γ.
 Proof.
   move=> h.
-  move=> x. specialize (h x).
-  eapply Val_typing.
-  eapply h; eauto.
+  move=> x. specialize (h x).  
+  move: h => [u [a [h [Vu [Le [E VV]]]]]].
+  eapply Val_typing; eauto.
+Qed.
+
+Lemma ValSub_fits {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
+  ValSub Γ ρ σ -> fits Γ ρ.
+Proof.
+  move: ρ σ.
+  induction Γ.
+  all: move=> ρ σ h. 
+  - replace ρ with (@null elt).
+    eapply fits_empty. 
+    eapply functional_extensionality. done.
+  - replace ρ with (ρ var_zero .: ↑ >> ρ).
+    2: { eapply functional_extensionality. auto_case. }
+    move: (h var_zero) => [u [a [WT [Vu [Le [E1 V1]]]]]].
+    cbn in *. asimpl in V1.
+    eapply fits_cons.
+Admitted.
+*)
+
+
+Definition EqValSub {g} (Γ : Ctx g) (ρ : Env g) (σ1 : Sub g) (σ2 : Sub g)  : Prop := 
+  forall i, 
+  forall u, valid u -> le u (ρ i) ->
+    forall a, EvalRel (lookup i Γ) ρ a ->
+    forall (h : wt u a), 
+      EqVal (σ1 i) (σ2 i) (lookup i Γ)[σ1] h. 
+
+Lemma EqValSub_empty : EqValSub ctx_empty null null null.
+unfold EqValSub. done. Qed.
+
+Lemma EqValSub_cons {g} (Γ : Ctx g) (ρ : Env g) 
+  (σ1 σ2 : Sub g) A v (M1 M2 : Tm 0): 
+    (forall u, valid u -> le u v -> forall a (h : wt u a),
+    EvalRel A ρ a -> 
+    EqVal M1 M2 A[σ1] h) -> 
+    EqValSub Γ ρ σ1 σ2 -> 
+    EqValSub (Γ ++ A) (v .: ρ) (M1 .: σ1) (M2 .: σ2). 
+Proof.
+  intros hyp0 VS.
+  unfold ValSub in *.
+  move=> i u0 Vu0 Le0 a0 E0 WT0.
+  destruct i as [i|].
+  - (* succ case *) 
+    cbn in *. asimpl.
+    eapply VS; eauto.
+    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+  - (* zero case *)
+    cbn in *. asimpl.
+    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+Qed.    
+
+Definition semantic_typing {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :=
+  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ) (VS : ValSub Γ ρ σ), 
+  forall u a (WT : wt u a), 
+    EvalRel M ρ u -> 
+    EvalRel A ρ a -> 
+    Val M[σ] A[σ] WT.
+Definition semantic_conv {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
+  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ)
+    (VS : ValSub Γ ρ σ), 
+  forall u a (WT : wt u a), 
+    EvalRel M ρ u -> 
+    EvalRel A ρ a -> 
+    EqVal M[σ] N[σ] A[σ] WT. 
+
+Notation "Γ ⊨ M ∈ A" := (semantic_typing Γ M A) (at level 70).
+Notation "Γ ⊨ M ≡ N ∈ A" := (semantic_conv Γ M N A) (at level 70).
+
+(* ------------------ semantic typing rules ----------- *)
+
+Section SemanticTyping.
+
+Variable (n:nat) (Γ : Ctx n).
+
+Lemma st_var (x : fin n) : 
+  ctx Γ -> 
+(* ------------------------- *)
+  Γ ⊨ var x ∈ lookup x Γ.
+Proof.
+  move=> h. 
+  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
+  cbn in *. move: Ex => [Vu1 Le1].
+  specialize (VS x).
+  eapply VS; eauto.
+Qed.
+
+Lemma st_conv M A B i : 
+  Γ ⊨ M ∈ A -> 
+  Γ ⊨ A ≡ B ∈ Core.tuniv i ->
+(* ------------------------- *)
+  Γ ⊨ M ∈ B.
+Admitted.  
+
+Lemma st_abs A B M i : 
+  Γ ⊨ A ∈ Core.tuniv i -> 
+  Γ ++ A ⊨ B ∈ Core.tuniv i -> 
+  Γ ++ A ⊨ M ∈ B ->
+(* ------------------------- *)
+  Γ ⊨ Core.abs A M ∈ Core.tpi A B.
 Admitted.
 
-(*
-Definition ValidConvSub {g} (ρ : Env g) 
-  (Γ : Ctx g) (σ1 σ2 : Sub g)  : Prop := 
-  forall i u, valid u -> le u (ρ i) -> 
-    forall a, EvalRel (lookup i Γ) ρ a -> wt u a  -> 
-         EqVal u a (σ1 i) (σ2 i) (lookup i Γ)[σ1]. 
+Lemma st_app A B N M i : 
+  Γ ⊨ A ∈ Core.tuniv i -> 
+  Γ ++ A ⊨ B ∈ Core.tuniv i -> 
+  Γ ⊨ M ∈ (Core.tpi A B) -> 
+  Γ ⊨ N ∈ A  -> 
+(* ------------------------ *)
+  Γ ⊨ Core.app M N ∈ B[N..].
+Admitted.
+ 
 
-Lemma ValidConvSub_refl {g} (ρ : Env g) (Γ : Ctx g) (σ : Sub g) :
-  ValidSub ρ Γ σ -> ValidConvSub ρ Γ σ σ.
+End SemanticTyping.
+
+
+ 
+
+
+(*
+Lemma EqValSub_refl {g} (ρ : Env g) (Γ : Ctx g) (σ : Sub g) :
+  ValSub Γ ρ σ -> EqValSub Γ ρ σ σ.
+Proof.
+  move=> h. move=> i.
+  destruct (h i) as [u [a [WT [Vu [Le [ER VS]]]]]].
+  exists u. exists a. exists WT.
+  repeat split; eauto.
 Admitted.
 *)
 
