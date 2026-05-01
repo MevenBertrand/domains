@@ -60,8 +60,9 @@ theories/directed.v
 
 theories/examples/finelt/findom.v
 theories/examples/finelt/types.v
-theories/examples/finelt/raw_validity.v
 theories/examples/finelt/raw_semantics.v
+theories/examples/finelt/typing_semantics.v
+theories/examples/finelt/raw_validity.v
 theories/examples/finelt/finite_projection.v
 
 theories/autosubst/core.v
@@ -69,4 +70,4 @@ theories/autosubst/fintype.v
 theories/examples/syntax/syntax.v
 theories/examples/syntax/fin_util.v
 theories/examples/syntax/typing.v
-
+theories/examples/syntax/relations.v

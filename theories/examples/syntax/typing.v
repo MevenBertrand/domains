@@ -4,8 +4,8 @@ Require Import syntax.
 Require Export fintype.
 Require Export fin_util.
 
-Require Export Logic.FunctionalExtensionality.
-Require Import Stdlib.Program.Equality.
+From Stdlib Require Export Logic.FunctionalExtensionality.
+From Stdlib Require Import Program.Equality.
 
 Lemma ext_fin {n A}{f g: fin n -> A} : 
   (forall x, f x = g x) -> f = g.
@@ -47,17 +47,6 @@ Fixpoint lookup {n} (x : fin n) : Ctx n -> Tm n.
     inversion tl. exact (X0⟨↑⟩).
 Defined.
 
-
-(*
-Definition Ctx n := fin n -> Tm n.
-
-Definition Ctx_app {n} : Ctx n -> Tm n -> Ctx (S n) := 
-  fun Γ A => ( A⟨↑⟩ .: (Γ >> ⟨↑⟩)).
-
-Notation "Γ ++ A" := (Ctx_app Γ A).
-*)
-
-
 (* for nrec *)
 Definition rho {n} : fin (S n) -> Tm (S n) := 
    (succ (var var_zero) .: var >> ⟨↑⟩).
@@ -83,8 +72,10 @@ Inductive typing : forall {n} (Γ : Ctx n), Tm n -> Tm n -> Prop :=
     typing Γ (app N M) B[M..]
   (* natural numbers *)
   | t_nat n (Γ : Ctx n) : 
+    ctx Γ ->
     typing Γ tnat (tuniv 0)
   | t_zero n (Γ : Ctx n) : 
+    ctx Γ ->
     typing Γ zero tnat 
   | t_succ n (Γ : Ctx n) M : 
     typing Γ M tnat ->
@@ -105,6 +96,7 @@ Inductive typing : forall {n} (Γ : Ctx n), Tm n -> Tm n -> Prop :=
     typing Γ A (tuniv i) -> (i < j)%nat -> 
     typing Γ A (tuniv j)
   | t_univ n (Γ : Ctx n) i j : 
+    ctx Γ ->
     (i < j)%nat ->
     typing Γ (tuniv i) (tuniv j)
 with conv :forall {n} (Γ : Ctx n), Tm n -> Tm n -> Tm n -> Prop := 
@@ -170,13 +162,20 @@ with ctx : forall {n}, Ctx n -> Prop :=
      typing Γ A (tuniv i) -> 
      ctx (Γ ++ A).
 
+Lemma typing_ctx {n} (Γ : Ctx n) M A :
+  typing Γ M A -> ctx Γ.
+Proof.
+  move=> h.
+  induction h; eauto.
+Qed.
 
-(*
-Lemma ctx_extend {n} {Γ:Ctx n}{A:Tm n} :
-  ctx Γ -> type Γ A -> ctx (Γ ++ A).
-Proof. move=> [ih] hT. constructor.
-       auto_case. 
-*)
+Lemma conv_ctx {n} (Γ : Ctx n) M N A :
+  conv Γ M N A -> ctx Γ.
+Proof.
+  move=> h.
+  induction h; eauto using typing_ctx.
+Qed.
+
 
 (** This version of t_var is easier to work with sometimes
     as it doesn't require the type to already be in the form 
@@ -193,9 +192,9 @@ Definition t_app' {n} (Γ : Ctx n) (A : Tm n)
        -> typing Γ (app N M) C.
 intros. subst. eapply t_app; eauto. Qed. 
 Definition t_univ' {n} (Γ : Ctx n) A (i j : nat):
-  i < j -> tuniv j = A -> 
+  i < j -> tuniv j = A -> ctx Γ ->
   typing Γ (tuniv i) A.
-intros h1 <-. eapply t_univ; eauto. Qed.
+intros h1 <- h. eapply t_univ; eauto. Qed.
 Definition t_cum' {n} (Γ : Ctx n) A i j B : 
     typing Γ A (tuniv i) -> (i < j)%nat -> 
     tuniv j = B ->
@@ -271,13 +270,13 @@ with ctx_extend {n} {Γ:Ctx n}{A:Tm n} :
 *).
 Proof. 
   have renaming_typing': 
-    forall n (Γ : Ctx n) a A {m} (Δ:Ctx m) δ B,
+    forall n (Γ : Ctx n) a A m (Δ:Ctx m) δ B,
       Γ |-e a ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
          B = A⟨δ⟩ ->
          Δ |-e a⟨δ⟩ ∈ B.
   { admit. }
   have renaming_conv' :
-    forall n (Γ : Ctx n) a b A {m} (Δ:Ctx m) δ B,
+    forall n (Γ : Ctx n) a b A m (Δ:Ctx m) δ B,
       Γ |-e a ≡ b ∈ A -> typing_renaming Δ δ Γ ->  ctx Δ ->
          B = A⟨δ⟩ ->
          Δ |-e a⟨δ⟩ ≡ b⟨δ⟩ ∈ B.
@@ -324,7 +323,7 @@ Proof.
       eapply renaming_typing' in h3; eauto with renaming.
       asimpl. 
       f_equal. f_equal. 
-      admit. (* ugh! *)
+      admit. (* ugh! Autosubst!  *)
     + (* tpi *)
       eapply t_tpi; eauto with renaming.
       eapply renaming_typing'; eauto with renaming.
@@ -358,6 +357,25 @@ Proof.
       admit.
 Admitted.    
 
+(* All typed in well-formed contexts are well-formed *)
+Lemma ctx_typing_lookup {n} (Γ : Ctx n) : 
+  ctx Γ ->
+  forall x, exists i, typing Γ (lookup x Γ) (Core.tuniv i).
+Proof.
+  move=> h. induction h.
+  - done.
+  - auto_case.
+    + destruct (IHh f) as [j th].
+      exists j. unfold core.funcomp.
+      eapply renaming_typing with (A := Core.tuniv j) (δ:=↑);
+        eauto with renaming. 
+      eapply c_cons; eauto.
+    + exists i. unfold core.funcomp.
+      eapply renaming_typing with (A := Core.tuniv i) (δ:=↑);
+        eauto with renaming. 
+      eapply c_cons; eauto. 
+Qed.
+      
 (** Substution lemmas *)
 
 Definition typing_subst {n} (Δ : Ctx n) {m} (σ : fin m -> Tm n)
@@ -374,13 +392,12 @@ Proof. move=>h.
        unfold typing_subst. intro x. asimpl. econstructor; eauto. 
        Qed.
 
-(*
 Lemma typing_subst_cons {n} (Δ : Ctx n) {m} (σ : fin m -> Tm n)
   (Γ : Ctx m) e τ : 
- Δ |-e e ∈ τ -> typing_subst Δ σ Γ ->
+ Δ |-e e ∈ τ[σ] -> typing_subst Δ σ Γ ->
  typing_subst Δ (e .: σ) (Γ ++ τ).
 Proof. intros. unfold typing_subst in *. intros [y|]; asimpl; eauto. Qed.
-*)
+
 Lemma typing_subst_lift {n} (Δ : Ctx n) {m} (σ : fin m -> Tm n)
   (Γ : Ctx m) τ : 
   ctx (Δ ++ τ[σ]) ->

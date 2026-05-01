@@ -1,3 +1,5 @@
+(* See Validity.agda *)
+
 From Stdlib Require Import Relations List Program
      ssreflect ssrfun ssrbool.
 From Stdlib Require Import Classes.RelationClasses 
@@ -7,231 +9,377 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-Require findom.
-Require types.
+
 Require Import syntax.syntax.
 Require Import syntax.typing.
+Require Import syntax.relations.
+
 
 Import SyntaxNotations.
 Import SubstNotations.
 
 Open Scope syntax_scope.
 
-Module Raw.
-  Include findom.Raw.
-  Include types.
-End Raw.
+(* single-step head reduction *)
+Inductive HeadRed1 (n : nat) : Tm n -> Tm n -> Prop := 
+ | hr_beta A M N :
+    HeadRed1 (app (abs A M) N) M[N..]
+ | hr_app  M1 M2 N :
+    HeadRed1 M1 M2 -> 
+    HeadRed1 (app M1 N) (app M2 N).
 
-Module Valid. 
-  Include findom.Valid.
+(* reflexive-transitive closure *)
+Definition HeadRed (n : nat) : Tm n -> Tm n -> Prop := 
+  multi (@HeadRed1 n).
 
-  Definition wt (u a : Valid.elt) := 
-    Raw.wt (projT1 u) (projT1 a).
-
-  Definition is_bot (v : Valid.elt) : bool := 
-    match projT1 v with 
-    | Raw.bot => true
-    | _ => false
-    end.
-
-  Definition is_abs (v : Valid.elt) : option Valid.finfun := 
-    match v with 
-    | existT _ (Raw.abs e) Vf => Some (existT _ e Vf)
-    | _ => None
-    end.
-
-  Definition abs (f : finfun) : elt.
-    exists (Raw.abs (projT1 f)).
-    destruct f as [f Vf]. 
-    eassumption.
-  Defined.
-
-  Definition finfun_app (f : finfun) (u : elt) : elt.
-    destruct f as [f Vf].
-    destruct u as [u Vu].
-    destruct (Raw.app f u) eqn:h. 
-    { apply Raw.valid_app in h; eauto.
-      exists e. exact h. } 
-    { assert False.
-      destruct (Raw.valid_app_exists Vf Vu) as [w [Aw Vw]].
-      rewrite Aw in h. done. done. } 
-  Defined.
-
-  Definition graph (f : finfun) : list (elt * elt).
-    destruct f as [f Vf].
-    move: (Raw.valid_fun_subterms Vf) => h.
-    clear Vf.
-    move: h.
-    induction f as [|[u v]f].
-    move=> h. exact nil.
-    cbn.
-    move=> /andP.
-    move=> [/andP h1 h2]. 
-    eapply cons. destruct h1 as [Vu Vv].
-    eapply ((existT _ u Vu),(existT _ v Vv)).
-    eapply IHf; eauto.
-  Defined.
-
-  Definition compatible_fun (f g : finfun) : bool := 
-    Raw.compatible_fun (projT1 f) (projT1 g).
-
-  Definition coherent_with (f:finfun) : elt * elt -> bool := 
-    fun '(u, v) => 
-    Raw.coherent_with (projT1 f) (projT1 u, projT1 v).
-
-  Lemma In_graph_def (f : finfun) ui vi : 
-    In (projT1 ui, projT1 vi) (projT1 f) <->
-    In (ui, vi) (graph f).
-  Proof.
-    split.
-    + destruct f as [rf Vf]. move: Vf.
-      induction rf as [|[uj vj]f].
-      all: move=> Vf.
-      all: cbn [projT1].
-    - move=> h. inversion h.
-    - cbn [projT1] in IHf.
-      move=> [EQ|h].
-  Admitted.
-
-
-  Lemma coherent_with_def f u v :
-    (forallb 
-      (fun '(uj, vj) => compatible u uj ==> compatible v vj) (graph f)) <->
-    coherent_with f (u,v).
-  Proof.
-    split.
-    - move=> /forallb_forall CF. 
-      apply /forallb_forall.
-      move=> [rui rvi] Inrf.
-      have [ui E1]: { UI : elt & projT1 UI = rui }. 
-      { destruct f as [rf Vf]. cbn in Inrf.
-        have Vui: Raw.valid rui.
-        move: (Raw.valid_fun_subterms Vf) => /forallb_forall VSt.
-        specialize (VSt _ Inrf). cbn in VSt. 
-        move: VSt=> /andP. eauto.
-        exists (existT _ rui Vui). eauto. } 
-      have [vi E2]: { VI : elt & projT1 VI = rvi }. 
-      { destruct f as [rf Vf]. cbn in Inrf.
-        have Vvi: Raw.valid rvi.
-        move: (Raw.valid_fun_subterms Vf) => /forallb_forall VSt.
-        specialize (VSt _ Inrf). cbn in VSt. 
-        move: VSt=> /andP. eauto.
-        exists (existT _ rvi Vvi). eauto. } 
-      rewrite <- E1 in Inrf. rewrite <- E2 in Inrf.
-      rewrite In_graph_def in Inrf.
-      specialize (CF _ Inrf). cbn in CF. 
-      destruct ui. destruct vi. unfold compatible in CF.
-        cbn in CF. cbn in E1. cbn in E2. subst. done. 
-    - move=> /forallb_forall CF. 
-      apply /forallb_forall.
-      move=> [ui vi] Ingf.
-      rewrite <- In_graph_def in Ingf.
-      destruct ui. destruct vi. cbn in Ingf.
-      specialize (CF _ Ingf).
-      unfold compatible. cbn. eapply CF.
-  Qed.
-
-  Lemma compatible_fun_def (f g : finfun) : 
-    forallb (coherent_with g) (graph f) <-> 
-    compatible_fun f g.
-  Proof.
-    split.
-    - move=> /forallb_forall h.
-      unfold compatible_fun, Raw.compatible_fun.
-      apply /forallb_forall.
-      move=> [ui vi] Inf.
-  Admitted.
-
-  Lemma le_fun_mono_arg f u1 u2 :
-    le u1 u2 -> le (app f u1) (app f u2).
-  Proof.
-    move=> LE.
-    destruct f as [f Vf].
-    destruct u1 as [u1 Vu1].
-    destruct u2 as [u2 Vu2].
-    unfold le in LE. cbn [projT1] in LE. 
-  Admitted.
-
-End Valid.
-
-(* ------------------------------------------------------- *)
-Import Raw.
-
-
-(* Theorem 1 *)
-
-(*  ρ fits Γ if for all x : A in Γ we have [[A]]ρ in Type and ρ(x) in
-El([[A ρ]]). *)
-
-Inductive fits : forall {n} (Γ:Ctx n) (ρ : Env n), Prop := 
-  | fits_empty : fits ctx_empty null
-  | fits_cons n (Γ : Ctx n) A ρ a u i : 
-       fits Γ ρ ->
-       EvalRel A ρ a ->
-       wt u (tuniv i) ->
-       wt a u ->
-       fits (Γ ++ A) (u .: ρ).
-  
-
-Fixpoint typing_EvalRel {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :
-   typing Γ M A -> forall ρ a u, 
-        fits Γ ρ -> EvalRel M ρ a -> EvalRel A ρ u -> wt a u
-with typing_conv_EvalRel {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :
-   typing Γ M A -> forall ρ a u, 
-        fits Γ ρ -> EvalRel M ρ a -> 
-with 
-   ctx_fits {n} (Γ : Ctx n) :
-   ctx Γ -> forall ρ x, fits Γ ρ -> EvalRel (var x) ρ (ρ x).
+Lemma ms_app {n:nat} (M1 M2 : Tm (S n)) N :
+   HeadRed M1 M2 -> HeadRed (app M1 N) (app M2 N).
 Proof.
-  move=>h.
-  dependent destruction h.
-  - move=> ρ a u FF Ety Etm.
-    cbn in Ety. move: Ety => [Va Le].
-    admit.
-  - move=> ρ a u FF Ety Etm.
+  intro h.
+  induction h; eauto. eapply ms_refl.
+  eapply ms_trans; eauto. eapply hr_app; eauto.
+Qed.
+
+Lemma HeadRed1_det (n:nat) (M N P : Tm n) : 
+  HeadRed1 M N -> HeadRed1 M P -> N = P.
+Proof.
+  move=> h1 h2.
+  induction M.
+  all: inversion h1; inversion h2; subst. 
+  - inversion H3. done.
+  - inversion H5.
+  - inversion H2.
+  - rewrite (@IHM1 M3 M5) ; eauto.
+Qed.
+
+Require Import findom.
+Require Import types.
+Require Import raw_semantics.
+Require Import typing_semantics.
+
+Import Raw.
     
-(*
--- Val G M A u a : term M has type A, with realizer u at code a, in context G
- Val : {n : Nat} -> Ctx n -> Expr n -> Expr n -> FinEl -> FinEl -> Set
+
+(* Logical relation, defined by induction on (semantic type) a.
+   We only need it for closed terms, so dropping the context and 
+   specializing M's scope to 0.
+
+   Swapped the order of arguments as we are pattern matching on 
+   u and a to define sets of term * type pairs.
+
+   As a is "more defined" this set becomes smaller. When we don't 
+   know anything, i.e. a is bot, then we have the total set.
+
+   If Val u a M A (h: wt u a) holds 
+   then we know that 
+     null |- M : A
+ *)
+
+(* Inversion lemmas for wt *)
+Lemma wt_tpi_dom (a : elt) (g : list (elt * elt)) (j : nat):
+  wt (tpi a g) (tuniv j) ->
+  wt a (tuniv j).
+move=>h. inversion h. done. Defined.
+Lemma wt_tpi_cod_key (a : elt) (g : list (elt * elt)) (j : nat):
+  wt (tpi a g) (tuniv j) ->
+  (forall ui vi : elt, In (ui, vi) g -> wt ui a).
+move=>h. inversion h. done. Defined.
+Lemma wt_tpi_cod_elt (a : elt) (g : list (elt * elt)) (j : nat):
+  wt (tpi a g) (tuniv j) ->
+  (forall ui vi : elt, In (ui, vi) g -> wt vi (tuniv j)).
+move=>h. inversion h. done. Defined.
+
+Lemma wt_abs_key (a : elt) (f g : list (elt * elt)) :
+  wt (abs f) (tpi a g) -> 
+  (forall ui vi w : elt, In (ui, vi) f -> app g ui = Some w -> wt ui a).
+move=>h. inversion h. done. Defined.
+
+Lemma wt_abs_elt (a : elt) (f g : list (elt * elt)) :
+  wt (abs f) (tpi a g) -> 
+  (forall ui vi w : elt, In (ui, vi) f -> app g ui = Some w -> wt vi w).
+move=>h. inversion h. done. Defined.
+
+Lemma wt_succ_inv u:
+  wt (succ u) tnat -> wt u tnat.
+move=>h. inversion h. done. Defined.
+
+(* Unary logical relation *)
+Fixpoint Val (u : elt) (a: elt) 
+  (M : Tm 0) (A : Tm 0) (h : wt u a) { struct h } : Prop := 
+    typing ctx_empty M A 
+    /\ 
+      (match a return wt u _ -> Prop with 
+
+      | bot => fun h => True
+                
+      | tuniv i => fun h =>
+          HeadRed A (Core.tuniv i) /\
+          (* This is ValTy *)
+          (match u return wt _ (tuniv i) -> Prop with 
+            | bot => fun h => True 
+               
+            | tpi b g => fun (h : wt (tpi b g) (tuniv i)) =>
+              exists A1 B1, HeadRed M (Core.tpi A1 B1) 
+              /\ @Val b (tuniv i) A1 (Core.tuniv i) (wt_tpi_dom h)
+              /\ forall u v (IN : In (u,v) g) (M1 : Tm 0),
+                  (* take related arguments *)
+                  @Val u b M1 A1 (wt_tpi_cod_key h IN) ->
+                  (* to related results *)
+                  @Val v (tuniv i) B1[M1..] (Core.tuniv i)
+                       (wt_tpi_cod_elt h IN)
+
+            | tuniv j => fun h => 
+              HeadRed M (Core.tuniv j)  
+
+            | tnat => fun h =>
+              HeadRed M (Core.tnat)  
+
+            | _ => fun h => False 
+            end) h
+
+      | tpi b f => fun h => 
+           exists A1 B1, HeadRed A (Core.tpi A1 B1) /\
+           (match u return wt _ (tpi b f) -> Prop with
+           | bot => fun h => True 
+           | abs g => fun (h : wt (abs g) (tpi b f)) => 
+             exists M1, HeadRed M (Core.abs A1 M1) 
+                 /\ forall u v (IN: In (u,v) g) w 
+                     (APPf : app f u = Some w) (N : Tm 0), 
+                 (* take related arguments *)
+                 @Val u b N A1 (wt_abs_key h IN APPf) ->
+                 (* to related results *)
+                 @Val v w M1[N..] B1[N..]
+                       (wt_abs_elt h IN APPf)
+
+           | _ => fun h => False 
+            end) h
+
+      | tnat => fun h =>
+          HeadRed A (Core.tnat) /\
+          (match u return wt _ tnat -> Prop with 
+               | zero => fun h => 
+                 HeadRed M (Core.zero)
+               | succ v => fun (h : wt (succ v) tnat) => 
+                 exists M1, HeadRed M (Core.succ M1)
+                 /\ @Val v tnat M1 Core.tnat (wt_succ_inv h)
+               | _ =>  fun h => True
+               end) h
+      | _ => fun h => True
+    end) h.
+
+(* Binary logical relation *)
+Fixpoint EqVal (u : elt) (a: elt) 
+  (M : Tm 0) (N : Tm 0) (A : Tm 0) (h : wt u a) { struct h } : Prop := 
+    conv ctx_empty M N A 
+    /\ 
+      (match a return wt u _ -> Prop with 
+
+      | bot => fun h => True
+                
+      | tuniv i => fun h =>
+          HeadRed A (Core.tuniv i) /\
+          (* This is ValTy *)
+          (match u return wt _ (tuniv i) -> Prop with 
+            | bot => fun h => True 
+               
+            | tpi b g => fun (h : wt (tpi b g) (tuniv i)) =>
+              exists A1 B1, HeadRed M (Core.tpi A1 B1) 
+              /\ exists A2 B2, HeadRed N (Core.tpi A2 B2)
+              /\ @EqVal b (tuniv i) A1 A2 (Core.tuniv i) (wt_tpi_dom h)
+              /\ forall u v (IN : In (u,v) g) (N1 N2 : Tm 0),
+                  (* take related arguments *)
+                  @EqVal u b N1 N2 A1 (wt_tpi_cod_key h IN) ->
+                  (* to related results *)
+                  @EqVal v (tuniv i) B1[N1..] B2[N2..] (Core.tuniv i)
+                       (wt_tpi_cod_elt h IN)
+
+            | tuniv j => fun h => 
+              HeadRed M (Core.tuniv j)  
+
+            | tnat => fun h =>
+              HeadRed M (Core.tnat)  
+
+            | _ => fun h => False 
+            end) h
+
+      | tpi b f => fun h => 
+           exists A1 B1, HeadRed A (Core.tpi A1 B1) /\
+           (match u return wt _ (tpi b f) -> Prop with
+           | bot => fun h => True 
+           | abs g => fun (h : wt (abs g) (tpi b f)) => 
+             exists M1, HeadRed M (Core.abs A1 M1) 
+             /\ exists N1, HeadRed N (Core.abs A1 N1)
+             /\ forall u v (IN: In (u,v) g) w 
+                     (APPf : app f u = Some w) (M2 N2 : Tm 0), 
+                 (* take related arguments *)
+                 @EqVal u b M2 N2 A1 (wt_abs_key h IN APPf) ->
+                 (* to related results *)
+                 @EqVal v w M1[M2..] N1[N2..] B1[M2..]
+                       (wt_abs_elt h IN APPf)
+
+           | _ => fun h => False 
+            end) h
+
+      | tnat => fun h =>
+          HeadRed A (Core.tnat) /\
+          (match u return wt _ tnat -> Prop with 
+               | zero => fun h => 
+                 HeadRed M Core.zero
+                 /\ HeadRed N Core.zero
+               | succ v => fun (h : wt (succ v) tnat) => 
+                 exists M1, HeadRed M (Core.succ M1)
+                 /\ exists N1, HeadRed N (Core.succ N1)
+                 /\ @EqVal v tnat M1 N1 Core.tnat (wt_succ_inv h)
+               | _ =>  fun h => True
+               end) h
+      | _ => fun h => True
+    end) h.
+
+
+(* All terms in the relation have the right type. *)
+Fixpoint Val_typing (u : elt) (a: elt) 
+  (M : Tm 0) (A : Tm 0) (h : wt u a) :
+  Val M A h -> typing ctx_empty M A.
+Proof.
+  dependent destruction h.
+  all: move=> [h1 h2].
+  all: done.
+Qed.
+
+
+(* Fundamental theorem for the logical relation 
+   
+   We want to show that well-typed terms are in the 
+   relation.
+
+   - If Γ |- M : A (typing) then
+
+
+     if Γ |= ρ ~ σ  (ValSigma)
+
+          which implies  Γ |- σ  (typing_subst null)
+
+                    and  Γ |= ρ  (Fits)   
+
+
+     for all u, a, such that h ∈ u : a   (wt)
+
+        where [[M]]ρ = u  and [[A]]ρ = a  (EvalRel)
+
+     we have
+
+        Val u a M[σ] A[σ] h
+
+   - If Γ |- M = N : A  (conv) 
+
+     and  Γ |- σ1  Γ |- σ2 (typing_subst null)
+
+     and  Γ |= ρ  (fits)   
+
+     and [[M]]ρ = u and [[N]]ρ = u and [[A]]ρ = a  (EvalRel)
+ 
+     and h ∈ u : a   (wt)
+
+     and Γ |= ρ ~ σ1 == σ2   (EqValSigma)
+
+     then
+
+     EqVal u a M[σ1] N[σ2] A[σ] h
 *)
 
-Fixpoint Val (a: elt) (u : elt) : 
-  forall {n: nat} (Γ : Ctx n) ( M : Tm n) (A : Tm n), Prop := 
-    match a with 
-    | bot => fun {n} Γ M A => True
-    | tuniv i => match u with 
-                  | tpi a g => fun {n} Γ M A => True
-                  | tuniv j => fun {n} Γ M A => True
-                  | tnat => fun {n} Γ M A => True
-                  | _ => fun {n} Γ M A => True
-                end
-    | tpi b f => match u with 
-(* Val G M A (FunEl g) (PiCode b f) = Pair (ValTy G A (PiCode b f)) (ValPi G M A g b f) *)
-       | abs g => fun {n} Γ M A0 => 
-          Val (tpi b f) (tuniv i) G A /\
-          exists A, exists B, Red G M (Core.Pi A B) (Core.tuniv i) /\
-          (f = nil \/ valid_fun f) /\
-          (* (FinMemAllU f b) /\ *)
-          Val b (tuniv i) G A /\
-          (forall u v, In (u,v) f -> 
-            forall (N : Tm n), Val u b G N A -> 
-              Val v (tuniv i) G (B[N ..]) (Core.tuniv i))
-                                          
-       | _ => fun {n} Γ M A => True
-       end
-    | tnat => match u with 
-             | zero => fun {n} Γ M A => True
-             | succ v => fun {n} Γ M A => True
-             | _ => fun {n} Γ M A => True
-             end
-    | _ => fun {n} Γ M A => True
-    end.
 
-destruct a eqn:Ea.
-- exact True.  
-- destruct u eqn:Eu.
-  + exact True.
-  + exact False.
-  + exact False.
-  + exact True.
-  + destruct M eqn:EM.
+(* A closing substitution: σ *)
+Definition Sub m := fin m -> Tm O.
+
+(* A valid closing substitution σ maps every term to one that 
+   can be interpreted *) 
+Definition ValidSub {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g)  : Prop := 
+  forall i a u (h : wt u a), 
+    valid u -> le u (ρ i) -> 
+    EvalRel (lookup i Γ) ρ a ->
+    Val (σ i) (lookup i Γ)[σ] h. 
+
+
+Lemma ValidSub_empty : ValidSub ctx_empty null null.
+unfold ValidSub. done. Qed.
+
+Lemma ValidSub_cons {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) 
+  v A (M : Tm 0) : 
+  (forall u a (h : wt u a), valid u -> le u v -> EvalRel A ρ a ->
+        Val M A[σ] h) -> 
+  ValidSub Γ ρ  σ -> 
+  ValidSub (Γ ++ A) (v .: ρ) (M .: σ). 
+Admitted.
+
+Lemma ValidSub_fits {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
+  ValidSub Γ ρ σ -> fits Γ ρ.
+Admitted.
+
+Lemma ValidSub_typing_subst {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
+  ValidSub Γ ρ σ -> typing_subst ctx_empty σ Γ.
+Proof.
+  move=> h.
+  move=> x. specialize (h x).
+  eapply Val_typing.
+  eapply h; eauto.
+Admitted.
+
+(*
+Definition ValidConvSub {g} (ρ : Env g) 
+  (Γ : Ctx g) (σ1 σ2 : Sub g)  : Prop := 
+  forall i u, valid u -> le u (ρ i) -> 
+    forall a, EvalRel (lookup i Γ) ρ a -> wt u a  -> 
+         EqVal u a (σ1 i) (σ2 i) (lookup i Γ)[σ1]. 
+
+Lemma ValidConvSub_refl {g} (ρ : Env g) (Γ : Ctx g) (σ : Sub g) :
+  ValidSub ρ Γ σ -> ValidConvSub ρ Γ σ σ.
+Admitted.
+*)
+
+(* 
+  -- Main bundled adequacy theorem
+  adequacySub2 : {h g : Nat} {H : Ctx h} {G : Ctx g}
+    {M A : Expr g} ->
+    HasType G M A ->       (* syntax.typing *)
+    (sigma : Sub h g) -> 
+    (rho : EnvApprox g) ->  (* Env *)
+    CoherentEnv rho ->  (* valid_env *)
+    ValidSub2 H G sigma rho -> 
+    Fits G rho ->
+    WtSub H G sigma -> WfCtx H ->
+    (u : FinEl) -> EvalRel M rho u ->
+    (a : FinEl) -> EvalRel A rho a -> FinMem u a ->
+    Val2 H (substExpr sigma M) (substExpr sigma A) u a
+
+  -- Bundled adequacy for conversion
+  adequacyEqSub2 : {h g : Nat} {H : Ctx h} {G : Ctx g}
+    {M N A : Expr g} ->
+    ConvTm G M N A ->
+    (sigma : Sub h g) -> (rho : EnvApprox g) ->
+    CoherentEnv rho -> ValidSub2 H G sigma rho -> Fits G rho ->
+    WtSub H G sigma -> WfCtx H ->
+    (u : FinEl) -> EvalRel M rho u ->
+    (a : FinEl) -> EvalRel A rho a -> FinMem u a ->
+    EqVal2 H (substExpr sigma M) (substExpr sigma N) (substExpr sigma A) u a
+
+  -- Two-substitution adequacy
+  adequacyConvSub2 : {h g : Nat} {H : Ctx h} {G : Ctx g}
+    {M A : Expr g} ->
+    HasType G M A ->
+    (sigma sigma' : Sub h g) -> (rho : EnvApprox g) ->
+    CoherentEnv rho ->
+    ValidSub2 H G sigma rho -> ValidSub2 H G sigma' rho ->
+    ValidConvSub2 H G sigma sigma' rho ->
+    Fits G rho ->
+    WtSub H G sigma -> WtSub H G sigma' ->
+    WtConvSub H G sigma sigma' ->
+    WfCtx H ->
+    (u : FinEl) -> EvalRel M rho u ->
+    (a : FinEl) -> EvalRel A rho a -> FinMem u a ->
+    EqVal2 H (substExpr sigma M) (substExpr sigma' M) (substExpr sigma A) u a
+
+*)
+
+
+
+  
