@@ -62,6 +62,7 @@ theories/examples/finelt/findom.v
 theories/examples/finelt/types.v
 theories/examples/finelt/raw_semantics.v
 theories/examples/finelt/typing_semantics.v
+theories/examples/finelt/eval_substitution.v
 theories/examples/finelt/raw_validity.v
 theories/examples/finelt/finite_projection.v
 

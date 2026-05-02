@@ -23,8 +23,12 @@ Import Raw.
 
 (* analogue of RawSemantics.agda.  
 
-   Unlike the version in Figure 1, this semantics 
+   Unlike the version in Figure 1 of the paper, this semantics 
    does not use finitary projection for some reason.
+
+   Unlike the agda version, this version uses the 
+   (u,v) in finfun's directly instead of relying on 
+   selection.
 
 *)
 
@@ -102,8 +106,9 @@ Definition EvalRel_fun {n} (M : Tm (S n))
       forall u v, In (u,v) g -> 
        exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ) v.
 
+(** * validity *)
 
-(* monotonicity *)
+
 Definition valid_env {n} (ρ : Env n) :=
   forall x, valid (ρ x).
 
@@ -115,16 +120,7 @@ Proof.  move=> Vx Vr. unfold valid_env. auto_case. Qed.
 
 Hint Resolve valid_cons: valid.
 
-Definition le_env {n} (ρ1 ρ2 : Env n) := 
-  forall x, le (ρ1 x) (ρ2 x).
-Lemma le_env_nil : le_env null null.
-  unfold le_env. auto_case. Qed.
-Lemma le_env_cons n u v (ρ1 ρ2 : Env n):
-  le u v -> le_env ρ1 ρ2 -> le_env (u .: ρ1) (v .: ρ2).
-Proof. move=> L1 L2. unfold le_env. auto_case. Qed.
-
   
-
 Lemma EvalRel_valid {n} (M : Tm n) (ρ : Env n) (u : elt) : 
   EvalRel M ρ u -> valid u.
 Proof.
@@ -162,6 +158,17 @@ Proof.
     eapply valid_tpi_intro; eauto.
   - destruct u; try done.
 Qed.
+
+(** * monotonicity *)
+
+Definition le_env {n} (ρ1 ρ2 : Env n) := 
+  forall x, le (ρ1 x) (ρ2 x).
+Lemma le_env_nil : le_env null null.
+  unfold le_env. auto_case. Qed.
+Lemma le_env_cons n u v (ρ1 ρ2 : Env n):
+  le u v -> le_env ρ1 ρ2 -> le_env (u .: ρ1) (v .: ρ2).
+Proof. move=> L1 L2. unfold le_env. auto_case. Qed.
+
 
 Lemma EvalRel_mono_env {n} (M : Tm n) (ρ ρ' : Env n) u :
   EvalRel M ρ u -> valid_env ρ -> valid_env ρ' -> le_env ρ ρ' -> EvalRel M ρ' u.

@@ -494,6 +494,11 @@ Lemma st_conv M A B i :
   Γ ⊨ A ≡ B ∈ Core.tuniv i ->
 (* ------------------------- *)
   Γ ⊨ M ∈ B.
+Proof.
+  move=> h1 h2. 
+  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
+  specialize (h1 ρ σ TS FR VS).
+  specialize (h2 ρ σ TS FR VS).
 Admitted.  
 
 Lemma st_abs A B M i : 
@@ -505,12 +510,32 @@ Lemma st_abs A B M i :
 Admitted.
 
 Lemma st_app A B N M i : 
+(*  Γ |- A ∈ Core.tuniv i -> 
+  Γ ++ A |- B ∈ Core.tuniv i -> 
+  Γ |- M ∈ (Core.tpi A B) -> 
+  Γ |- N ∈ A  ->  *)
   Γ ⊨ A ∈ Core.tuniv i -> 
   Γ ++ A ⊨ B ∈ Core.tuniv i -> 
   Γ ⊨ M ∈ (Core.tpi A B) -> 
   Γ ⊨ N ∈ A  -> 
 (* ------------------------ *)
   Γ ⊨ Core.app M N ∈ B[N..].
+Proof.
+  move=> h1 h2 h3 h4 (* h1' h2' h3' h4' *). 
+  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
+  specialize (h1 ρ σ TS FR VS).
+(*   specialize (h2 ρ σ TS FR VS). *)
+  specialize (h3 ρ σ TS FR VS).
+  specialize (h4 ρ σ TS FR VS).
+  cbn.
+  cbn in Ex.
+  destruct (is_bot u1) eqn:HB. 
+  - (* EvalRel (app M N) is bot *)
+    admit.
+  - (* EvalRel (app M N) comes from an application *)
+    move: Ex => [u0 [EM EN]].    
+    move: (h3 (u0 ↦ u1)) => h3'.
+    (* we need to get a type for (u0 |-> u1). *)
 Admitted.
  
 
