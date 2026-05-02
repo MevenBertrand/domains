@@ -335,8 +335,9 @@ Proof.
   exact (EvalRel_compatible Vρ (S1 x) (S2 x)).
 Qed.
 
-(** ** sup_env: pointwise lub. Total by defaulting to bot when undefined;
-       under compat_env it equals the actual lub. *)
+(** ** sup_env: pointwise lub. 
+    Total by defaulting to bot when undefined;
+    under compat_env it equals the actual lub. *)
 
 Definition sup_env {n} (ρ1 ρ2 : Env n) : Env n :=
   fun x => match lub (ρ1 x) (ρ2 x) with

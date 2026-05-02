@@ -294,15 +294,6 @@ Qed.
 (* A closing substitution: σ *)
 Definition Sub m := fin m -> Tm O.
 
-(*
-ValidSub2 : {h g : Nat} -> Ctx h -> Ctx g -> Sub h g -> EnvApprox g -> Set
-ValidSub2 {h} {g} H G sigma rho =
-  (i : Fin g) -> (u : FinEl) -> (cu : Coherent u) ->
-  LeCode u (lookupEnv i rho) ->
-  (a : FinEl) -> EvalRel (lookup G i) rho a -> FinMem u a ->
-  Val2 H (sigma i) (substExpr sigma (lookup G i)) u a
-*)
-
 (* A valid closing substitution σ maps every term to one that 
    can be interpreted. *) 
 Definition ValSub {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g)  : Prop := 
@@ -335,36 +326,9 @@ Proof.
     cbn in *. asimpl.
     eapply EvalRel_unwk in E0; auto.
 Qed.    
-    
-(*
-Lemma ValSub_typing_subst {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
-  ValSub Γ ρ σ -> typing_subst ctx_empty σ Γ.
-Proof.
-  move=> h.
-  move=> x. specialize (h x).  
-  move: h => [u [a [h [Vu [Le [E VV]]]]]].
-  eapply Val_typing; eauto.
-Qed.
 
-Lemma ValSub_fits {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) :
-  ValSub Γ ρ σ -> fits Γ ρ.
-Proof.
-  move: ρ σ.
-  induction Γ.
-  all: move=> ρ σ h. 
-  - replace ρ with (@null elt).
-    eapply fits_empty. 
-    eapply functional_extensionality. done.
-  - replace ρ with (ρ var_zero .: ↑ >> ρ).
-    2: { eapply functional_extensionality. auto_case. }
-    move: (h var_zero) => [u [a [WT [Vu [Le [E1 V1]]]]]].
-    cbn in *. asimpl in V1.
-    eapply fits_cons.
-Admitted.
-*)
-
-
-Definition EqValSub {g} (Γ : Ctx g) (ρ : Env g) (σ1 : Sub g) (σ2 : Sub g)  : Prop := 
+Definition EqValSub {g} (Γ : Ctx g) (ρ : Env g) 
+  (σ1 : Sub g) (σ2 : Sub g)  : Prop := 
   forall i, 
   forall u, valid u -> le u (ρ i) ->
     forall a, EvalRel (lookup i Γ) ρ a ->
@@ -396,7 +360,8 @@ Proof.
 Qed.    
 
 Definition semantic_typing {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :=
-  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ) (VS : ValSub Γ ρ σ), 
+  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ) 
+    (VS : ValSub Γ ρ σ), 
   forall u a (WT : wt u a), 
     EvalRel M ρ u -> 
     EvalRel A ρ a -> 
@@ -408,6 +373,15 @@ Definition semantic_conv {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
     EvalRel M ρ u -> 
     EvalRel A ρ a -> 
     EqVal M[σ] N[σ] A[σ] WT. 
+Definition semantic_conv2 {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
+  forall ρ σ1 σ2 (TS1 : typing_subst ctx_empty σ1 Γ) 
+            (TS2 : typing-subst ctx_empty σ2 Γ)
+    (F : fits Γ ρ)
+    (VS : EqValSub Γ ρ σ1 σ2), 
+  forall u a (WT : wt u a), 
+    EvalRel M ρ u -> 
+    EvalRel A ρ a -> 
+    EqVal M[σ1] N[σ2] A[σ1] WT. 
 
 Notation "Γ ⊨ M ∈ A" := (semantic_typing Γ M A) (at level 70).
 Notation "Γ ⊨ M ≡ N ∈ A" := (semantic_conv Γ M N A) (at level 70).

@@ -167,6 +167,7 @@ Inductive wt : elt -> elt -> Prop :=
         List.In (ui,vi) g -> wt ui a) -> 
     (forall ui vi, 
         List.In (ui,vi) g -> wt vi (tuniv j)) ->
+
     wt a (tuniv j) -> 
     (valid (tpi a g)) ->
     wt (tpi a g) (tuniv j)

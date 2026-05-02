@@ -120,29 +120,6 @@ Lemma wt_bot_inv u : wt u bot -> u = bot.
 Proof. move=> h. inversion h. done. Qed. 
 
 (*
-Lemma wt_down u a : wt u a -> forall v, le v u -> wt v a.
-Proof.
-  move=> h v LEv.
-  move: (@wt_lub _ _ h u v h) => h1.
-
-  move=> h. induction h.
-  all: move=> u' LE.
-  all: destruct u'; try done.
-  all: try solve [eapply wt_bot; eauto].
-  - cbn in LE. apply Nat.eqb_eq in LE. subst.
-    eapply wt_tuniv; eauto.
-  - eapply wt_tnat.
-  - eapply wt_zero.
-  - rewrite le_succ in LE.  eapply wt_succ; eauto.
-  - rewrite le_tpi in LE. move: LE => /andP. move=> [h1 h2].
-    eapply wt_tpi; eauto.
-    + move=> ui vi Inl.
-  (* SCW: I don't know how to finish the proof at this 
-     point, but I do need this for the theorem below *)
-Admitted.
-*)
-
-(*
 ------------------------------------------------------------------------
 -- Part 2: Named invariants
 ------------------------------------------------------------------------
@@ -152,8 +129,8 @@ Admitted.
     exists u' = ⟦M⟧ρ and  u ≤ u' and exists a with u' : a and ⟦A⟧ρ = a
 *)
 Definition Typed {n:nat} (M : Tm n) (A : Tm n) ρ u := 
-  exists u' , exists a', 
-    le u u' /\ EvalRel M ρ u' /\ wt u' a' /\ EvalRel A ρ a'.
+  exists v , exists a, 
+    le u v /\ EvalRel M ρ v /\ wt v a /\ EvalRel A ρ a.
 
 (* InvTyp G M A rho : for all u ≤ ⟦M⟧ρ, Typed M A rho u *)
 Definition InvTyped 
@@ -204,9 +181,45 @@ Proof.
       unfold Typed.
       exists u'. exists a. repeat split; eauto.
     + (* abs *)
-      eapply typing_EvalRel with (ρ:=ρ) in h1; eauto.
-      move=> u EA.
-      cbn in EA.
-      destruct u; try eauto using Typed_bot.
+      (* eapply typing_EvalRel with (ρ:=ρ) in h1; eauto. *)
+      move=> u EA. cbn in EA.
+      destruct u eqn:EQu; try eauto using Typed_bot.
       move: EA => [i1 [a1 [WT [E1 [Vf h4]]]]].
+(*
+      have: forall u v, In (u, v) l -> 
+                   InvTyped (Γ ++ A) N B (u .: ρ).
+      { 
+        move=> ui vi Inl.
+        specialize (h4 _ _ Inl).
+        destruct h4 as [x [LEx [WTx EN]]].
+        eapply typing_EvalRel with (ρ := ui .: ρ); eauto.
+        eapply fits_cons; eauto.
+        admit. (* OOPS, don't know universe level of a1 *)
+        Search wt. 
+*) 
+      admit.
+    + (* app *)
+      eapply typing_EvalRel with (ρ:=ρ) in h3; eauto.
+      eapply typing_EvalRel with (ρ:=ρ) in h4; eauto.
+      unfold InvTyped in *.
+      move=> v E.
+      cbn in E. 
+      destruct (is_bot v) eqn:EQu; cbn in E. 
+      destruct v; try done; eauto using Typed_bot.
+      destruct E as [u [EN EM]].
+      apply h3 in EN. apply h4 in EM.
+      unfold Typed in *.
+      destruct EN as [u1 [a1 [LE1 [EN1 [WT1 EP1]]]]].
+      destruct EM as [u2 [a2 [LE2 [EN2 [WT2 EP2]]]]].
+      unfold singleton in LE1. rewrite EQu in LE1.
+      apply le_abs_inv in LE1.
+      move: LE1 => [g [EQ LE1]]. subst u1.
+Search wt abs.
+      inversion WT1; subst.
+      move: 
+      exists v. eexists.
+      repeat split.
+      ++ admit.
+      ++ cbn. destruct (is_bot v); try done.
+         
 Admitted.
