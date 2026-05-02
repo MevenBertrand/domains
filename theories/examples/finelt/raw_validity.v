@@ -56,6 +56,8 @@ Require Import findom.
 Require Import types.
 Require Import raw_semantics.
 Require Import typing_semantics.
+Require Import eval_substitution.
+
 
 Import Raw.
     
@@ -247,67 +249,6 @@ Proof.
 Qed.
 
 
-Lemma EvalRel_shift n (M : Tm n) (ρ : Env n) a  
-  m  (ξ : fin n -> fin m) (ρ' : Env m) :
-  (forall x, ρ x = ρ' (ξ x)) ->
-  EvalRel M⟨ξ⟩ ρ' a <-> EvalRel M ρ a.
-Proof.
-  move: m ξ ρ ρ' a.
-  induction M.
-  all: move=> m ξ ρ ρ' a EQ.
-  all: try done.
-  - cbn. rewrite <- EQ. done.
-  - cbn. destruct a; try done.
-    split. 
-    all: move=> [i [a [WT [ER [Vf h]]]]].
-    all: exists i, a.
-    all: repeat split; eauto.
-    all: try rewrite -> IHM1 in ER; try rewrite IHM1; eauto.
-    all: move=> ui vi Ini.
-    all: specialize (h ui vi Ini).
-    all: destruct h as [x [Le [WT2 E2]]].
-    all: exists x; repeat split; eauto.       
-    rewrite <- (IHM2 _ (up_ren ξ) _ (x .: ρ')). eauto.
-    auto_case.
-    rewrite (IHM2 _ (up_ren ξ) (x .: ρ)); eauto.
-    auto_case.
-  - (* app *) cbn.
-    destruct (is_bot a); try done.
-    split.
-    all: move=> [u [E1 E2]].
-    all: exists u.
-    rewrite -> IHM1 in E1; eauto.
-    rewrite -> IHM2 in E2; eauto.
-    rewrite -> IHM1 ; eauto.
-    rewrite -> IHM2 ; eauto.
-  - (* succ *)
-    cbn.
-    destruct (is_bot a); try done.
-    split.
-    all: move=> [Va [u [L E1]]].
-    all: split; auto.
-    all: exists u.
-    all: split; auto.
-    rewrite -> IHM in E1; eauto.
-    rewrite -> IHM ; eauto.
-  - (* tpi *)
-    cbn.
-    destruct a; try done.
-    split.
-    all: move=> [Va [i [WT [ER h]]]].
-    all: split; auto.
-    all: exists i.
-    all: repeat split; auto.
-    all: try rewrite IHM1 in ER; auto; try rewrite IHM1; auto.
-    all: destruct h as [Nf|[Vf h]].
-    all: try solve [left; eauto].
-    all: right; split; eauto.
-    all: move=> u v Inl.
-    all: destruct (h u v Inl) as [x [Le [WTx E2]]].
-    all: exists x; repeat split; auto.
-    all: try rewrite IHM2 in E2; auto; try rewrite IHM2; eauto.
-    all: auto_case.
-Qed.
 
 (* Fundamental theorem for the logical relation 
    
@@ -389,10 +330,10 @@ Proof.
   - (* succ case *) 
     cbn in *. asimpl.
     eapply VS; eauto.
-    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+    eapply EvalRel_unwk in E0; auto.
   - (* zero case *)
     cbn in *. asimpl.
-    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+    eapply EvalRel_unwk in E0; auto.
 Qed.    
     
 (*
@@ -448,10 +389,10 @@ Proof.
   - (* succ case *) 
     cbn in *. asimpl.
     eapply VS; eauto.
-    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+    eapply EvalRel_unwk in E0; auto.
   - (* zero case *)
     cbn in *. asimpl.
-    rewrite (@EvalRel_shift _ _ ρ _ _ ↑ (v .: ρ)) in E0; auto.    
+    eapply EvalRel_unwk in E0; auto.
 Qed.    
 
 Definition semantic_typing {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :=
@@ -543,19 +484,6 @@ End SemanticTyping.
 
 
  
-
-
-(*
-Lemma EqValSub_refl {g} (ρ : Env g) (Γ : Ctx g) (σ : Sub g) :
-  ValSub Γ ρ σ -> EqValSub Γ ρ σ σ.
-Proof.
-  move=> h. move=> i.
-  destruct (h i) as [u [a [WT [Vu [Le [ER VS]]]]]].
-  exists u. exists a. exists WT.
-  repeat split; eauto.
-Admitted.
-*)
-
 (* 
   -- Main bundled adequacy theorem
   adequacySub2 : {h g : Nat} {H : Ctx h} {G : Ctx g}
