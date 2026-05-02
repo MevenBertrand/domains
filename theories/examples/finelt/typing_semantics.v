@@ -29,7 +29,7 @@ Require Import syntax.typing.
 Require Import findom.
 Require Import types.
 Require Import raw_semantics.
-
+Require Import eval_substitution.
 
 Import SyntaxNotations.
 Import SubstNotations.
@@ -84,20 +84,26 @@ Proof.
     eapply renaming_typing with (A := Core.tuniv j); 
       eauto with renaming.
     eapply c_cons; eauto using typing_ctx.
-    (* need a renaming lemma for EvalRel *)
-    (* 
-    E : EvalRel A ρ b
-    ============================
-    EvalRel (⟨↑⟩ A) (u .: ρ) b
-     *)
-    admit.
-Admitted.
+    eapply EvalRel_wk; eauto.
+  + exists a. exists i.
+    repeat split; eauto.
+    eapply renaming_typing with (A := Core.tuniv i); 
+      eauto with renaming.
+    eapply c_cons; eauto using typing_ctx.
+    eapply EvalRel_wk; eauto.
+Qed.
 
+Lemma scons_inj {A} {u1 u2:A} {n} {ρ1 ρ2 : fin n -> A} : 
+  (u1 .: ρ1) = (u2 .: ρ2) -> ρ1 = ρ2.
+Proof.
+  move=> h.
+Admitted.
 
 Lemma fits_tail {n} (Γ : Ctx n) (ρ : Env n) A u : 
   fits (Γ ++ A) (u .: ρ) -> fits Γ ρ.
 move=> h. dependent destruction h; eauto.
-Admitted.
+move: (scons_inj x) => EQ. subst; auto.
+Qed.
 
 Lemma fits_valid_env {n} (Γ : Ctx n)(ρ : Env n) :
   fits Γ ρ -> valid_env ρ.
@@ -113,8 +119,12 @@ Hint Resolve fits_valid_env : valid typing.
 Lemma wt_bot_inv u : wt u bot -> u = bot.
 Proof. move=> h. inversion h. done. Qed. 
 
-Lemma wt_down u a : wt u a -> forall u', le u' u -> wt u' a.
+(*
+Lemma wt_down u a : wt u a -> forall v, le v u -> wt v a.
 Proof.
+  move=> h v LEv.
+  move: (@wt_lub _ _ h u v h) => h1.
+
   move=> h. induction h.
   all: move=> u' LE.
   all: destruct u'; try done.
@@ -130,6 +140,7 @@ Proof.
   (* SCW: I don't know how to finish the proof at this 
      point, but I do need this for the theorem below *)
 Admitted.
+*)
 
 (*
 ------------------------------------------------------------------------
@@ -158,6 +169,13 @@ Definition InvConv
   /\ (forall u, EvalRel M ρ u -> EvalRel N ρ u) 
   /\ (forall u, EvalRel N ρ u -> EvalRel M ρ u). 
 
+Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) : 
+  Typed M A ρ bot.
+Proof.
+  exists bot. exists bot. 
+  repeat split; eauto using EvalRel_bot, wt_bot.  
+Qed.  
+
 Fixpoint typing_EvalRel {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) 
    (h : typing Γ M A) {struct h} :
    forall ρ, fits Γ ρ -> InvTyped Γ M A ρ
@@ -172,13 +190,23 @@ Proof.
       move=> u E.
       move: E => [Vu Lu].
       move: (fits_var Fρ x) => [a [i [hT [Ea [WT1 WT2]]]]].
-      exists u. exists a.
+      exists (ρ x). exists a.
       repeat split; 
       eauto using le_refl, EvalRel_valid with valid.
-      eapply wt_down; eauto.
-    + eapply typing_EvalRel with (ρ:=ρ) in h; eauto.
+    + (* conv *) 
+      eapply typing_EvalRel with (ρ:=ρ) in h; eauto.
       eapply conv_EvalRel with (ρ:=ρ) in H; eauto.
       move: H => [h1 [h2 [h3 h4]]].
       move=> u EM.
-      admit.
+      unfold InvTyped in h, h1, h2.
+      specialize (h _ EM). unfold Typed in h.
+      move: h => [u' [a  [LE [EM' [WT' EA]]]]].
+      unfold Typed.
+      exists u'. exists a. repeat split; eauto.
+    + (* abs *)
+      eapply typing_EvalRel with (ρ:=ρ) in h1; eauto.
+      move=> u EA.
+      cbn in EA.
+      destruct u; try eauto using Typed_bot.
+      move: EA => [i1 [a1 [WT [E1 [Vf h4]]]]].
 Admitted.
