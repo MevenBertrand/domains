@@ -36,7 +36,8 @@ Proof.
   - cbn. rewrite <- EQ. done.
   - cbn. destruct a; try done.
     split. 
-    all: move=> [i [a [WT [ER [Vf h]]]]].
+    all: move=> [Va [Vf [i [a [WT [ER h]]]]]].
+    all: repeat split; eauto.
     all: exists i, a.
     all: repeat split; eauto.
     all: try rewrite -> IHM1 in ER; try rewrite IHM1; eauto.
@@ -71,14 +72,11 @@ Proof.
     cbn.
     destruct a; try done.
     split.
-    all: move=> [Va [i [WT [ER h]]]].
-    all: split; auto.
+    all: move=> [Va [Vl [i [WT [ER h]]]]].
+    all: repeat split; auto.
     all: exists i.
     all: repeat split; auto.
     all: try rewrite IHM1 in ER; auto; try rewrite IHM1; auto.
-    all: destruct h as [Nf|[Vf h]].
-    all: try solve [left; eauto].
-    all: right; split; eauto.
     all: move=> u v Inl.
     all: destruct (h u v Inl) as [x [Le [WTx E2]]].
     all: exists x; repeat split; auto.
@@ -141,7 +139,8 @@ Proof.
     eapply EvalRel_down; eauto.
   - (* abs *)
     destruct u; try done.
-    move: E => [i [a [WT [E1 [Vf F]]]]].
+    move: E => [Vf [Nl [i [a [WT [E1 F]]]]]].
+    repeat split; eauto.
     exists i, a. repeat split; eauto.
     move=> u v Inl.
     move: (F _ _ Inl) => [x [Le [WT2 E2]]].
@@ -159,10 +158,9 @@ Proof.
     eauto.
   - (* tpi *)
     destruct u; try done.
-    move: E => [Vu [i [WT [E1 [Nf|[Vf h1]]]]]].
-    all: split; eauto.
+    move: E => [Vu [Vf [i [WT [E1 h1]]]]].
+    all: repeat split; eauto.
     all: exists i; repeat split; eauto.
-    right. repeat split; eauto.
     move=> ui vi Inl.
     destruct (h1 _ _ Inl) as [x [Le [WT2 E2]]].
     have Vx: valid x. eapply wt_valid_tm; eauto.
@@ -218,7 +216,8 @@ Proof.
     split; eauto using EvalRel_valid.
   - (* abs *)
     destruct u; try done.
-    move: E => [i [a [WT [E1 [Vf F]]]]].
+    move: E => [Vf [Nf [i [a [WT [E1 F]]]]]].
+    repeat split; eauto.
     exists i, a. repeat split; eauto.
     move=> u v Inl.
     move: (F _ _ Inl) => [x [Le [WT2 E2]]].
@@ -236,10 +235,9 @@ Proof.
     eauto.
   - (* tpi *)
     destruct u; try done.
-    move: E => [Vu [i [WT [E1 [Nf|[Vf h1]]]]]].
-    all: split; eauto.
+    move: E => [Vf [Vu [i [WT [E1 h1]]]]].
+    all: repeat split; eauto.
     all: exists i; repeat split; eauto.
-    right. repeat split; eauto.
     move=> ui vi Inl.
     destruct (h1 _ _ Inl) as [x [Le [WT2 E2]]].
     have Vx: valid x. eapply wt_valid_tm; eauto.
@@ -515,7 +513,7 @@ Proof.
         - by cbn. }
     all: try (exfalso; cbn in E; done).
     (* u = abs l *)
-    move: E => [i [a [WT [EA [Vf body]]]]].
+    move: E => [Vf [Nl [i [a [WT [EA body]]]]]].
     move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
     have body' : forall u v, In (u,v) l ->
        exists x ρ_uv,
@@ -542,7 +540,8 @@ Proof.
     move: (@fold_edge_fwd _ _ σ ρ M2 a l ρA Vρ VρA SRρA body')
       => [ρ' [Vρ' [SRρ' [LEρA bodyAll]]]].
     exists ρ'. split; [|split]; auto.
-    cbn. exists i, a. split; [|split; [|split]]; auto.
+    repeat split; eauto.
+    cbn. exists i, a. repeat split; auto.
     eapply EvalRel_mono_env; eauto.
   - (* app *)
     destruct (is_bot u) eqn:Hb.
@@ -593,10 +592,7 @@ Proof.
         - by cbn. }
     all: try (exfalso; cbn in E; done).
     (* u = tpi e l *)
-    move: E => [Vu [i [WT [EA [Nl|[Vf body]]]]]].
-    { move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
-      exists ρA. split; [|split]; auto.
-      cbn. split; auto. exists i. split; [|split]; auto. }
+    move: E => [Vu [Vf [i [WT [EA body]]]]].
     move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
     have body' : forall u' v', In (u',v') l ->
       exists x ρ_uv,
@@ -624,10 +620,8 @@ Proof.
       => [ρ' [Vρ' [SRρ' [LEρA bodyAll]]]].
     exists ρ'. split; [|split]; first done.
     { exact SRρ'. }
-    cbn. split; first exact Vu. exists i. split; first exact WT.
-    split.
-    { eapply EvalRel_mono_env; eauto. }
-    right; split; auto.
+    cbn. repeat split; eauto. exists i. repeat split; eauto.
+    eapply EvalRel_mono_env; eauto.
   - (* tuniv *)
     exists bot_env. split; [|split].
     + by apply bot_env_valid.

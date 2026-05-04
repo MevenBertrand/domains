@@ -156,15 +156,16 @@ Definition InvConv
   /\ (forall u, EvalRel M ρ u -> EvalRel N ρ u)
   /\ (forall u, EvalRel N ρ u -> EvalRel M ρ u).
 
+Local Notation "Γ ⊨ M ∈ A" := (forall ρ, fits Γ ρ -> InvTyped Γ M A ρ) (at level 70).
+Local Notation "Γ ⊨ M ≡ N ∈ A" := (forall ρ, fits Γ ρ -> InvConv Γ M N A ρ) (at level 70).
+
+
 Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) :
   Typed M A ρ bot.
 Proof.
   exists bot. exists bot.
   repeat split; eauto using EvalRel_bot, wt_bot.
 Qed.
-
-Lemma wt_bot_inv u : wt u bot -> u = bot.
-Proof. move=> h. inversion h. done. Qed.
 
 (* =====================================================================
    InvConv combinators (LemmaForTS / TypingSemantics).
@@ -174,9 +175,16 @@ Proof. move=> h. inversion h. done. Qed.
    and c_conv. They use only the InvConv structure.
    ===================================================================== *)
 
+Lemma InvConv_refl {n} (Γ : Ctx n) (M A : Tm n) :
+  Γ ⊨ M ∈ A -> Γ ⊨ M ≡ M ∈ A.
+Proof.
+  move=> h ρ fρ. unfold InvConv. repeat split; eauto.
+Qed.
+
+
 (* convSound' (conv-refl dM) — from a typing derivation we get the
    reflexivity InvConv. *)
-Lemma InvConv_refl {n} (Γ : Ctx n) (M A : Tm n) ρ :
+Lemma InvConv_refl' {n} (Γ : Ctx n) (M A : Tm n) ρ :
   InvTyped Γ M A ρ -> InvConv Γ M M A ρ.
 Proof.
   move=> h. unfold InvConv. repeat split; eauto.
@@ -231,12 +239,22 @@ Qed.
    replacement-graph construction to upgrade these to the keys
    themselves; that construction is not yet in the Coq development. *)
 
+Lemma valid_abs f : 
+  valid_fun f -> ~~ is_nil f -> valid (abs f).
+Proof.
+  move=> h1 h2.
+  apply /andP. split; eauto.
+Qed.
+
+Hint Resolve valid_abs : valid.
+
 Lemma Lam_L1 u {n} (A : Tm n) M ρ :
   EvalRel (Core.abs A M) ρ u ->
   valid_env ρ ->
   ~~ is_bot u ->
   exists a g i,
-    EvalRel A ρ a /\ wt a (tuniv i)
+    EvalRel A ρ a 
+    /\ wt a (tuniv i)
     /\ le u (abs g)
     /\ valid (abs g)
     /\ (forall x y, In (x,y) g ->
@@ -245,11 +263,11 @@ Proof.
   destruct u; try done.
   move=> h Vρ _.
   cbn in h.
-  destruct h as [i [a [WT [E1 [Vf body]]]]].
-  have Vabs : valid (abs l) by cbn.
+  destruct h as [Vf [Nf [i [a [WT [E1 body]]]]]].
   exists a, l, i.
   repeat split; auto.
-  - eapply le_refl. exact Vabs.
+  - eapply le_refl. eauto with valid.
+  - eauto with valid.
 Qed.
 
 (* =====================================================================
@@ -281,19 +299,17 @@ Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
 Proof.
   move=> h Vρ.
   cbn in h.
-  destruct h as [Vb [i [Wb [EA Hbody]]]].
+  destruct h as [Vb [Vf [i [Wb [EA Hbody]]]]].
   exists b, i.
   have Vtpi : valid (tpi b f).
-  { eapply valid_tpi_intro; eauto.
-    move: Hbody => [Nf|[Vf _]]; [right|left]; assumption. }
+  { eapply valid_tpi_intro; eauto. } 
   split; first exact EA.
   split; first exact Wb.
   split; first by eapply le_refl; exact Vtpi.
   split; first exact Vtpi.
   move=> x y In_xy.
-  move: Hbody => [Nf|[Vf body]].
-  - destruct f; first done. inversion In_xy.
-Admitted.
+  eapply Hbody; eauto.
+Qed.
 
 (* =====================================================================
    InvTyp_Pi (LemmaForTS.agda): Pi case at universe level.
@@ -327,6 +343,26 @@ Admitted.
        If for every typed extended environment, the body M has InvTyp
        at B, then (Lam A M) has InvTyp at (Pi A B).
    ===================================================================== *)
+
+
+
+Lemma InvTyp_Lam' {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) (M : Tm (S n))
+  i :
+  Γ ⊨ A ∈ Core.tuniv i ->
+  Γ ++ A ⊨ B ∈ Core.tuniv i ->
+  Γ ++ A ⊨ M ∈ B ->
+  Γ ⊨ (Core.abs A M) ∈ Core.tpi A B.
+Proof.
+  move=> TA TB TM.
+  move=> ρ Fρ u EL.
+  specialize (TA _ Fρ). unfold InvTyped in TA.
+  have Vρ : valid_env ρ. eauto with valid.
+  destruct (~~ is_bot u) eqn:Bu.
+  - destruct (Lam_L1 EL Vρ Bu) as 
+      (a & g & i0 & EA & WTa & LEu & Vg & h).
+    clear EL.
+    specialize (TA _ EA). unfold Typed in TA.
+Admitted.
 
 Lemma InvTyp_Lam {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) (M : Tm (S n))
   i ρ :
@@ -521,9 +557,9 @@ Admitted.
 
 (* =====================================================================
    Theorem 1 (TypingSemantics.agda):
-       Γ ⊢ M : A  ∧  Fits Γ ρ  ⟹  InvTyped Γ M A ρ.
+       Γ ⊢ M : A  ==> Γ ⊨ M ∈ A.
    Conversion soundness:
-       Γ ⊢ M = N : A  ∧  Fits Γ ρ  ⟹  InvConv Γ M N A ρ.
+       Γ ⊢ M ≡ N : A  ⟹  Γ ⊨ M ≡ N ∈ A.
 
    These are mutually defined, since:
      - typing's t_conv case calls conv (for the type conversion).
@@ -534,10 +570,10 @@ Admitted.
 
 Fixpoint typing_EvalRel {n} (Γ : Ctx n) (M : Tm n) (A : Tm n)
    (h : typing Γ M A) {struct h} :
-   forall ρ, fits Γ ρ -> InvTyped Γ M A ρ
+   Γ ⊨ M ∈ A
 with conv_EvalRel {n} (Γ : Ctx n) (M N : Tm n) (A : Tm n)
    (h : conv Γ M N A) {struct h} :
-  forall ρ, fits Γ ρ -> InvConv Γ M N A ρ.
+  Γ ⊨ M ≡ N ∈ A.
 Proof.
   - destruct h.
     all: move=> ρ Fρ.
@@ -610,7 +646,7 @@ Proof.
       * move: (conv_EvalRel _ _ _ _ _ hAB ρ Fρ) => [_ [_ [fwd _]]].
         exact fwd.
     + (* c_refl *)
-      apply InvConv_refl. exact (typing_EvalRel _ _ _ _ hM ρ Fρ).
+      eapply InvConv_refl'. exact (typing_EvalRel _ _ _ _ hM ρ Fρ).
     + (* c_trans *)
       apply (@InvConv_trans _ Γ M N P A ρ).
       * exact (conv_EvalRel _ _ _ _ _ hMN ρ Fρ).

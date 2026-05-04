@@ -37,7 +37,6 @@ Import Raw.
 Definition Env n := fin n -> elt.
 
   
-
 (* Part 2: EvalRel *)
 
 Notation " a ↦ b " := (singleton a b) (at level 70).
@@ -46,7 +45,6 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
   let EvalRel_fun {n} (M : Tm (S n))
     : Env n -> elt -> list (elt * elt) -> Prop := 
     fun ρ a g => 
-      valid_fun g /\
       forall u v, In (u,v) g -> 
        exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ) v
   in 
@@ -69,8 +67,11 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
         match b with 
         | bot => True
         | tpi a g => 
-            valid a /\ exists i, wt a (tuniv i) /\ EvalRel A ρ a 
-            /\ (is_nil g \/ EvalRel_fun B ρ a g)
+            valid a 
+            /\ valid_fun g
+            /\ exists i, wt a (tuniv i) 
+            /\ EvalRel A ρ a 
+            /\ EvalRel_fun B ρ a g
         | _ => False
         end
   | Core.app M N => fun ρ b => 
@@ -81,9 +82,13 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
          | bot => True
          
          | abs g => 
-              exists i a, wt a (tuniv i) 
+                valid_fun g 
+              /\ ~~ is_nil g
+              /\ exists i a, wt a (tuniv i) 
               /\ EvalRel A ρ a
               /\ EvalRel_fun M ρ a g
+              
+                
          | _ => False 
          end
   | nrec T M0 M1 => fun ρ b =>
@@ -93,7 +98,6 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
 Definition EvalRel_fun {n} (M : Tm (S n))
     : Env n -> elt -> list (elt * elt) -> Prop := 
     fun ρ a g => 
-      valid_fun g /\
       forall u v, In (u,v) g -> 
        exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ) v.
 
@@ -122,8 +126,8 @@ Proof.
   - auto.
   - (* abs *)
     destruct u; try done.
-    move=> [i [a [WT [E1 [Vl _]]]]].
-    eapply Vl.
+    move=> [Vl [Nl [i [a [WT [E1 _]]]]]]. 
+    cbn. apply /andP. split; eauto. 
   - destruct (is_bot u) eqn:h. 
     destruct u; try done.
     move=> [a [E1 E2]].
@@ -132,8 +136,8 @@ Proof.
     rewrite h in E1.
     cbn in E1.
     move: E1 => /andP. 
-    move=> [h1 /andP h2]. move:h2 => [h2 _].
-    move: h2 => /andP. eauto.
+    move=> [h1 _]. move: h1 => /andP. move=> [h1 h2].
+    move: h2 => /andP. move=> [h2 _]. move: h2 => /andP. auto.
   - destruct u; try done.
   - destruct (is_bot u) eqn:h.
     destruct u; try done.
@@ -144,8 +148,7 @@ Proof.
   - destruct u; try done.
   - (* tpi *)
     destruct u; try done.
-    move=> [Vu [i [WTu [E1 [Nf|[Vf _]]]]]].
-    eapply valid_tpi_intro; eauto.
+    move=> [Vu [Vf [i [WTu [E1 _]]]]].
     eapply valid_tpi_intro; eauto.
   - destruct u; try done.
 Qed.
@@ -173,7 +176,8 @@ Proof.
     split; auto. eapply (le_trans Vu V1 V2); eauto.
   - (* M = Abs M1 M2,  *)
     destruct u ; try done. 
-    move: h1 => [i [a [WT [ER [Vl f]]]]].
+    move: h1 => [Vl [Nl [i [a [WT [ER f]]]]]].
+    repeat split; eauto.
     exists i ,a. repeat split; eauto.
     move=> u1 v1 h3. 
     specialize (f u1 v1 h3).
@@ -198,19 +202,16 @@ Proof.
     destruct (is_bot u); try done.
   - (* M = tpi M1 M2 *)
     destruct u; try done.
-    destruct h1 as [Vu [i1 [WT1 [E1 [Nl| [Vl h3]]]]]].
-    + split; eauto.
-      exists i1. split; eauto.
-    + split; auto. 
-      exists i1.
-      repeat split; eauto. right. split; eauto.
-      intros u1 v1 APP.
-      specialize (h3 u1 v1 APP).
-      destruct h3 as [x [Lx [WT E2]]].
-      exists x. repeat split; eauto.
-      eapply IHM2; eauto with valid.
-      have Vx : valid x. eauto with valid.
-      eapply le_env_cons; eauto using le_refl.
+    destruct h1 as [Vu [Vl [i1 [WT1 [E1 h3]]]]].
+    repeat split; eauto.
+    exists i1. repeat split; eauto. 
+    intros u1 v1 APP.
+    specialize (h3 u1 v1 APP).
+    destruct h3 as [x [Lx [WT E2]]].
+    exists x. repeat split; eauto.
+    eapply IHM2; eauto with valid.
+    have Vx : valid x. eauto with valid.
+    eapply le_env_cons; eauto using le_refl.
   - (* M = tuniv n *)
     destruct u; try done.
 Qed.    
@@ -226,7 +227,7 @@ Lemma lam_edgewise {n} {A : Tm n} {M ρ g} :
 Proof.
   move=> E1.
   cbn [EvalRel] in E1.
-  destruct E1 as [i [a [WT [EA [Vg body]]]]].
+  destruct E1 as [Vg [Ng [i [a [WT [EA body]]]]]].
   exists a. split; eauto.
   intros u v ein.
   have Vu: valid u. { eapply valid_fun_subterms in Vg.
@@ -251,13 +252,13 @@ Lemma EvalRel_fun_compatible {n} (M : Tm (S n)) ρ a l b l0
   (Vρ : valid_env ρ)
   (IHM : forall (ρ : Env (S n)) (a b : elt),
       valid_env ρ -> EvalRel M ρ a -> EvalRel M ρ b -> compatible a b)
+  (Vl : valid_fun l)
   (h1 : EvalRel_fun M ρ a l)
+  (Vl0 : valid_fun l0)
   (h2 : EvalRel_fun M ρ b l0) :
   compatible_fun l l0.
 Proof. 
   intros.
-  move: h1 => [Vl h1].
-  move: h2 => [Vl0 h2].
   apply /forallb_forall.
   move=> [u1 v1] Inl.
   specialize (h1 _ _ Inl).
@@ -371,17 +372,9 @@ Proof.
   - (* tpi *)
     destruct a; try done. destruct b; done.
     destruct b; try done.
-    move=> [Va [ia [WTa [Ea [Nl| h]]]]];
-    move=> [Vb [ib [WTb [Eb [Nl0|h0]]]]].
-    + destruct l as [|[u v]l]; try done; 
-      destruct l0 as[|[u0 v0]l0]; try done.
-      cbn. rewrite Bool.andb_true_r. eauto.
-    + destruct l as [|[u v]l]; try done.
-      cbn. rewrite Bool.andb_true_r. eauto.      
-    + destruct l0 as[|[u0 v0]l0]; try done.
-      cbn. apply /andP. split; eauto.
-      apply /forallb_forall. intros. destruct x; done.
-    + cbn. erewrite IHM1; eauto. cbn.
+    move=> [Va [Vl [ia [WTa [Ea h]]]]];
+    move=> [Vb [Vl0 [ib [WTb [Eb ]]]]].
+    cbn. erewrite IHM1; eauto. cbn.
       eapply EvalRel_fun_compatible; eauto.
   - (* tuniv *)
     move=> LE1 LE2.
@@ -408,8 +401,10 @@ Proof.
   - (* abs *)
     destruct u; try done.
     destruct u'; try done.
-    move: ER1 => [i [a [WTa [Ea [Vf h]]]]].
+    move: ER1 => [Vl [Nl [i [a [WTa [Ea h]]]]]].
     destruct u'; try done.
+    move: Vu' => /andP. fold valid. fold (valid_fun l0). move=> [Vl0 Nl0].
+    repeat split; eauto with valid. 
     exists i. exists a.  repeat split; eauto.
     move=> u v Inl0.
     rewrite le_abs in LE.
@@ -420,26 +415,26 @@ Proof.
     
     have Vu: valid u.
       { 
-         eapply valid_fun_subterms in Vu'.
-         move: Vu' => /forallb_forall. move=> VIn.
+         eapply valid_fun_subterms in Vl0.
+         move: Vl0 => /forallb_forall. move=> VIn.
          specialize (VIn _ Inl0). 
          move: VIn => /andP. auto.
       }
     have Vv: valid v.
       { 
-         eapply valid_fun_subterms in Vu'.
-         move: Vu' => /forallb_forall. move=> VIn.
+         eapply valid_fun_subterms in Vl0.
+         move: Vl0 => /forallb_forall. move=> VIn.
          specialize (VIn _ Inl0). 
          move: VIn => /andP. auto.
       }
     have Ve: valid e. { eapply (@valid_app l u); eauto. } 
 
-    move: e APP Ve Vf h LE.
+    move: e APP Ve Vl h LE.
     induction l as [|[ui vi]l].
     + intros. cbn in APP. inversion APP. subst.
       apply le_bot_inv in LE. subst.
       have NB: no_bot_result l0. {
-        eapply valid_fun_no_bot. eapply Vu'.
+        eapply valid_fun_no_bot. eapply Vl0.
       } 
       unfold no_bot_result in NB. 
       move: NB => /forallb_forall NB.
@@ -453,7 +448,6 @@ Proof.
          move: IN => /andP. move => [Cu LEu].
          exists x. repeat split; eauto.
          eapply (@le_trans x ui u); eauto with valid.
-         destruct (~~ is_nil l) eqn:Nl.
          have Vl: valid_fun l. eauto with valid.
          have Ve0: valid e0. eapply (@valid_app l u); eauto. 
 (* not done or stuck, just tired *)

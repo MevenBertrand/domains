@@ -1305,25 +1305,23 @@ Definition no_bot_result (f : list (elt * elt)) :=
 Definition is_nil {A} (f : list A) := 
   match f with | nil => true | _ => false end.
 
-Fixpoint valid u : bool := 
-  let valid_fun f := 
+Fixpoint valid u : bool :=
+  let valid_fun f :=
     (compatible_fun f f) &&
     (no_bot_result f) &&
-    (~~ is_nil f) &&
-    (List.forallb (fun '(ui,vi) => 
+    (List.forallb (fun '(ui,vi) =>
                      (valid ui) && (valid vi)) f)
   in
-  match u with 
-  | abs f => valid_fun f
-  | tpi a f => valid a && (valid_fun f || is_nil f)
+  match u with
+  | abs f => valid_fun f && ~~ is_nil f
+  | tpi a f => valid a && (valid_fun f)
   | succ v => valid v
   | _ => true
   end.
 
-Definition valid_fun f := 
+Definition valid_fun f :=
     (compatible_fun f f) &&
     (no_bot_result f) &&
-    (~~ is_nil f) &&
     (List.forallb (fun '(ui,vi) => (valid ui) && (valid vi)) f).
 
 
@@ -1331,17 +1329,15 @@ Definition valid_fun f :=
    then it is valid. *)
 
 Lemma valid_fun_tail u v f :
-  valid_fun ((u,v) :: f) -> 
-  (~~ is_nil f -> valid_fun f).
+  valid_fun ((u,v) :: f) ->
+  valid_fun f.
 Proof.
-  move=> /andP [/andP [/andP [h1 h2] _] h3]. 
+  move=> /andP [/andP [h1 h2] h3].
   rewrite compatible_cons_def in h1.
   cbn in *.
   move: h1 => /andP [/andP [h1 h9] h5].
   move: h2 => /andP [h2 h8].
-  move: h3 => /andP [/andP [h3 h7] h6].
-  move=> h4.
-  apply /andP; split; auto.
+  move: h3 => /andP [h3 h6].
   apply /andP; split; auto.
   apply /andP; split; auto.
   unfold compatible_fun in *.
@@ -1351,7 +1347,7 @@ Proof.
   move: h5 => /andP [_ h5]. done.
 Qed.
 
-Record CFT u v f : Prop := 
+Record CFT u v f : Prop :=
   mkCFT { key_valid  : valid u;
           val_valid  : valid v;
           val_nbot   : ~~ le v bot;
@@ -1360,8 +1356,8 @@ Record CFT u v f : Prop :=
 
 Lemma valid_fun_head u v f :
    valid_fun ((u,v) :: f) -> CFT u v f.
-Proof. 
-  move=> /andP [/andP [/andP [h1 h2] _] h3]. 
+Proof.
+  move=> /andP [/andP [h1 h2] h3].
   rewrite compatible_cons_def in h1.
   cbn in *.
   move: h1 => /andP [/andP [h1 h9] h5].
@@ -1372,22 +1368,25 @@ Qed.
 
 Lemma valid_fun_compatible f :
   valid_fun f -> compatible_fun f f.
-Proof.  move=> /andP [/andP [/andP [h1 h2] h4] h3].  auto. Qed.
+Proof.  move=> /andP [/andP [h1 h2] h3]. auto. Qed.
 
 Lemma valid_fun_no_bot f :
   valid_fun f -> no_bot_result f.
-Proof.  move=> /andP [/andP [/andP [ h1 h2] h4] h3].  auto. Qed.
+Proof.  move=> /andP [/andP [h1 h2] h3]. auto. Qed.
 
-Lemma valid_fun_nonnil f :
-  valid_fun f -> ~~ is_nil f.
-Proof.  move=> /andP [/andP [/andP [_ h2] h4] h3].  auto. Qed.
+(* Under the new definition of [valid], non-emptiness is part of
+   [valid (abs f)] but not of [valid_fun f]. The non-emptiness lemma
+   for [abs] takes [valid (abs f)] directly. *)
+
+Lemma valid_abs_nonnil f :
+  valid (abs f) -> ~~ is_nil f.
+Proof. cbn. move=> /andP [_ h]. exact h. Qed.
 
 Lemma valid_fun_subterms f :
-  valid_fun f -> 
+  valid_fun f ->
   forallb (fun '(ui,vi) => valid ui && valid vi) f.
 Proof.
-  move=> /andP [/andP [h2 h4] h3].
-  done.
+  move=> /andP [_ h3]. done.
 Qed.
 
 Lemma valid_fun_subterms_prop f:
@@ -1402,9 +1401,9 @@ Proof. move => /valid_fun_subterms h3.
 Qed.
 
 Create HintDb valid.
-Hint Resolve 
+Hint Resolve
   valid_fun_head valid_fun_tail key_valid val_valid compat
-  valid_fun_compatible valid_fun_no_bot valid_fun_nonnil valid_fun_subterms : valid.
+  valid_fun_compatible valid_fun_no_bot valid_abs_nonnil valid_fun_subterms : valid.
 
 
 (* Lemmas about valid terms *)
@@ -1416,12 +1415,10 @@ Proof.
   all: cbn.
   all: auto.
   - intro h. apply PeanoNat.Nat.eqb_refl.
-  - move=> /andP [Vu /orP [Vf|Nf]].   
-    apply /andP. split; eauto using valid.    
+  - move=> /andP [Vu Vf].
+    apply /andP. split; eauto using valid.
     eapply valid_fun_compatible; eauto.
-    destruct l; try done.
-    apply /andP. split; eauto.
-  - move=> Vf. 
+  - move=> /andP [Vf _].
     eapply valid_fun_compatible; eauto.
 Qed.
 
@@ -1452,20 +1449,20 @@ Definition valid_append f g :
   -> compatible_fun f g 
   -> valid_fun (f ++ g).
 Proof.
-  move=> /andP [/andP [/andP [Cf Nbf] Nf] Vf] 
-        /andP [/andP [/andP [Cg Nbg] Ng] Vg] Cfg.
-  apply /andP; split. apply /andP; split. apply /andP; split.
+  move=> /andP [/andP [Cf Nbf] Vf]
+        /andP [/andP [Cg Nbg] Vg] Cfg.
+  apply /andP; split. apply /andP; split.
   - unfold compatible_fun in *.
-    apply forallb_forall. 
+    apply forallb_forall.
     move=> [ui vi] Ini.
     apply forallb_forall.
     move=> [uj vj] Inj.
-    move: Cf => /forallb_forall Cf. 
+    move: Cf => /forallb_forall Cf.
     move: Cg => /forallb_forall Cg.
     move: Cfg => /forallb_forall Cfg.
     destruct (in_app_or _ _ _ Ini) as [Ifi|Igi];
     destruct (in_app_or _ _ _ Inj) as [Ifj|Igj];
-    try move: (Cf _ Ifi) => /forallb_forall Cfi; 
+    try move: (Cf _ Ifi) => /forallb_forall Cfi;
     try move: (Cf _ Ifj) => /forallb_forall Cfj;
     try move: (Cg _ Igi) => /forallb_forall Cgi;
     try move: (Cg _ Igj) => /forallb_forall Cgj.
@@ -1479,12 +1476,11 @@ Proof.
       specialize (Cfg _ Igi). cbn in Cfg.
       move: Cfg => /implyP Cfg.
       apply /implyP. move=> x.
-      apply compatible_sym. apply Cfg.  
+      apply compatible_sym. apply Cfg.
       apply compatible_sym. auto.
     + eapply (Cgi _ Igj).
-  - apply no_bot_result_app; auto. 
-  - destruct f; try done.
-  - clear Cf Cg Cfg Nf Ng.
+  - apply no_bot_result_app; auto.
+  - clear Cf Cg Cfg.
     induction f; cbn in *. done.
     destruct a as [u v].
     move: Vf => /andP [h1 h2].
@@ -1504,24 +1500,20 @@ Proof.
   - destruct Nat.eqb; inversion h. done.
   - destruct (lub u v) eqn:EQ; inversion h. cbn. 
     eapply IHu; eauto.
-  - move: Vu => /andP [Vu /orP [h1|h1]];
-    move: Vw => /andP [Vw h3].
-    + destruct (compatible_fun l l0) eqn:Co. 2: done.
-      destruct (lub u v) eqn:LUB. 2: done.
-      inversion h. cbn. clear h H0.
-      apply /andP. split; eauto.
-      move: h3 => /orP [h3|h3].
-      apply /orP. left. eapply valid_append; eauto.
-      destruct l0; try done. rewrite app_nil_r.
-      apply /orP. left. eauto.
-    + destruct l; eauto. cbn in h.
-      destruct (lub u v) eqn:LUB; inversion h. clear h.
-      cbn. apply /andP. split.
-      eapply IHu; eauto. eauto.       
-      
-  - destruct (compatible_fun l l0) eqn:Co. 2: done.
-    inversion h. cbn.
+  - move: Vu => /andP [Vu Vfl].
+    move: Vw => /andP [Vw Vfl0].
+    destruct (compatible_fun l l0) eqn:Co. 2: done.
+    destruct (lub u v) eqn:LUB. 2: done.
+    inversion h. cbn. clear h H0.
+    apply /andP. split; eauto.
     eapply valid_append; eauto.
+
+  - destruct (compatible_fun l l0) eqn:Co. 2: done.
+    move: Vu => /andP [Vu Nu]. move: Vw => /andP [Vw Nw].
+    inversion h. cbn.
+    apply /andP. split.
+    eapply valid_append; eauto.
+    destruct l; cbn in *; done.
 Qed.
 
 
@@ -1994,7 +1986,7 @@ Proof.
   exists e. 
   split; eauto. split. 
   -- destruct (~~ is_nil f) eqn:h4.
-     ++ move: (valid_fun_tail h h4) => h5.    
+     ++ move: (valid_fun_tail h) => h5.
         eapply (valid_app h5 Vu); eauto.
      ++ destruct f ; try done. cbn in h2. inversion h2. done.
   -- eapply compatible_sym. eapply lub_compatible; eauto.
@@ -2065,18 +2057,17 @@ Proof.
     + erewrite IHk; eauto. 
 Qed.
 
-(* If f is valid  then f is not below nil. *)
+(* If f is valid and non-empty then f is not below nil. *)
 Lemma valid_fun_not_le_fun_nil f :
-  valid_fun f -> not (le_fun f nil).
+  ~~ is_nil f -> valid_fun f -> not (le_fun f nil).
 Proof.
-  move=> Vf Lfn.
-  move: (valid_fun_nonnil Vf) => Ne.
+  move=> Ne Vf Lfn.
   destruct f as [|[u v] f]; try done.
   move: (valid_fun_no_bot Vf) => /forallb_forall NBf.
   specialize (NBf (u,v) ltac:(left; eauto)). simpl in NBf.
   move: Lfn => /forallb_forall Lfn.
   specialize (Lfn (u,v) ltac:(left; eauto)). simpl in Lfn.
-  rewrite Lfn in NBf. done. 
+  rewrite Lfn in NBf. done.
 Qed.
 
 (*
@@ -2289,7 +2280,7 @@ Proof.
     move: k u.
     induction h as [|[ui vi]h].
     all: move=> k u RK Vf Vk LE Vu w1 w2 EQ A2.
-    - inversion EQ. done.
+    - rewrite app_nil_eq in EQ. inversion EQ. apply le_bot.
     - rewrite app_spec in EQ. cbn in EQ. rewrite <- app_spec in EQ.
       cbn in RK. move: (rk_app A2) => Rw2.
       have Leu: le u u. { eapply le_refl. eapply ih. lia. eauto. }
@@ -2410,7 +2401,7 @@ Proof.
     erewrite le_refl; eauto. 2: lia.
     cbn.
     destruct (~~ is_nil f) eqn:Nf.
-    + move: (valid_fun_tail Vf Nf) => Vt.
+    + move: (valid_fun_tail Vf) => Vt.
       have LEu: le u u. eapply le_refl; eauto. lia.
       destruct (valid_app_cons_compatible LEu Vf) as [w [E1 [Vw Cw]]].
       rewrite E1.
@@ -2596,11 +2587,9 @@ Proof.
       fold valid in Vl.
       specialize (ih (max (rk a) (rk_fun l))).
       apply /andP. split. eapply le_refl; eauto. lia.
-      move: Vl => /orP [Vl|Vl].
-      eapply le_fun_refl; eauto. lia. 
-      destruct l; try done.
+      eapply le_fun_refl; eauto. lia.
     + rewrite le_abs.
-      cbn in Va.
+      cbn in Va. move: Va => /andP [Va _].
       eapply le_fun_refl; eauto.
 
   - (* le_lub_left *)
@@ -2627,35 +2616,28 @@ Proof.
       ++ (* needs le_refl *)
         rewrite le_tpi.
         apply /andP. split. eapply le_refl; eauto.  lia.
-        move: h2 => /orP [h2|h2].
-        eapply le_fun_refl; eauto. lia. 
-        destruct l; done.
+        eapply le_fun_refl; eauto. lia.
       ++ destruct (compatible_fun l l0) eqn:E. 2: done.
          destruct (lub u v) eqn:E2. 2: done.
-         cbn in h. inversion h. 
+         cbn in h. inversion h.
          move: Vv => /andP [Vv Vl0].
          fold valid in *. fold (valid_fun l0) in Vl0.
-         move: Cu => /andP [Cu Cl]. 
-         fold compatible in *. 
-         rewrite le_tpi. apply /andP. split; eauto. 
+         move: Cu => /andP [Cu Cl].
+         fold compatible in *.
+         rewrite le_tpi. apply /andP. split; eauto.
          eapply le_lub_left; eauto. lia.
-         move: h2 => /orP [Vl|Vl];
-           move: Vl0 => /orP [Vl0|Vl0].
-         -- eapply le_fun_extend_left; eauto. fold rk_fun in RK. fold rk_fun. lia.
-         -- destruct l0; try done. rewrite app_nil_r.
-            eapply le_fun_refl; eauto. lia.
-         -- destruct l; try done.
-         -- destruct l; try done; destruct l0; try done.
+         eapply le_fun_extend_left; eauto. fold rk_fun in RK. fold rk_fun. lia.
     + (* abs *)
       destruct v; cbn in h; inversion h; subst.
-      ++ cbn in Vu. 
-         rewrite le_abs. eapply le_fun_refl; eauto. 
+      ++ cbn in Vu. move: Vu => /andP [Vu _].
+         rewrite le_abs. eapply le_fun_refl; eauto.
          eapply ih. cbn in RK. fold rk_fun in RK. lia.
       ++ destruct (compatible_fun l l0) eqn:E. 2: done.
          cbn in h. inversion h.
-         rewrite le_abs. 
+         rewrite le_abs.
          cbn in RK. fold rk_fun in RK.
-         eapply le_fun_extend_left; eauto. 
+         cbn in Vu, Vv. move: Vu => /andP [Vu _]. move: Vv => /andP [Vv _].
+         eapply le_fun_extend_left; eauto.
 
   - (* le_lub_right *)
     move=> u v. move:u.
@@ -2681,33 +2663,27 @@ Proof.
       ++ (* needs le_refl *)
         rewrite le_tpi.
         apply /andP. split. eapply le_refl; eauto.  lia.
-        move: h2 => /orP [h2|h2].
         eapply le_fun_refl; eauto. lia.
-        destruct l; done.
       ++ destruct (compatible_fun l0 l) eqn:E. 2: done.
          destruct (lub u v) eqn:E2. 2: done.
-         cbn in h. inversion h. 
+         cbn in h. inversion h.
          move: Vu => /andP [Vu Vl0].
          fold valid in *. fold (valid_fun l0) in Vl0.
-         move: Cu => /andP [Cu Cl]. 
-         fold compatible in *. 
-         rewrite le_tpi. apply /andP. split; eauto. 
+         move: Cu => /andP [Cu Cl].
+         fold compatible in *.
+         rewrite le_tpi. apply /andP. split; eauto.
          eapply le_lub_right; eauto. lia.
-         move: h2 => /orP [Vl|Vl].
-         move: Vl0 => /orP [Vl0|Vl0].
-         -- eapply le_fun_extend_right; eauto. fold rk_fun in RK. fold rk_fun. lia.
-         -- destruct l0; try done. cbn.
-            eapply le_fun_refl; eauto. lia.
-         -- destruct l; try done.         
+         eapply le_fun_extend_right; eauto. fold rk_fun in RK. fold rk_fun. lia.
     + (* abs *)
       destruct u; cbn in h; inversion h; subst.
-      ++ cbn in Vv. 
+      ++ cbn in Vv. move: Vv => /andP [Vv _].
          rewrite le_abs. eapply le_fun_refl; eauto.
          cbn in RK. fold rk_fun in RK. eauto.
       ++ destruct (compatible_fun l0 l) eqn:E. 2: done.
          cbn in h. inversion h.
-         rewrite le_abs. 
+         rewrite le_abs.
          cbn in RK. fold rk_fun in RK.
+         cbn in Vu, Vv. move: Vu => /andP [Vu _]. move: Vv => /andP [Vv _].
          eapply le_fun_extend_right; eauto. lia.
 
   - (* le_trans *)
@@ -2720,42 +2696,24 @@ Proof.
     + rewrite le_succ. rewrite -> le_succ in L1, L2. 
       cbn in RK.
       eapply (@le_trans _ (ih _ RK) u v w); eauto.
-    + rewrite le_tpi.  rewrite -> le_tpi in L1, L2. 
-      cbn in RK. fold rk_fun in RK. 
-      move: Vu => /andP [Vu Vl]. 
-      move: Vv => /andP [Vv Vl0]. 
+    + rewrite le_tpi.  rewrite -> le_tpi in L1, L2.
+      cbn in RK. fold rk_fun in RK.
+      move: Vu => /andP [Vu Vl].
+      move: Vv => /andP [Vv Vl0].
       move: Vw => /andP [Vw Vl1].
       move: L1 => /andP [Luv Lll0].
       move: L2 => /andP [Lvw Ll0l1].
       fold valid in Vl, Vv, Vu , Vw, Vl0 , Vl1.
       apply /andP. split.
       eapply (@le_trans _ (ih _ RK) u v w); eauto. lia.
-      move: Vl  => /orP [Vl | Vl];
-      move: Vl0 => /orP [Vl0| Vl0];
-      move: Vl1 => /orP [Vl1| Vl1].
-      1: { eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto. lia. }
-      all: apply /forallb_forall.
-      all: intros [ui vi] Inl.
-      all: exfalso.
-      (* case L,L,R: l, l0 valid, l1 is_nil *)
-      1: { destruct l1; [|done].
-           move: (valid_fun_nonnil Vl0) => NNl0.
-           destruct l0 as [|[u0 v0] l0']; [done|].
-           eapply (valid_fun_not_le_fun_nil Vl0 Ll0l1).
-           }
-      (* case L,R,L: l valid, l0 is_nil, l1 valid *)
-      1: { destruct l0; [|done].
-           eapply (valid_fun_not_le_fun_nil Vl Lll0). }
-      (* case L,R,R: l valid, l0 is_nil, l1 is_nil *)
-      1: { destruct l0; [|done].
-           eapply (valid_fun_not_le_fun_nil Vl Lll0). }
-      (* case R,*,*: l is_nil *)
-      all: destruct l; [done|done].
+      eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto. lia.
 
     + rewrite le_abs. rewrite -> le_abs in L1, L2.
       cbn in RK. fold rk_fun in RK.
+      cbn in Vu, Vv, Vw.
+      move: Vu => /andP [Vu _]. move: Vv => /andP [Vv _]. move: Vw => /andP [Vw _].
       eapply (@le_fun_trans _ (ih _ RK) l l0 l1); eauto.
- 
+
   - (* le_sup_lub *)
     move=> u v w1 w2 RK LE1 LE2 LUB.
     destruct u; destruct v; cbn in LUB; inversion LUB; try done.    
@@ -2918,18 +2876,16 @@ Qed.
 
 
 Lemma valid_tpi_intro a f :
-  valid a -> (valid_fun f \/ is_nil f) -> valid (tpi a f).
+  valid a -> valid_fun f -> valid (tpi a f).
 Proof.
-  move=> Va H. cbn. apply /andP. split; [exact Va|].
-  apply /orP. destruct H as [Vf|Nf]; [left|right]; done.
+  move=> Va Vf. cbn. apply /andP. split; [exact Va|exact Vf].
 Qed.
 
 Lemma valid_tpi_inv a f :
-  valid (tpi a f) -> valid a /\ (valid_fun f \/ is_nil f).
+  valid (tpi a f) -> valid a /\ valid_fun f.
 Proof.
   move=> V. cbn in V. move: V => /andP [Va Vf].
-  split; [exact Va|].
-  move: Vf => /orP [Vf|Nf]; [left|right]; done.
+  split; [exact Va|exact Vf].
 Qed.
 
 
@@ -2940,8 +2896,10 @@ Lemma app_tpi_valid a f u :
   forall t, app f u = Some t -> valid t.
 Proof.
   move=> V Vu t A.
-  cbn in V. move: V => /andP [_ /orP [Vf|Nf]].
-  - fold (valid_fun f) in Vf. eapply valid_app; eauto.
+  cbn in V. move: V => /andP [_ Vf].
+  fold (valid_fun f) in Vf.
+  destruct (~~ is_nil f) eqn:Nf.
+  - eapply valid_app; eauto.
   - destruct f; try done. cbn in A. inversion A. done.
 Qed.
 
@@ -2951,8 +2909,10 @@ Lemma app_tpi_exists a f u :
   exists t, app f u = Some t /\ valid t.
 Proof.
   move=> V Vu.
-  cbn in V. move: V => /andP [_ /orP [Vf|Nf]].
-  - fold (valid_fun f) in Vf. eapply valid_app_exists; eauto.
+  cbn in V. move: V => /andP [_ Vf].
+  fold (valid_fun f) in Vf.
+  destruct (~~ is_nil f) eqn:Nf.
+  - eapply valid_app_exists; eauto.
   - destruct f; try done. exists bot. cbn. auto.
 Qed.
 
@@ -3099,8 +3059,13 @@ Module Valid.
 
 Definition elt : Set := 
   { u : Raw.elt & Raw.valid u }.
-Definition finfun : Set := 
+(* finfun records [valid_fun f] only.
+   Use [nefinfun] (non-empty finfun) for the [abs] case. *)
+Definition finfun : Set :=
   { f : list (Raw.elt * Raw.elt) & Raw.valid_fun f }.
+
+Definition nefinfun : Set :=
+  { f : list (Raw.elt * Raw.elt) & Raw.valid_fun f /\ ~~ Raw.is_nil f }.
 
 (* --------------- constructors --------------- *)
 
@@ -3111,25 +3076,25 @@ Definition zero : elt. exists Raw.zero. auto. Defined.
 Definition succ (u : elt) : elt.
   exists (Raw.succ (projT1 u)). cbn. eapply projT2. Defined.
 
-Definition tabs (f : finfun) : elt.
-exists (Raw.abs (projT1 f)). destruct f as [rf h1]. cbn. eapply h1.
+Definition tabs (f : nefinfun) : elt.
+exists (Raw.abs (projT1 f)).
+destruct f as [rf [h1 h2]]. cbn.
+apply /andP. split; assumption.
 Defined.
 
-(* NOTE: f can be nil for tpi, so there are two ways to construct 
-   valid tpi's *)
-Definition tpi_empty (a : elt) : elt.
-  exists (Raw.tpi (projT1 a) nil).
-  apply /andP. fold Raw.valid. 
-  split. destruct a. cbn. done.
-  apply /orP. right. done.
-Defined.
-
+(* Under the new definition of [valid], [tpi a f] is valid iff
+   [valid a /\ valid_fun f] — and [valid_fun nil = true], so empty
+   graphs are still allowed. *)
 Definition tpi_finfun (a : elt) (f : finfun) : elt.
 exists (Raw.tpi (projT1 a) (projT1 f)).
 cbn. apply /andP. split. eapply projT2.
-destruct f as [rf h1]. cbn.
-apply /orP. left. eapply h1.
-Defined. 
+destruct f as [rf h1]. cbn. exact h1.
+Defined.
+
+Definition tpi_empty (a : elt) : elt.
+  refine (tpi_finfun a (existT _ nil _)).
+  done.
+Defined.
 
 (* create either a abs (u,v) or bot *)
 Definition singleton (u v : elt) : elt.
@@ -3263,15 +3228,17 @@ Admitted.
 (** ----------------- application -------------- *)
 
 Definition app (f : elt) (u : elt) : elt.
-exists (match (projT1 f) with 
-    | Raw.abs rf => match (Raw.app rf (projT1 u)) with 
+exists (match (projT1 f) with
+    | Raw.abs rf => match (Raw.app rf (projT1 u)) with
                    | Some v => v
-                   | None => Raw.bot             
+                   | None => Raw.bot
                    end
-    | _ => Raw.bot 
+    | _ => Raw.bot
    end).
 destruct f as [rf Vf]. destruct u as [ru Vu].
 cbn. destruct rf; try done.
+cbn in Vf. move: Vf => /andP [Vf _].
+fold (Raw.valid_fun l) in Vf.
 move: (Raw.valid_app_exists Vf Vu) => [w [EQ Vw]].
 rewrite EQ. done.
 Defined.
@@ -3291,16 +3258,18 @@ Admitted.
     | _ => false
     end.
 
-  Definition is_abs (v : Valid.elt) : option Valid.finfun := 
-    match v with 
-    | existT _ (Raw.abs e) Vf => Some (existT _ e Vf)
-    | _ => None
-    end.
+  Definition is_abs (v : Valid.elt) : option Valid.finfun.
+    destruct v as [rv Vv]. destruct rv eqn:E.
+    1-5: exact None.
+    1: exact None.
+    cbn in Vv. move: Vv => /andP [Vf _].
+    apply Some. exists l. exact Vf.
+  Defined.
 
-  Definition abs (f : finfun) : elt.
+  Definition abs (f : Valid.nefinfun) : elt.
     exists (Raw.abs (projT1 f)).
-    destruct f as [f Vf]. 
-    eassumption.
+    destruct f as [f [Vf Nf]]. cbn.
+    apply /andP. split; assumption.
   Defined.
 
   Definition finfun_app (f : finfun) (u : elt) : elt.
