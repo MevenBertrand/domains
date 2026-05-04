@@ -375,7 +375,7 @@ Definition semantic_conv {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
     EqVal M[σ] N[σ] A[σ] WT. 
 Definition semantic_conv2 {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
   forall ρ σ1 σ2 (TS1 : typing_subst ctx_empty σ1 Γ) 
-            (TS2 : typing-subst ctx_empty σ2 Γ)
+            (TS2 : typing_subst ctx_empty σ2 Γ)
     (F : fits Γ ρ)
     (VS : EqValSub Γ ρ σ1 σ2), 
   forall u a (WT : wt u a), 

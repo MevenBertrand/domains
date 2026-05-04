@@ -1563,7 +1563,7 @@ Hint Resolve valid_app valid_lub : valid.
 
 (* ------------------------------------------------------- *)
 
-(* Inversion lemmas for le *)
+(** * Inversion lemmas for le *)
 
 Lemma le_bot_inv : forall u, le u bot -> u = bot.
 Proof.
@@ -2957,6 +2957,136 @@ Proof.
 Qed.
 
 
+Definition is_bot (a : elt) :bool := 
+  match a with 
+  | bot => true
+  | _ => false
+  end.
+  
+Definition singleton (a b: elt) : elt :=
+  if is_bot b then bot 
+  else abs (cons (a,b) nil).
+
+
+(* ------------------ inversion for lub -------------------- *)
+
+(** * inversion lemmas for lub *)
+
+Lemma lub_bot_inv u v : 
+  lub u v = Some bot -> u = bot /\ v = bot.
+Proof.
+  destruct u; destruct v; try done.
+  all: cbn. destruct (n =? n0); done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+Qed.
+Lemma lub_bot_inv_r u v : 
+  lub u v = Some bot -> v = bot.
+Proof. move=> h. eapply (lub_bot_inv h). Qed.
+Lemma lub_bot_inv_l u v : 
+  lub u v = Some bot -> u = bot.
+Proof. move=> h. eapply (lub_bot_inv h). Qed.
+
+Lemma lub_tuniv_inv (u v:elt) i :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some (tuniv i) -> 
+  (u = tuniv i) /\ (v = tuniv i). 
+Proof.
+  destruct u; destruct v; try done.
+  all: cbn. destruct (n =? n0) eqn:NE;
+    try done; try rewrite Nat.eqb_eq in NE.
+  move=> _ _ h. inversion h. subst. eauto.
+  destruct (lub u v) eqn:hl; try done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+Qed.
+
+Lemma lub_tnat_inv (u v:elt) :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some tnat -> 
+  (u = tnat) /\ (v = tnat). 
+Proof. 
+  destruct u; destruct v; try done.
+  all: cbn.
+  destruct (n =? n0); done.
+  destruct (lub u v) eqn:hl; try done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+Qed.
+
+Lemma lub_zero_inv (u v:elt) :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some zero -> 
+  (u = zero) /\ (v = zero). 
+Proof. 
+  destruct u; destruct v; try done.
+  all: cbn.
+  destruct (n =? n0); done.
+  destruct (lub u v) eqn:hl; try done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+Qed.
+
+
+Lemma lub_succ_inv (u v:elt) (w : elt) :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some (succ w) -> 
+  exists u1, exists v1, (u = succ u1) /\ (v = succ v1) 
+       /\ lub u1 v1 = Some w.
+Proof.
+  destruct u; destruct v; try done.
+  all: cbn. destruct (n =? n0); try done.
+  destruct (lub u v) eqn:hl; try done.
+  move=> _ _ h. inversion h. subst. eauto.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+Qed.
+
+Lemma lub_abs_inv (u v:elt) (f : list (elt * elt)) :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some (abs f) -> 
+  exists f1, exists f2, (u = abs f1) /\ (v = abs f2) 
+       /\ (f = f1 ++ f2)%list.
+Proof.
+  destruct u; destruct v; try done.
+  all: cbn. destruct (n =? n0); done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+  move=> _ _ h. inversion h. subst. eauto.
+Qed.
+
+Lemma lub_tpi_inv (u v:elt) a f :
+  ~~ is_bot u -> ~~ is_bot v ->
+  lub u v = Some (tpi a f) -> 
+  exists a1 f1 a2 f2, (u = tpi a1 f1) /\ (v = tpi a2 f2) 
+       /\ lub a1 a2 = Some a
+       /\ (f = f1 ++ f2)%list.
+Proof.
+  destruct u; destruct v; try done.
+  all: cbn. 
+  destruct (n =? n0); done.
+  destruct (lub u v); done.
+  destruct (compatible_fun l l0); try done.
+  destruct (lub u v) eqn:h1; try done.
+  destruct (compatible_fun l l0) eqn:h2; try done.
+  move=> _ _ h. inversion h. subst.
+  exists u. exists l. exists v. exists l0. eauto.
+  move=> _ _ h. inversion h. subst.
+  exists u. exists l. exists v. exists l0. eauto.
+  destruct (compatible_fun l l0) eqn:h2; try done.
+ Qed.
+
+(** * inversion lemmas for le *)
+
+
 
 
 End Raw.
@@ -3125,6 +3255,10 @@ Proof.
   f_equal.
   ext.
 Admitted.
+
+
+
+
 
 (** ----------------- application -------------- *)
 

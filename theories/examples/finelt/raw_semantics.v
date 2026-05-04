@@ -36,15 +36,6 @@ Import Raw.
 
 Definition Env n := fin n -> elt.
 
-Definition is_bot (a : elt) :bool := 
-  match a with 
-  | bot => true
-  | _ => false
-  end.
-  
-Definition singleton (a b: elt) : elt :=
-  if is_bot b then bot 
-  else abs (cons (a,b) nil).
   
 
 (* Part 2: EvalRel *)
