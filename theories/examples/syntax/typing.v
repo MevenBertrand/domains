@@ -47,6 +47,16 @@ Fixpoint lookup {n} (x : fin n) : Ctx n -> Tm n.
     inversion tl. exact (X0⟨↑⟩).
 Defined.
 
+Lemma lookup_weaken {n}(Γ:Ctx n) A y : 
+   lookup (Some y : fin (S n)) (Γ ++ A) = (lookup y Γ)[↑ >> var].
+cbn [lookup]. fold fin in y. cbn [f_equal].
+cbn. 
+auto_unfold.
+move: (@rinstInst'_Tm _ _ shift (lookup y Γ)) => h.
+rewrite h.
+reflexivity.
+Qed.
+
 (* for nrec *)
 Definition rho {n} : fin (S n) -> Tm (S n) := 
    (succ (var var_zero) .: var >> ⟨↑⟩).
@@ -107,6 +117,9 @@ with conv :forall {n} (Γ : Ctx n), Tm n -> Tm n -> Tm n -> Prop :=
   | c_refl n (Γ : Ctx n) M A : 
     typing Γ M A ->
     conv Γ M M A 
+  | c_sym n (Γ : Ctx n) M N A : 
+    conv Γ M N A -> 
+    conv Γ N M A
   | c_trans n (Γ : Ctx n) M N P A  : 
     conv Γ M N A -> 
     conv Γ N P A -> 
@@ -502,4 +515,63 @@ Proof.
 Admitted.
 
 
+Lemma ctc_conv_typing_subst {n} (Γ:Ctx n) A A' i : 
+  typing Γ A (tuniv i) -> 
+  typing Γ A' (tuniv i) -> 
+  conv Γ A A' (tuniv i) -> 
+  typing_subst (Γ ++ A) var (Γ ++ A').
+Proof. 
+  move=> t1 t2 C.
+  have CTX:  ctx (Γ ++ A).
+  { eapply c_cons; eauto using typing_ctx. } 
+  unfold typing_subst.
+  move=> [y|]. fold fin in y.
+  + cbn. asimpl. eapply t_var'; eauto.
+    eapply lookup_weaken; eauto.
+  + cbn. 
+    eapply t_conv with (A :=⟨↑⟩A)(i:=i). 
+    eapply t_var; eauto. 
+    asimpl.
+    rewrite rinstInst'_Tm.
+    eapply substitution_conv with (A := tuniv i); eauto.
+    unfold typing_subst. move=> x.
+    unfold core.funcomp.
+    eapply t_var'; eauto.
+    cbn.
+    auto_unfold.
+    rewrite -> rinstInst'_Tm.
+    unfold core.funcomp.
+    done.
+Qed.
 
+Lemma ctx_conv_typing {n} (Γ:Ctx n) A A' i M B : 
+  conv Γ A A' (tuniv i) -> 
+  typing (Γ ++ A) M B -> typing (Γ ++ A') M B.
+Proof.
+Admitted.
+
+
+Lemma ctx_conv_conv {n} (Γ:Ctx n) A A' i M N B : 
+  conv Γ A A' (tuniv i) -> 
+  conv (Γ ++ A) M N B -> conv (Γ ++ A') M N B.
+Proof.
+  move=> CA CMN.
+Admitted.
+  
+(*
+
+ctx-conv-WtSub : {n : Nat} {G : Ctx n} {A A' : Expr n} ->
+    HasType G A U -> HasType G A' U -> ConvTm G A A' U ->
+    WtSub (extend G A') (extend G A) idSub
+
+ctx-conv-HasType : {n : Nat} {G : Ctx n} {A A' : Expr n}
+    {M B : Expr (suc n)} ->
+    HasType G A U -> HasType G A' U -> ConvTm G A A' U ->
+    HasType (extend G A) M B -> HasType (extend G A') M B
+
+  -- Context conversion for ConvTm
+  ctx-conv-ConvTm : {n : Nat} {G : Ctx n} {A A' : Expr n}
+    {M N B : Expr (suc n)} ->
+    HasType G A U -> HasType G A' U -> ConvTm G A A' U ->
+    ConvTm (extend G A) M N B -> ConvTm (extend G A') M N B
+*)

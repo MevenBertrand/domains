@@ -326,15 +326,26 @@ Lemma InvTyp_Pi {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) i ρ :
     InvTyped (Γ ++ A) B (Core.tuniv i) (x .: ρ)) ->
   InvTyped Γ (Core.tpi A B) (Core.tuniv i) ρ.
 Proof.
-  (* Translates LemmaForTS.InvTyp-Pi.
-
-     Outline:
-       - Case u = bot: Typed_bot.
-       - Case u = tpi b f: from Pi_L1 we get a typed replacement
-         graph; combine with the per-edge IH on the body to enlarge
-         each value vi to a typed vi'. Take the LUB of a'-keys to get
-         a single coherent type code.
-       - All other shapes are excluded by EvalRel for Pi. *)
+  move=> Fρ IHA IHB u Eu.
+  destruct u; try solve [cbn in Eu; done].
+  { (* u = bot *) apply Typed_bot. }
+  (* u = tpi b f *)
+  cbn in Eu.
+  destruct Eu as [Vb [Vf [j [WTbj [EAb Hbody]]]]].
+  (* Apply IHA to enlarge the type code b to b', well-typed at tuniv i *)
+  destruct (IHA _ EAb) as [b' [c [LEbb' [EAb' [WTb'c LEcuniv]]]]].
+  cbn in LEcuniv.
+  have Vb' : valid b' by eapply EvalRel_valid; exact EAb'.
+  have Vti : valid (tuniv i) by [].
+  have WTb' : wt b' (tuniv i) by eapply wt_le; eauto.
+  (* For each edge (ui, vi) ∈ l, the per-edge witness xi has wt xi b,
+     hence wt xi b' by wt_le. Applying IHB at (xi, b') gives a typed
+     enlargement vi' of vi with wt vi' (tuniv i).
+     Building a coherent replacement graph f' = [(xi, vi') | ...] then
+     yields the witness v = tpi b' f' for the InvTyp goal. The graph
+     properties (compatibility, no_bot_result, le_fun f f') need
+     replaceKeys-style helpers from the Agda development that have not
+     yet been ported to Coq. *)
 Admitted.
 
 (* =====================================================================
@@ -630,6 +641,7 @@ Proof.
   - destruct h as
       [ ?n ?Γ ?M ?N ?A ?B ?i hMNA hAB
       | ?n ?Γ ?M ?A hM
+      | ?n ?Γ ?M ?N ?A hMN
       | ?n ?Γ ?M ?N ?P ?A hMN hNP
       | ?n ?Γ ?A ?B ?N ?N' ?M ?i hA hB hNN' hM
       | ?n ?Γ ?A ?B ?N ?M ?M' ?i hA hB hN hMM'
@@ -647,6 +659,8 @@ Proof.
         exact fwd.
     + (* c_refl *)
       eapply InvConv_refl'. exact (typing_EvalRel _ _ _ _ hM ρ Fρ).
+    + (* c_sym *)
+      admit.
     + (* c_trans *)
       apply (@InvConv_trans _ Γ M N P A ρ).
       * exact (conv_EvalRel _ _ _ _ _ hMN ρ Fρ).
