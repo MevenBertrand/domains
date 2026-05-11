@@ -3,8 +3,7 @@
 (* Prove that well typed syntax produces well typed interpretations.
 
    Theorem 1 (typing_EvalRel):
-       Γ ⊢ M : A   and   Fits Γ ρ
-       implies   InvTyped Γ M A ρ
+       Γ ⊢ M : A   and forall ρ, Fits Γ ρ  implies InvTyped Γ M A ρ
        i.e. for every u with EvalRel M ρ u, there exist v, a such that
        u ≤ v, EvalRel M ρ v, wt v a, and EvalRel A ρ a.
 
@@ -700,3 +699,13 @@ Proof.
            A0, which the conv rules in the system don't directly give. *)
         admit.
 Admitted.
+
+(*
+Lemma typing_EvalRel' {n} (Γ : Ctx n) (M : Tm n) (A : Tm n)
+  (h : typing Γ M A) :
+  forall ρ, fits Γ ρ -> exists a, EvalRel M ρ a.
+Proof.
+  move=> ρ F.
+  move: (typing_EvalRel h F) => h1. 
+  unfold InvTyped in h1. unfold Typed in h1.
+*)

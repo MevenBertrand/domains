@@ -386,7 +386,7 @@ Qed.
 
 
 Lemma EvalRel_down n (M : Tm n) (ρ : Env n) u u' :
-  valid_env ρ -> valid u' -> 
+  valid_env ρ -> valid u' ->
   EvalRel M ρ u -> le u' u -> EvalRel M ρ u'.
 Proof.
   move:ρ u u'.
@@ -396,61 +396,115 @@ Proof.
   all: cbn in ER1.
   all: cbn.
 
-  - move: ER1 => [_ LE1].
+  - (* var *)
+    move: ER1 => [_ LE1].
     split; eauto. eapply le_trans; eauto.
-  - (* abs *)
-    destruct u; try done.
-    destruct u'; try done.
-    move: ER1 => [Vl [Nl [i [a [WTa [Ea h]]]]]].
-    destruct u'; try done.
-    move: Vu' => /andP. fold valid. fold (valid_fun l0). move=> [Vl0 Nl0].
-    repeat split; eauto with valid. 
-    exists i. exists a.  repeat split; eauto.
-    move=> u v Inl0.
-    rewrite le_abs in LE.
-    unfold le_fun in LE.
-    move: LE => /forallb_forall LE.
-    specialize (LE _ Inl0). cbn in LE.
-    destruct (app l u) eqn:APP; try done.
-    
-    have Vu: valid u.
-      { 
-         eapply valid_fun_subterms in Vl0.
-         move: Vl0 => /forallb_forall. move=> VIn.
-         specialize (VIn _ Inl0). 
-         move: VIn => /andP. auto.
-      }
-    have Vv: valid v.
-      { 
-         eapply valid_fun_subterms in Vl0.
-         move: Vl0 => /forallb_forall. move=> VIn.
-         specialize (VIn _ Inl0). 
-         move: VIn => /andP. auto.
-      }
-    have Ve: valid e. { eapply (@valid_app l u); eauto. } 
 
-    move: e APP Ve Vl h LE.
-    induction l as [|[ui vi]l].
-    + intros. cbn in APP. inversion APP. subst.
-      apply le_bot_inv in LE. subst.
-      have NB: no_bot_result l0. {
-        eapply valid_fun_no_bot. eapply Vl0.
-      } 
-      unfold no_bot_result in NB. 
-      move: NB => /forallb_forall NB.
-      specialize (NB _ Inl0). done.
-    + move=> e APP Ve Vfl Inl Lve.
-      rewrite app_cons_eq in APP.
-      destruct (compatible ui u && le ui u) eqn:IN; try done.
-      destruct (app l u) eqn:EqAPP; try done.
-      ++ specialize (Inl ui vi ltac:(left;reflexivity)).
-         move: Inl => [x [LEi [Wtx Evi]]].
-         move: IN => /andP. move => [Cu LEu].
-         exists x. repeat split; eauto.
-         eapply (@le_trans x ui u); eauto with valid.
-         have Vl: valid_fun l. eauto with valid.
-         have Ve0: valid e0. eapply (@valid_app l u); eauto. 
-(* not done or stuck, just tired *)
+  - (* abs A M *)
+    destruct u; try done.
+    + (* u = bot, so u' = bot *)
+      apply le_bot_inv in LE. subst u'. done.
+    + (* u = abs l *)
+      move: ER1 => [Vl [Nl [i [a [WTa [Ea h]]]]]].
+      destruct u' as [ | | | | | | l0 ]; try done.
+      (* only u' = abs l0 case remains *)
+      cbn in Vu'.
+      have Vl0 : valid_fun l0 by move/andP : Vu' => [? _].
+      have Nl0 : ~~ is_nil l0 by move/andP : Vu' => [_ ?].
+      repeat split; eauto with valid.
+      exists i, a. repeat split; eauto.
+      (* The remaining case (proving EvalRel_fun for l0 from
+         EvalRel_fun for l with le_fun l0 l) requires reasoning
+         about lubs / sups since app l u is a lub of compatible
+         entries; this is handled jointly with EvalRel_sup. *)
+      admit.
+
+  - (* app M1 M2 *)
+    destruct (is_bot u') eqn:Hu'.
+    + (* u' = bot, trivial *)
+      destruct u'; done.
+    + (* u' not bot: u not bot either since le u' u and valid u' *)
+      destruct (is_bot u) eqn:Hu.
+      ++ (* u = bot, so u' = bot, contradiction *)
+         destruct u; try done. apply le_bot_inv in LE. subst u'.
+         cbn in Hu'. done.
+      ++ destruct ER1 as [a [E1 E2]].
+         exists a. split; eauto.
+         (* le (a ↦ u') (a ↦ u): by IHM1 we descend M1 from (a↦u) to (a↦u'). *)
+         have Va: valid a by eapply EvalRel_valid; eauto.
+         have Vau1: valid (a ↦ u) by eapply EvalRel_valid; eauto.
+         have Vau': valid (a ↦ u').
+         { unfold singleton. rewrite Hu'.
+           cbn.
+           apply /andP; split; last by [].
+           apply /andP; split. apply /andP; split.
+           - cbn. apply /andP; split; last by [].
+             apply /andP; split; last by [].
+             apply /implyP => _. by apply compatible_refl.
+           - cbn. apply /andP; split; last by [].
+             apply /negP => Lub. apply le_bot_inv in Lub. subst u'. done.
+           - cbn. by rewrite Va Vu'. }
+         have LEau: le (a ↦ u') (a ↦ u).
+         { unfold singleton. rewrite Hu' Hu. rewrite le_abs.
+           rewrite le_fun_cons. cbn.
+           have Ca: compatible a a by apply compatible_refl.
+           have La: le a a by apply le_refl.
+           rewrite Ca La. cbn.
+           rewrite lub_bot_r. cbn. by rewrite LE. }
+         eapply IHM1; eauto.
+
+  - (* zero *)
+    have Vz: valid zero by done.
+    eapply (le_trans (v := u)); eauto.
+
+  - (* succ M *)
+    destruct (is_bot u') eqn:Hu'.
+    + destruct u'; done.
+    + destruct (is_bot u) eqn:Hu.
+      ++ destruct u; try done. apply le_bot_inv in LE. subst u'.
+         cbn in Hu'. done.
+      ++ destruct ER1 as [Vu0 [a [LEa Ea]]].
+         have Va: valid a by eapply EvalRel_valid; eauto.
+         have Vsa: valid (succ a) by cbn; rewrite Va.
+         split; first by [].
+         exists a. split; last by [].
+         eapply (le_trans (v := u)); eauto.
+
+  - (* nrec *)
+    destruct (is_bot u') eqn:Hu'.
+    + destruct u'; done.
+    + destruct (is_bot u) eqn:Hu.
+      ++ destruct u; try done. apply le_bot_inv in LE. subst u'.
+         cbn in Hu'. done.
+      ++ done.
+
+  - (* tnat *)
+    have Vt: valid tnat by done.
+    eapply (le_trans (v := u)); eauto.
+
+  - (* tpi A B *)
+    destruct u as [ | | | | | a g |]; try done.
+    + (* u = bot, u' = bot *)
+      apply le_bot_inv in LE. subst u'. done.
+    + (* u = tpi a g *)
+      destruct u' as [ | | | | | a' g0 |]; try done.
+      (* only u' = tpi a' g0 case *)
+      move: ER1 => [Va [Vl [i [WTa [Ea h]]]]].
+      cbn in Vu'.
+      move: Vu' => /andP. move=> [Va' Vl'].
+      fold (valid_fun g0) in Vl'.
+      rewrite le_tpi in LE. move: LE => /andP. move=> [LEa LEf].
+      have EaA': EvalRel M1 ρ a' by eapply IHM1; eauto.
+      repeat split; eauto.
+      exists i. repeat split; eauto.
+      (* wt a' (tuniv i) needs wt downward closure in subject;
+         and EvalRel_fun for g0 from le_fun g0 g requires
+         handling of the lub structure (same issue as abs case). *)
+      admit. admit.
+
+  - (* tuniv n *)
+    have Vt: valid (tuniv n) by done.
+    eapply (le_trans (v := u)); eauto.
 Admitted.
 
 Lemma EvalRel_sup n (M : Tm n) (ρ : Env n) u u' v :

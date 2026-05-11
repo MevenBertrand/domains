@@ -421,20 +421,44 @@ Proof.
         eauto using renaming_typing' with renaming.
       asimpl. reflexivity.
     + (* c_app2 *)
-      admit.
+      have EC: ctx (Δ ++ A⟨δ⟩).
+      { eapply c_cons; eauto with renaming.
+        eapply renaming_typing in H; eauto with renaming. }
+      eapply c_app2' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+        eauto using renaming_typing' with renaming.
+      asimpl. reflexivity.
     + (* c_beta *)
-      admit.
+      have EC: ctx (Δ ++ A⟨δ⟩).
+      { eapply c_cons; eauto with renaming.
+        eapply renaming_typing in H; eauto with renaming. }
+      eapply c_beta' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i).
+      eapply renaming_typing'; eauto with renaming.
+      eapply renaming_typing'; eauto with renaming.
+      eapply renaming_typing'; eauto with renaming.
+      eapply renaming_typing'; eauto with renaming.
+      asimpl; auto.
+      asimpl; auto.
     + (* c_eta *)
+      have EC: ctx (Δ ++ A⟨δ⟩).
+      { eapply c_cons; eauto with renaming.
+        eapply renaming_typing in H; eauto with renaming. }
+      eapply c_eta with (A := A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+        try (eapply renaming_typing'; eauto with renaming).
+      have TR': typing_renaming (Δ ++ ⟨δ⟩ A) (up_ren δ) (Γ ++ A).
+      eauto with renaming.
+      have EQ: ⟨↑⟩ (⟨δ⟩ A) = A ⟨↑⟩ ⟨up_ren δ⟩.
+      { asimpl. auto.  } 
+      specialize (renaming_conv' _ _ _ _ _ (S m) _ _ 
+                    (⟨↑⟩ (⟨δ⟩ A)) h TR' EC EQ). 
       admit.
-    + (* c_nrec_zero *)
-      admit.
-    + (* c_rec_succ *)
-      admit.
-    + (* c_cum *)
-      admit.
-    + (* c_tpi *)
-      admit.
-Admitted.    
+    + (* c_nrec_Z *) admit.
+    + (* c_nrec_S *) admit.
+    + (* c_tuniv (cumulativity for conv) *)
+      eapply c_tuniv with (i := i).
+      eapply renaming_conv'; eauto.
+      auto.
+    + (* c_tpi *) admit.
+Admitted.
 
 (* All typed in well-formed contexts are well-formed *)
 Lemma ctx_typing_lookup {n} (Γ : Ctx n) : 
@@ -514,6 +538,7 @@ Proof.
     + admit.
 Admitted.
 
+(* ----------- context conversion -------------- *)
 
 Lemma ctc_conv_typing_subst {n} (Γ:Ctx n) A A' i : 
   typing Γ A (tuniv i) -> 
@@ -557,7 +582,9 @@ Lemma ctx_conv_conv {n} (Γ:Ctx n) A A' i M N B :
 Proof.
   move=> CA CMN.
 Admitted.
-  
+
+
+
 (*
 
 ctx-conv-WtSub : {n : Nat} {G : Ctx n} {A A' : Expr n} ->
