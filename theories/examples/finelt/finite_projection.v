@@ -52,111 +52,31 @@ Fixpoint proj_fun' (proj : elt -> elt -> elt)
         cons (x, y) (proj_fun' proj ps a f)
     end.
 
-Fixpoint proj' (k : nat) (u : elt) (a : elt) {struct k} : elt := 
+Fixpoint proj (u : elt) (a : elt) {struct u} : elt := 
   match a with 
   | bot => bot
   | tuniv i => match u with 
               | tnat => tnat
               | tuniv j => if (j <? i) then tuniv j else bot
-              | tpi b f => 
-                  match k with 
-                  | S j => tpi (proj' j b (tuniv i))
-                              (proj_tpi' (proj' j) f b (tuniv i))
-                  | O   => tpi bot nil
-                  end
+              | tpi b f => tpi (proj b (tuniv i))
+                              (proj_tpi' proj f b (tuniv i))
               | _ => bot
               end
   | tpi a f => match u with 
-              | abs g => match k with 
-                  | S j => abs (proj_fun' (proj' j) g a f)
-                  | O => bot
-                        end
+              | abs g => abs (proj_fun' proj g a f)
               | _ => bot
               end
   | tnat => match u with 
              | zero => zero
-             | succ v => match k with 
-                        | S j => succ (proj' j v tnat)
-                        | O => bot
-                        end
+             | succ v => succ (proj v tnat)
              | _ => bot
            end
   | _ => bot
   end
  .
 
-Lemma rk_proj_enough : forall k u a, 
-    rk u <= k -> 
-    proj' k u a = proj' (rk u) u a.
-Proof.
-  elim /findom.strong_ind.
-  move=> m ih.
-  have ih_proj_tpi: forall f,
-    forall k : nat,
-    k < m -> forall a b, (rk_fun f) <= k -> 
-            proj_tpi' (proj' k) f a b  = 
-            proj_tpi' (proj' (rk_fun f)) f a b.
-  { induction f as [|[u v]f].
-    - intros. done.
-    - intros k Lt a b. cbn.
-      move=> Le.
-      repeat rewrite ih; try lia.
-      f_equal.
-      repeat rewrite IHf; try lia. done.
-  }
- have ih_proj_fun: forall g,
-    forall k : nat,
-    k < m -> forall a f, (rk_fun g) <= k -> 
-            proj_fun' (proj' k) g a f = 
-            proj_fun' (proj' (rk_fun g)) g a f.
-  { induction g as [|[u v]g].
-    - intros. done.
-    - intros k Lt a f. cbn.
-      move=> Le.
-      repeat rewrite ih; try lia.
-      f_equal. f_equal.
-      destruct app; try done.
-      repeat rewrite ih; try lia. done.
-      repeat rewrite IHg; try lia. done.
-  }
-  move=> u a Le.
-  destruct m.
-  - destruct a; destruct u; cbn in *; auto.
-    all: try lia.
-  - destruct a eqn:Ea; destruct u eqn:Eu.
-    all: try solve [cbn in *; auto].
-    + (* a = tnat, u = succ e *) 
-      cbn in *. f_equal.  
-      rewrite ih; cbn; try lia.
-      done.
-    + (* u = tpi e l *)
-      cbn in *. fold rk_fun in *.
-      repeat rewrite ih; cbn; try lia.
-      f_equal.
-      repeat rewrite ih_proj_tpi; try lia.
-      done.
-    + (* u = abs l *)
-      cbn in *. fold rk_fun in *.
-      repeat rewrite ih_proj_fun; try lia.
-      done.
-Qed.
-
-Lemma rk_proj_tpi_enough k f : 
-  forall a b, (rk_fun f) <= k -> 
-         proj_tpi' (proj' k) f a b  = 
-           proj_tpi' (proj' (rk_fun f)) f a b.
-Admitted.
-
-Lemma rk_proj_fun_enough k g : 
-  forall a f, (rk_fun g) <= k -> 
-         proj_fun' (proj' k) g a f = 
-           proj_fun' (proj' (rk_fun g)) g a f.
-Proof.
-Admitted.
-
-Definition proj u : elt -> elt := proj' (rk u) u.
-Definition proj_tpi f := proj_tpi' (proj' (rk_fun f)) f.
-Definition proj_fun f := proj_fun' (proj' (rk_fun f)) f.
+Notation proj_tpi := (proj_tpi' proj).
+Notation proj_fun := (proj_fun' proj).
 
 Lemma proj_bot_ty u : proj u bot = bot.
 destruct u; try done.
@@ -188,9 +108,8 @@ Qed.
 Lemma proj_tpi_tuniv a f j  : 
   proj (tpi a f) (tuniv j) = 
     tpi (proj a (tuniv j)) (proj_tpi f a (tuniv j)). 
-cbn. fold rk_fun. f_equal. rewrite rk_proj_enough. lia.
-done.
-rewrite rk_proj_tpi_enough. lia. done.
+Proof.
+  reflexivity.
 Qed.
 
 Lemma proj_abs_tpi f a g :
@@ -217,51 +136,57 @@ Proof.
     move:(Hui u v ltac:(left; reflexivity)) => h1.
     move:(Hvi u v ltac:(left; reflexivity)) => h2.
     cbn.
-    repeat rewrite rk_proj_enough; try lia.
     f_equal.
-    fold (proj u). fold (proj v).
     rewrite h1. rewrite h2. done.
-    rewrite rk_proj_tpi_enough. lia.
-    fold (proj_tpi g). eapply IHg; eauto.
+    eapply IHg; eauto.
     move=> ui vi Ing. 
     eapply Hui; eauto. right; eauto.
     move=> ui vi Ing.
     eapply Hvi; eauto. right; eauto.
-  - rewrite proj_abs_tpi. 
+  - rewrite proj_abs_tpi. f_equal.
+    move: f H H0 H1 H2 H3.
+    induction f as [|[u v]f].
+    all: intros HTu HEu HTv HEv Vf. all: cbn. done.
+    have Vg: valid_fun g. { move: H4 => /andP. eauto. } 
+    have Vu: valid u. { admit. } 
+    destruct (valid_app_exists Vg Vu) as [w [EQw Vw]].
+    erewrite (HEu u v w); eauto. 2: left; eauto.
+    rewrite EQw. f_equal.
+    rewrite (HEv u v w); eauto. left; eauto.
+    destruct (~~is_nil f) eqn:Nf.
+    + have Vff: valid (abs f). { admit. } 
+      eapply IHf; eauto.
+      all: move=> ui vi wi INf APP.
+      eapply HTu; eauto. right; eauto.
+      eapply HEu; eauto. right; eauto.
+      eapply HTv; eauto. right; eauto.
+      eapply HEv; eauto. right; eauto.
+    + destruct f; try done.
 Admitted.
 
 
-Lemma proj_backward u : forall a i , 
-  valid u -> wt a (tuniv i) -> proj u a = u -> wt u a.
+Fixpoint proj_backward u {struct u} : forall a i , 
+  wt a (tuniv i) -> valid u -> proj u a = u -> wt u a.
 Proof.
-  have LEMMA: forall k u, rk u <= k -> 
-      forall a i , 
-        valid u -> wt a (tuniv i) -> proj u a = u -> wt u a.             
-  { 
-    elim /findom.strong_ind. clear u.
-    move=> m ih.
-    move=> u RK a i Vu Wt EQ.
-    dependent destruction u.
-    - eapply wt_bot; eauto with valid.
-    - destruct a; try done. 
-      eapply wt_tnat; eauto.
-    - destruct a; try done.
-      rewrite  proj_tuniv in EQ. 
-      destruct (n <? n0) eqn:LT; try done.
-      inversion Wt. subst.
-      eapply wt_tuniv; eauto. 
-      rewrite Nat.ltb_lt in LT. done.
-    - destruct a; try done.
-      eapply wt_zero; eauto.
-    - destruct a; try done.
-      eapply wt_succ; eauto.
-      rewrite proj_succ_tnat in EQ. inversion EQ. clear EQ.
-      cbn in RK. rewrite H0.
-      eapply (ih (rk u) ltac:(lia)); eauto.
-    - admit.
-    - admit.
-  } 
-  eapply LEMMA; eauto.
+  dependent destruction u.
+  all: intros a i Wt Vu EQ.
+  - eapply wt_bot; eauto with valid.
+  - destruct a; try done. 
+    eapply wt_tnat; eauto with valid.
+  - destruct a; try done.
+    rewrite  proj_tuniv in EQ. 
+    destruct (n <? n0) eqn:LT; try done.
+    inversion Wt. subst.
+    eapply wt_tuniv; eauto. 
+    rewrite Nat.ltb_lt in LT. done.
+  - destruct a; try done.
+    eapply wt_zero; eauto.
+  - destruct a; try done.
+    eapply wt_succ; eauto.
+    rewrite proj_succ_tnat in EQ. inversion EQ. clear EQ.
+    rewrite H0. eapply proj_backward; eauto.
+  - admit.
+  - admit.
 Admitted.
     
 (* Lemma 2 *)
