@@ -446,14 +446,14 @@ Lemma fold_edge_fwd {h g} (σ : Sub h g) (ρ : Env g)
   forall (gs : list (elt * elt)) (acc : Env h),
     valid_env ρ -> valid_env acc -> SubRel σ acc ρ ->
     (forall u v, In (u,v) gs ->
-       exists x ρ_uv,
-         le x u /\ wt x a /\ valid_env ρ_uv /\
+       exists x (h: wt x a) ρ_uv,
+         le x u /\ valid_env ρ_uv /\
          SubRel σ ρ_uv ρ /\
          EvalRel M (x .: ρ_uv) v) ->
     exists ρ',
       valid_env ρ' /\ SubRel σ ρ' ρ /\ le_env acc ρ' /\
       forall u v, In (u,v) gs ->
-        exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ') v.
+        exists x (h: wt x a), le x u /\ EvalRel M (x .: ρ') v.
 Proof.
   induction gs as [|[u v] gs IH].
   - move=> acc Vρ Vacc SRacc _.
@@ -462,7 +462,7 @@ Proof.
     + by [].
   - move=> acc Vρ Vacc SRacc body.
     move: (body u v ltac:(left; reflexivity))
-      => [x [ρ_uv [Lex [Wtx [Vρuv [SRρuv ERuv]]]]]].
+      => [x   [Wtx [ρ_uv [Lex [Vρuv [SRρuv ERuv]]]]]].
     move: (@combine_fwd _ _ σ ρ acc ρ_uv Vρ Vacc Vρuv SRacc SRρuv)
       => [mid [Vmid [SRmid [LEacc LEuv]]]].
     have IH' := IH mid Vρ Vmid SRmid
@@ -516,12 +516,12 @@ Proof.
     move: E => [Vf [Nl [i [a [WT [EA body]]]]]].
     move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
     have body' : forall u v, In (u,v) l ->
-       exists x ρ_uv,
-         le x u /\ wt x a /\ valid_env ρ_uv /\
+       exists x (h:wt x a) ρ_uv,
+         le x u /\ valid_env ρ_uv /\
          SubRel σ ρ_uv ρ /\
          EvalRel M2 (x .: ρ_uv) v.
     { move=> u' v' Inl.
-      move: (body u' v' Inl) => [x [Lx [Wtx Ev]]].
+      move: (body u' v' Inl) => [x [Wtx [Lx  Ev]]].
       have Vx : valid x by eapply wt_valid_tm; eauto.
       have Vxρ : valid_env (x .: ρ) by apply valid_cons.
       move: (IHM2 _ _ _ _ Vxρ Ev) => [ρ_xv [Vρxv [SRxv ERxv]]].
@@ -536,7 +536,7 @@ Proof.
           - apply le_refl. by apply Vρxv.
           - exact Lh. }
         exact (EvalRel_mono_env ERxv Vρxv V1 LE). }
-      exists x, ρ_uv. by repeat split. }
+      exists x. exists Wtx. exists ρ_uv. by repeat split. }
     move: (@fold_edge_fwd _ _ σ ρ M2 a l ρA Vρ VρA SRρA body')
       => [ρ' [Vρ' [SRρ' [LEρA bodyAll]]]].
     exists ρ'. split; [|split]; auto.
@@ -595,12 +595,12 @@ Proof.
     move: E => [Vu [Vf [i [WT [EA body]]]]].
     move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
     have body' : forall u' v', In (u',v') l ->
-      exists x ρ_uv,
-        le x u' /\ wt x e /\ valid_env ρ_uv /\
+      exists x (h: wt x e) ρ_uv,
+        le x u' /\  valid_env ρ_uv /\
         SubRel σ ρ_uv ρ /\
         EvalRel M2 (x .: ρ_uv) v'.
     { move=> u' v' Inl.
-      move: (body u' v' Inl) => [x [Lx [Wtx Ev]]].
+      move: (body u' v' Inl) => [x [Wtx [Lx  Ev]]].
       have Vx: valid x by eapply wt_valid_tm; eauto.
       have Vxρ: valid_env (x .: ρ) by apply valid_cons.
       move: (IHM2 _ _ _ _ Vxρ Ev) => [ρ_xv [Vρxv [SRxv ERxv]]].
@@ -615,7 +615,7 @@ Proof.
           - apply le_refl. by apply Vρxv.
           - exact Lh. }
         exact (EvalRel_mono_env ERxv Vρxv V1 LE). }
-      exists x, ρ_uv. by repeat split. }
+      exists x, Wtx, ρ_uv. by repeat split. }
     move: (@fold_edge_fwd _ _ σ ρ M2 e l ρA Vρ VρA SRρA body')
       => [ρ' [Vρ' [SRρ' [LEρA bodyAll]]]].
     exists ρ'. split; [|split]; first done.

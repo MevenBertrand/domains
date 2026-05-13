@@ -75,28 +75,28 @@ Import SyntaxNotations.
 *)
 
 
-(* A closing substitution: σ *)
-Definition Sub m := fin m -> Tm O.
+(* A substitution: σ *)
+Definition Sub m n := fin m -> Tm n.
 
-(* A valid closing substitution σ maps every term to one that
-   can be interpreted. *)
-Definition ValSub {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g)  : Prop :=
+(* A valid substitution σ maps every term in ρ to one that 
+   can be interpreted in Δ. *) 
+Definition ValSub {n} (Δ : Ctx n) {g} (Γ : Ctx g) (σ : Sub g n) (ρ : Env g)    : Prop :=
   forall i,
   forall u, valid u -> le u (ρ i) ->
     forall a, EvalRel (lookup i Γ) ρ a ->
     forall (h : wt u a),
-      Val ctx_empty (σ i) (lookup i Γ)[σ] h.
+      Val Δ (σ i) (lookup i Γ)[σ] h.
 
-
-Lemma ValSub_empty : ValSub ctx_empty null null.
+Lemma ValSub_empty {g} (Δ : Ctx g)(σ : Sub 0 g) : 
+  ValSub Δ ctx_empty σ null.
 unfold ValSub. done. Qed.
 
-Lemma ValSub_cons {g} (Γ : Ctx g) (ρ : Env g) (σ : Sub g) A v (M : Tm 0):
+Lemma ValSub_cons {g} (Γ : Ctx g) (ρ : Env g) {h} (Δ : Ctx h) (σ : Sub g h) (A: Tm g) v (M : Tm h):
     (forall u, valid u -> le u v -> forall a (h : wt u a),
     EvalRel A ρ a ->
-    Val ctx_empty M A[σ] h) ->
-    ValSub Γ ρ σ ->
-    ValSub (Γ ++ A) (v .: ρ) (M .: σ).
+    Val Δ M A[σ] h) ->
+    ValSub Δ Γ σ ρ ->
+    ValSub Δ (Γ ++ A) (M .: σ) (v .: ρ).
 Proof.
   intros hyp0 VS.
   unfold ValSub in *.
@@ -115,24 +115,26 @@ Proof.
     eapply hyp0; eauto.
 Qed.
 
-Definition EqValSub {g} (Γ : Ctx g) (ρ : Env g)
-  (σ1 : Sub g) (σ2 : Sub g)  : Prop :=
+Definition EqValSub {h} {g} (Δ : Ctx h) (Γ : Ctx g) 
+  (σ1 : Sub g h) (σ2 : Sub g h) (ρ : Env g) : Prop :=
   forall i,
   forall u, valid u -> le u (ρ i) ->
     forall a, EvalRel (lookup i Γ) ρ a ->
     forall (h : wt u a),
-      EqVal ctx_empty (σ1 i) (σ2 i) (lookup i Γ)[σ1] h.
+      EqVal Δ (σ1 i) (σ2 i) (lookup i Γ)[σ1] h.
 
-Lemma EqValSub_empty : EqValSub ctx_empty null null null.
+  
+Lemma EqValSub_empty {g} (Δ : Ctx g)(σ1 σ2 : Sub 0 g) : 
+   EqValSub Δ ctx_empty  σ1 σ2 null.
 unfold EqValSub. done. Qed.
 
-Lemma EqValSub_cons {g} (Γ : Ctx g) (ρ : Env g)
-  (σ1 σ2 : Sub g) A v (M1 M2 : Tm 0):
+Lemma EqValSub_cons {h} {g} (Δ : Ctx h) (Γ : Ctx g) (ρ : Env g)
+  (σ1 σ2 : Sub g h) A v (M1 M2 : Tm h):
     (forall u, valid u -> le u v -> forall a (h : wt u a),
     EvalRel A ρ a ->
-    EqVal ctx_empty M1 M2 A[σ1] h) ->
-    EqValSub Γ ρ σ1 σ2 ->
-    EqValSub (Γ ++ A) (v .: ρ) (M1 .: σ1) (M2 .: σ2).
+    EqVal Δ M1 M2 A[σ1] h) ->
+    EqValSub Δ Γ σ1 σ2 ρ ->
+    EqValSub Δ (Γ ++ A)  (M1 .: σ1) (M2 .: σ2) (v .: ρ).
 Proof.
   intros hyp0 VS.
   unfold ValSub in *.
@@ -151,25 +153,25 @@ Proof.
 Qed.    
 
 Definition semantic_typing {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) :=
-  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ)
-    (VS : ValSub Γ ρ σ),
+  forall ρ m (Δ : Ctx m) (σ : Sub n m) (TS : typing_subst Δ σ Γ) (F : fits Γ ρ)
+    (VS : ValSub Δ Γ σ ρ),
   forall u a (WT : wt u a),
     EvalRel M ρ u ->
     EvalRel A ρ a ->
-    Val ctx_empty M[σ] A[σ] WT.
+    Val Δ M[σ] A[σ] WT.
 Definition semantic_conv2 {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
-  forall ρ σ1 σ2 (TS1 : typing_subst ctx_empty σ1 Γ)
-            (TS2 : typing_subst ctx_empty σ2 Γ)
+  forall ρ  m (Δ : Ctx m) σ1 σ2 (TS1 : typing_subst Δ σ1 Γ)
+    (TS2 : typing_subst Δ σ2 Γ)
     (F : fits Γ ρ)
-    (VS : EqValSub Γ ρ σ1 σ2),
+    (VS : EqValSub Δ Γ σ1 σ2 ρ ),
   forall u a (WT : wt u a),
     EvalRel M ρ u ->
     EvalRel A ρ a ->
-    EqVal ctx_empty M[σ1] N[σ2] A[σ1] WT.
+    EqVal Δ M[σ1] N[σ2] A[σ1] WT.
 
-Lemma ValSub_EqValSub {n} (Γ : Ctx n) ρ σ : 
-  ValSub Γ ρ σ ->
-    EqValSub Γ ρ σ σ.
+Lemma ValSub_EqValSub {n} (Γ : Ctx n) ρ {m} (Δ : Ctx m) σ : 
+  ValSub Δ Γ σ ρ ->
+    EqValSub Δ Γ σ σ ρ .
 Proof.
   move=> VS.
   unfold EqValSub.
@@ -180,12 +182,12 @@ Proof.
 Qed.
 
 Definition semantic_conv {n} (Γ : Ctx n) (M N: Tm n) (A : Tm n) :=
-  forall ρ σ (TS : typing_subst ctx_empty σ Γ) (F : fits Γ ρ)
-    (VS : ValSub Γ ρ σ),
+  forall ρ m (Δ : Ctx m) σ (TS : typing_subst Δ σ Γ) (F : fits Γ ρ)
+    (VS : ValSub Δ Γ σ ρ),
   forall u a (WT : wt u a),
     EvalRel M ρ u ->
     EvalRel A ρ a ->
-    EqVal ctx_empty M[σ] N[σ] A[σ] WT.
+    EqVal Δ M[σ] N[σ] A[σ] WT.
 
 
 (* ------------------ semantic typing rules ----------- *)
@@ -206,7 +208,7 @@ Lemma st_var (x : fin n) :
   semantic_typing Γ (var x) (lookup x Γ).
 Proof.
   move=> h. 
-  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
+  move=> ρ m σ Δ TS FR VS u1 a1 WT1 Ex ER.
   cbn in *. move: Ex => [Vu1 Le1].
   specialize (VS x).
   eapply VS; eauto.
@@ -221,19 +223,24 @@ Lemma st_conv M A B i :
   semantic_typing Γ M B.
 Proof.
   move=> T1 C2 h1 h2. 
-  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
-  specialize (h1 ρ σ TS FR VS).
+  move=> ρ m Δ σ TS FR VS u1 a1 WT1 Ex Ea1.
+  specialize (h1 ρ m Δ σ TS FR VS).
   specialize (h1 _ _ WT1 Ex).
-  specialize (h2 ρ σ σ TS TS FR).
+  specialize (h2 ρ m Δ σ σ TS TS FR).
   specialize (h2 (ValSub_EqValSub VS)).
   move: (typing_EvalRel T1 FR Ex) => hT1. unfold Typed in hT1.
   destruct hT1 as [v [a [LEu1 [Ev [wta Ea]]]]].
-  have EA: EvalRel A ρ a1. { admit. } 
-  have hA: wt a1 (tuniv i). { admit. } 
-  eapply Val_EqVal_fwd.
+  move: (conv_EvalRel C2 FR) => [TA [TB [EAB EBA]]]. 
+  unfold InvTyped, Typed in TA , TB.
+  destruct (TA _ Ea) as [a2 [ui [LEa2 [Ea2 [WTa2 Eui]]]]]. clear TA.
+  destruct (TB _ Ea1) as [a3 [uj [LEa3 [Ea3 [WTa3 Euj]]]]]. clear TB.
+
+  eapply Val_EqVal_fwd with (h' := WTa2).
   - eapply h1. eauto.
   - eapply EqVal_EqValTy.
-    eapply (h2 _ _ hA); eauto.
+    move: (h2 _ _ WTa2 Ea2) => h2_a2.
+
+eapply (h2 _ _ WTa2); eauto.
     cbn. apply Nat.eqb_eq. reflexivity.
 Admitted.
 
@@ -260,10 +267,10 @@ Lemma st_app A B N M i :
   semantic_typing Γ (Core.app M N) B[N..].
 Proof.
   move=> T1 T2 T3 T4 h1 h2 h3 h4 (* h1' h2' h3' h4' *). 
-  move=> ρ σ TS FR VS u1 a1 WT1 Ex ER.
-  specialize (h1 ρ σ TS FR VS).
-  specialize (h3 ρ σ TS FR VS).
-  specialize (h4 ρ σ TS FR VS).
+  move=> ρ m Δ σ TS FR VS u1 a1 WT1 Ex ER.
+  specialize (h1 ρ m Δ σ TS FR VS).
+  specialize (h3 ρ m Δ σ TS FR VS).
+  specialize (h4 ρ m Δ σ TS FR VS).
   cbn.
   cbn in Ex.
   destruct (Raw.is_bot u1) eqn:HB. 
@@ -282,14 +289,36 @@ Lemma st_nat :
   ctx Γ ->
 (* ------------------------- *)
   semantic_typing Γ Core.tnat (Core.tuniv 0).
-Proof. Admitted.
+Proof.
+  move=> _ ρ m Δ σ TS FR VS u a WT EM EA.
+  asimpl.
+  destruct u; cbn in EM; try done.
+  - apply Val_Bot.
+  - (* u = tnat *)
+    destruct a; cbn in EA; try done.
+    + (* a = bot: wt tnat bot impossible *) inversion WT.
+    + (* a = tuniv n0; le (tuniv n0) (tuniv 0) ⟹ n0 = 0 *)
+      apply Nat.eqb_eq in EA. subst.
+      dependent destruction WT. done.
+Qed.
 
 (* t_zero: ctx Γ ⟹ zero : tnat *)
 Lemma st_zero :
   ctx Γ ->
 (* ------------------------- *)
   semantic_typing Γ Core.zero Core.tnat.
-Proof. Admitted.
+Proof.
+  move=> _ ρ m Δ σ TS FR VS u a WT EM EA.
+  asimpl.
+  destruct u; cbn in EM; try done.
+  - apply Val_Bot.
+  - (* u = zero *)
+    destruct a; cbn in EA; try done.
+    + (* a = bot: wt zero bot impossible *) inversion WT.
+    + (* a = tnat *)
+      dependent destruction WT.
+      cbn. exact ms_refl.
+Qed.
 
 (* t_succ: M : tnat ⟹ succ M : tnat *)
 Lemma st_succ M :
@@ -297,7 +326,27 @@ Lemma st_succ M :
   semantic_typing Γ M Core.tnat ->
 (* ------------------------- *)
   semantic_typing Γ (Core.succ M) Core.tnat.
-Proof. Admitted.
+Proof.
+  move=> T1 ST ρ m Δ σ TS FR VS u a WT EM EA.
+  asimpl.
+  destruct (Raw.is_bot u) eqn:HU.
+  { destruct u; try done. apply Val_Bot. }
+  cbn in EM. rewrite HU in EM.
+  move: EM => [Vu [a' [LEs EMa]]].
+  destruct u as [| | |v0| | |]; cbn in HU; try done.
+  destruct a; cbn in EA; try done.
+  - (* a = bot: wt (succ v0) bot impossible *) inversion WT.
+  - (* a = tnat *)
+    dependent destruction WT. 
+    cbn.
+    exists M[σ]. split; first by apply ms_refl.
+    rewrite le_succ in LEs.
+    have EvM_v : EvalRel M ρ u.
+    { eapply EvalRel_down with (u := a'); eauto.
+      apply fits_valid_env in FR. exact FR. }
+    have EvT : EvalRel Core.tnat ρ tnat by [].
+    exact (ST ρ m Δ σ TS FR VS u tnat WT EvM_v EvT).
+Qed.
 
 (* t_nrec: T : (Γ ++ tnat) ⊢ tuniv i, M0 : T[zero..], M1 : tpi tnat (tpi T U⟨↑⟩)
    ⟹ nrec T M0 M1 : tpi tnat T *)
@@ -338,7 +387,18 @@ Lemma st_univ i j :
   (i < j)%nat ->
 (* ------------------------- *)
   semantic_typing Γ (Core.tuniv i) (Core.tuniv j).
-Proof. Admitted.
+Proof.
+  move=> _ _ ρ m Δ σ TS FR VS u a WT EM EA.
+  asimpl.
+  destruct u; cbn in EM; try done.
+  - apply Val_Bot.
+  - (* u = tuniv n0; le (tuniv n0) (tuniv i) ⟹ n0 = i *)
+    destruct a; cbn in EA; try done.
+    + (* a = bot: wt (tuniv n0) bot impossible *) inversion WT.
+    + (* a = tuniv n1; le (tuniv n1) (tuniv j) ⟹ n1 = j *)
+      dependent destruction WT.
+      cbn. done.
+Qed.
 
 
 (* -------- semantic conversion rules -------- *)
@@ -514,10 +574,10 @@ End SemanticTyping.
 --     WtSub H G σ               ≈  typing_subst ctx_empty σ Γ
 --     WtConvSub H G σ σ'        ≈  (no Rocq counterpart yet — would
 --                                  be a pointwise conv predicate)
---     WfCtx H                   ≈  trivial (H = ctx_empty)
+--     WfCtx H                   ≈  ctx Γ
 --     FinMem u a                ≈  wt u a
 --     Val2 H M[σ] A[σ] u a      ≈  Val M[σ] A[σ] (h : wt u a)
---     EqVal2 H M[σ] N[σ] A[σ]   ≈  EqVal M[σ] N[σ] A[σ] (h : wt u a)
+u--     EqVal2 H M[σ] N[σ] A[σ]   ≈  EqVal M[σ] N[σ] A[σ] (h : wt u a)
 ------------------------------------------------------------------------
 *)
 
@@ -526,8 +586,8 @@ End SemanticTyping.
        HasType G M A
      → CoherentEnv ρ, ValidSub2 H G σ ρ, Fits G ρ,
        WtSub H G σ, WfCtx H
-     → (u : FinEl)  EvalRel M ρ u
-     → (a : FinEl)  EvalRel A ρ a   FinMem u a
+     → (u : FinEl) -> EvalRel M ρ u
+     → (a : FinEl) -> EvalRel A ρ a ->  FinMem u a
      → Val2 H M[σ] A[σ] u a
 
    Rocq: well-typed terms are semantically typed.                *)
@@ -563,21 +623,56 @@ Proof.
     + eapply sc_tpi; eauto.
 Qed.
 
-Corollary typing_adequacy (M A : Tm 0) u a (h : wt u a) :
-  typing ctx_empty M A -> EvalRel M null u -> EvalRel A null a ->
-  Val ctx_empty M A h.
+
+(*
+Lemma ValSub_id {n} (Γ : Ctx n) (ρ : Env n)
+  : ValSub Γ Γ var ρ.
+move: ρ.
+induction Γ.
+intros. done.
+move=> ρ.
+unfold ValSub.
+move=> i u Vu LE a ER h. 
+destruct i as [i|].
++ cbn. cbn in ER.
+  replace ρ with (ρ var_zero .: ↑ >> ρ) in ER.
+  2:   ext; eapply scons_eta'.
+  eapply EvalRel_unwk in ER.
+  specialize (IHΓ (↑ >> ρ)).
+  asimpl. 
+  unfold ValSub in IHΓ.
+  specialize (IHΓ i u Vu LE a ER h).
+  admit.
+
++ cbn. cbn in ER.
+  replace ρ with (ρ var_zero .: ↑ >> ρ) in ER.
+  2: ext; eapply scons_eta'.
+  eapply EvalRel_unwk in ER.
+  asimpl.
+*)  
+
+Definition empty {n} : fin 0 -> Tm n := 
+  fun f => match f with end. 
+
+(*
+Corollary typing_adequacy {n} (Δ : Ctx n) 
+  (M A : Tm n) u a (h : wt u a) :
+  typing Δ M A -> forall ρ, fits Δ ρ ->
+  EvalRel M ρ u -> EvalRel A ρ a ->
+  Val Δ M A h.
 Proof.
-  move=> T EM EA.
+  move=> T ρ F EM EA. 
   eapply adequacySub in T.
   unfold semantic_typing in T.
-  specialize (T null null (typing_subst_null ctx_empty)
-             fits_empty ValSub_empty).
-  replace M[null] with M in T. replace A[null] with A in T.
-  eapply T; eauto.
-  auto_unfold. rewrite idSubst_Tm; eauto. done.
-  auto_unfold. rewrite idSubst_Tm; eauto. done.
-Qed.
-
+  have CD: ctx Δ. admit.
+  have VS: ValSub Δ Δ var ρ. admit.
+  specialize (T ρ n Δ var (typing_subst_id _ CD) F). 
+  specialize (T VS _ _ h EM EA).
+  auto_unfold in *. rewrite idSubst_Tm in T. done.
+  rewrite idSubst_Tm in T. done.
+  done.
+Admitted.
+  
 
 Corollary conv_adequacy (M N A : Tm 0) u a (h : wt u a) :
   conv ctx_empty M N A -> EvalRel M null u -> EvalRel N null u ->
@@ -599,6 +694,7 @@ Proof.
   auto_unfold. rewrite idSubst_Tm; eauto. done.
   auto_unfold. rewrite idSubst_Tm; eauto. done.
 Qed.
+*)
 
 (* ===========================================================
    Translation of PiInjectivity.agda
@@ -648,6 +744,31 @@ Proof.
     + apply wt_bot. done.
 Qed.
 
+Lemma ValSub_id n (Γ:Ctx n) :
+  ValSub Γ Γ var bot_env.
+Proof.
+  unfold ValSub.
+  move=> i u Vu LE a ER h.
+  unfold bot_env in LE.
+  apply le_bot_inv in LE. subst.
+  dependent destruction h.
+  cbn.
+  destruct a; done.
+Qed.
+
+
+Lemma EqValSub_id n (Γ:Ctx n) :
+  EqValSub Γ Γ var var bot_env.
+Proof.
+  unfold EqValSub.
+  move=> i u Vu LE a ER h.
+  unfold bot_env in LE.
+  apply le_bot_inv in LE. subst.
+  dependent destruction h.
+  cbn.
+  destruct a; done.
+Qed.
+
 (* evalRel_Pi_trivial: every Pi type evaluates to (tpi bot nil).
    Mirrors evalRel-Pi-trivial in PiInjectivity.agda. *)
 Lemma evalRel_Pi_trivial {n} (A : Tm n) (B : Tm (S n)) (ρ : Env n) :
@@ -684,21 +805,18 @@ Lemma piConv {n} (Γ : Ctx n) (A0 : Tm n) (B1 : Tm n) (F1 : Tm (S n)) i :
     /\ conv (Γ ++ B0) F0 F1 (Core.tuniv i).
 Proof.
   move=> Cv.
-  destruct n as [|n].
-  2: { (* n > 0: needs adequacy at non-empty target context. *) admit. }
-
-  (* n = 0: Γ must be ctx_empty, so adequacyEqSub2 applies directly. *)
-  dependent destruction Γ.
-
-  (* Setup: ρ = null, σ = null (the unique closing sub from ctx_empty). *)
-  pose ρ : Env 0 := null.
-  pose σ : Sub 0 := null.
-  have Fρ  : fits ctx_empty ρ.
-  { exact fits_empty. }
-  have TSσ : typing_subst ctx_empty σ ctx_empty.
-  { apply typing_subst_null. }
-  have VSσ : ValSub ctx_empty ρ σ.
-  { unfold ValSub. by case. }
+  pose ρ : Env n := bot_env.
+  pose σ : Sub n n := var.
+  have CΓ : ctx Γ. 
+  { eapply conv_ctx; eauto. } 
+  have Fρ  : fits Γ ρ.
+  { eapply fits_bot_env. eapply CΓ. }
+  have TSσ : typing_subst Γ σ Γ.
+  { apply typing_subst_id. eauto. }
+  have VSσ : ValSub Γ Γ σ ρ.
+  { eapply ValSub_id. }
+  have EVSσ: EqValSub Γ Γ σ σ ρ.
+  { eapply EqValSub_id. } 
 
   (* Pick the witness u = (tpi bot nil) at type (tuniv i). *)
   pose u := tpi bot nil.
@@ -714,26 +832,28 @@ Proof.
   have EvalPi : EvalRel (Core.tpi B1 F1) ρ u.
   { rewrite /u. exact: evalRel_Pi_trivial. }
   have EvA0 : EvalRel A0 ρ u.
-  { have IC : InvConv ctx_empty A0 (Core.tpi B1 F1) (Core.tuniv i) ρ.
+  { have IC : InvConv Γ A0 (Core.tpi B1 F1) (Core.tuniv i) ρ.
     { eapply conv_EvalRel; eauto. }
     move: IC => [_ [_ [_ bwd]]]. apply: bwd. exact: EvalPi. }
   have EvUni : EvalRel (Core.tuniv i) ρ (tuniv i).
   { cbn. exact: PeanoNat.Nat.eqb_refl. }
-(*
-  (* Apply adequacyEqSub2 to the conversion at the chosen witness. *)
-  pose proof
-    (@adequacyEqSub2 0 ctx_empty A0 (Core.tpi B1 F1) (Core.tuniv i) Cv
-       ρ σ TSσ Fρ VSσ
-       u (tuniv i) Hwt EvA0 EvUni) as ev2.
-  (* ev2 : EqVal A0[σ] (tpi B1 F1)[σ] (tuniv i)[σ] Hwt *)
 
-  (* σ = null and the terms are closed, so M[σ] reduces to M. *)
+  (* Apply adequacyEqSub2 to the conversion at the chosen witness. *)
+  move:
+    (@adequacyEqSub _ Γ A0 (Core.tpi B1 F1) (Core.tuniv i) Cv) => ev2.
+  unfold semantic_conv2 in ev2.
+  specialize (ev2 ρ _ Γ σ σ TSσ TSσ Fρ EVSσ
+       u (tuniv i) Hwt EvA0 EvUni) as ev2.
+  (* ev2 : EqVal Γ A0[σ] (tpi B1 F1)[σ] (tuniv i)[σ] Hwt *)
+
   asimpl in ev2.
 
   (* EqVal at (tuniv i) unfolds to (ValTy /\ ValTy /\ EqValTy);
      EqValTy at u = (tpi bot nil) exposes the head reductions and
      the domain/codomain conversions. *)
-  cbn in ev2. 
+  dependent destruction Hwt.
+  cbn in ev2.
+
   destruct ev2 as [_ [_ EQTy]].
   cbn in EQTy.
   destruct EQTy as [_ [_ ExA]].
@@ -742,12 +862,15 @@ Proof.
 
   (* HRpi : HeadRed (tpi B1 F1) (tpi A' B') — Pi is a head-normal
      form, so A' = B1 and B' = F1 by determinacy. *)
-  have [EQ1 EQ2] : A' = B1 /\ B' = F1.
+  have [EQ1 EQ2] : A' = B1[σ] /\ B' = F1[⇑σ].
   { eapply HeadRed_tpi_det; first exact: HRpi. exact: ms_refl. }
   subst A' B'.
 
-  exists A, B. by repeat split. *)
-Admitted.
+  exists A, B. repeat split. 
+  subst σ. asimpl in HRA0. done.
+  subst σ. asimpl in convA. done.
+  subst σ. asimpl in convB. done.
+Qed.
 
 (* piInjectivity (Corollary): from conv Γ (tpi A₀ B₀) (tpi A₁ B₁) U,
    extract domain and codomain conversions.

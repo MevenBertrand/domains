@@ -24,6 +24,7 @@ Require Import directed.
 From Equations Require Import Equations.
 
 
+
 (* Library stuff *)
 
 Lemma option_eta {A} (o:option A) : match o with Some x => Some x | None => None end = o.
@@ -227,6 +228,105 @@ Definition lub_list_opt : list (option elt) -> option elt :=
 (* Fold lub over a list of elements. *)
 Definition lub_list (xs : list elt) : option elt := 
   lub_list_opt (List.map Some xs).   
+
+(*
+Unset Implicit Arguments.
+Section AllInP.
+  Context {A : Type}.
+
+  Equations forallb_InP (l : list A) (H : forall x : A, In x l -> bool) : bool :=
+  | nil, _ := true ;
+  | (cons x xs), H := (H x _) && (forallb_InP xs (fun x inx => H x _)).
+
+End AllInP.
+
+Lemma forallb_InP_spec {A} (f : A -> bool) (l : list A) :
+  forallb_InP l (fun x _ => f x) = List.forallb f l.
+Proof.
+  remember (fun x _ => f x) as g.
+  funelim (forallb_InP l g) => //; simpl. f_equal.
+  now rewrite (H0 f).
+Qed.
+
+Section MapInP.
+  Context {A B : Type}.
+
+  Equations map_InP (l : list A) (f : forall x : A, In x l -> B) : list B :=
+  map_InP nil _ := nil;
+  map_InP (cons x xs) f := cons (f x _) (map_InP xs (fun x inx => f x _)).
+End MapInP.
+
+Lemma map_InP_spec {A B : Type} (f : A -> B) (l : list A) :
+  map_InP l (fun (x : A) _ => f x) = List.map f l.
+Proof.
+  remember (fun (x : A) _ => f x) as g.
+  funelim (map_InP l g) => //; simpl. f_equal. cbn in H.
+  now rewrite (H f0).
+Qed.
+
+Definition max_rk '(u, v) := max (rk u) (rk v).
+
+
+Definition app' g ui le' : option elt := 
+  lub_list (map_InP  
+              (fun '(uj,vj) inL => 
+                 if compatible uj ui && 
+                    le' uj ui _ then vj else bot) g).
+
+Definition le_fun f g le' := 
+    forallb_InP (fun '(ui,vi) inL => 
+                   match (app g ui le') with 
+                   | Some v => le' vi v _
+                   | None => false
+                   end) f. 
+*)
+
+(*
+From Stdlib Require Import Wellfounded.Wellfounded.
+
+Print Instances WellFounded.
+Set Typeclasses Debug.
+
+Equations? le (u : elt) (v: elt) : bool
+ by wf (u,v) (fun (x y : elt*elt) => (max_rk x < max_rk y)%nat) :=
+ le bot _ := true ;
+ le tnat tnat := true ;
+ le zero zero := true ;
+ le (succ u0) (succ v0) := le u0 v0 ;
+(*  le (tpi a f) (tpi b g) := le a b && le_fun f g le ; *)
+ le _ _ := false.
+ 
+  match u , v with 
+  | bot , _ => true
+  | tnat , tnat => true
+  | zero , zero => true
+  | succ u0 , succ v0 => 
+      match k with 
+      | 0 => false 
+      | S m => le' u0 v0 m
+      end
+  | tpi a f , tpi b g => 
+      match k with 
+      | 0 => false 
+      | S m => (le' a b m) && (le_fun f g m)
+      end
+  | tuniv i , tuniv j => Nat.eqb i j
+  | abs f , abs g => 
+      match k with 
+      | 0 => false 
+      | S m => le_fun f g m
+      end
+  | _ , _ => false
+  end.
+
+Section Helpers.
+
+Parameter le' : forall (u v : elt) -> bool.
+
+
+
+End Helpers.
+*)
 
 (* --------------- le ---------------- *)
 
@@ -1585,7 +1685,7 @@ Lemma le_tuniv_inv : forall u i, le (tuniv i) u -> u = tuniv i.
 Qed.
 
 Lemma le_succ_inv : forall u v, le (succ u) v -> 
-                           exists w, v = succ w /\ le u w.
+                           { w & (v = succ w) * (le u w) }.
 Proof.
   induction u.
   all: move=> v LE1.
@@ -1593,7 +1693,7 @@ Proof.
 Qed.
 
 Lemma le_tpi_inv : forall v u f, 
-    le (tpi u f) v -> exists w g, v = tpi w g /\ le u w /\ le_fun f g.
+    le (tpi u f) v -> { w & { g & (v = tpi w g) * ((le u w) * (le_fun f g)) }}.
 Proof.
   destruct v.
   all: move=> u f LE.
@@ -1603,7 +1703,7 @@ Proof.
 Qed.
 
 Lemma le_abs_inv : forall v f, 
-    le (abs f) v -> exists g, v = abs g /\ le_fun f g.
+    le (abs f) v -> { g & (v = abs g) * (le_fun f g) }.
 Proof.
   destruct v.
   all: move=> f LE.
@@ -1875,7 +1975,7 @@ Qed.
 Lemma valid_app_exists {f u} :
   valid_fun f ->
   valid u -> 
-  exists w, app f u = Some w /\ valid w.
+  { w & (app f u = Some w) * valid w}.
 Proof.
   move: u.
   induction f as [|[ui vi]f].
@@ -1907,9 +2007,9 @@ Qed.
 Lemma valid_app_compatible f u :
   valid_fun f -> 
   valid u -> 
-  exists w, app f u = Some w /\ valid w /\ 
+  { w & (app f u = Some w) * (valid w *
          (* basically coherent_with f (u,w) *)
-         (forall ui vi, In (ui,vi) f -> compatible ui u && le ui u -> compatible vi w).
+         (forall ui vi, In (ui,vi) f -> compatible ui u && le ui u -> compatible vi w)) }.
 Proof.
   move: u.
   induction f as [|[ui vi]f].
@@ -1973,7 +2073,7 @@ Qed.
  *)
 Lemma valid_app_cons_compatible f u v :
   le u u -> 
-  valid_fun ((u,v) :: f) -> exists w, app f u = Some w /\ valid w /\ compatible w v.
+  valid_fun ((u,v) :: f) -> { w & (app f u = Some w) * (valid w * compatible w v )}.
 Proof.
   move=> LE h.
   have Vu: valid u. eauto using key_valid, valid_fun_head.
@@ -2126,7 +2226,7 @@ Record OrderTheoreticLemmas k := MkLemmas {
   (* lub is the Least Upper Bound *)
   le_sup_lub : forall u v w1 w2, 
       max (max (rk u) (rk v)) (rk w1) <= k ->
-      le u w2 -> le v w2 -> lub u v = Some w1 -> le w1 w2
+      le u w2 -> le v w2 -> lub u v = Some w1 -> le w1 w2 ;
 
 }.
 
@@ -2441,7 +2541,7 @@ Proof.
     rewrite CU.
     rewrite LU.
     cbn.
-    have [w1 [EQ1 Vw1]] : exists w1, app f u = Some w1 /\ valid w1.
+    have [w1 [EQ1 Vw1]] : { w1 & (app f u = Some w1) * valid w1 }.
     { destruct (~~ is_nil f) eqn:Nf.
       + have Vt: valid_fun f. eapply valid_fun_tail; eauto.
         eapply (valid_app_exists Vt Vu). 
@@ -2566,6 +2666,56 @@ Proof.
          eauto using valid_fun_tail. 
       ++ destruct g; try done.
 Qed.
+
+(*
+Definition is_bot (w : elt) := 
+  match w with bot => true | _ => false end.
+
+Lemma rk_app2 f : valid_fun f -> forall u w,
+  app f u = Some w -> ~~ is_bot w -> rk u <= rk_fun f.
+Proof.
+  induction f as [|[ui vi]f].
+  cbn. move=> _ u w EQ NB. inversion EQ. subst. done.
+  move=> Vf u w EQ NB. rewrite app_cons_eq in EQ.
+  destruct (compatible ui u && le ui u) eqn:LEui.
+  + destruct (app f u) eqn:APPf; try done.
+    specialize (IHf (valid_fun_tail Vf) _ _ APPf).
+    destruct (~~ is_bot e) eqn:Nb.
+    - specialize (IHf ltac:(eauto)). cbn. lia.
+    - destruct e ; try done.
+      rewrite lub_bot_r in EQ. inversion EQ. subst.
+      cbn.
+Admitted.
+*)
+
+(*
+(*** NOT TRUE due to contravariance ***)
+Lemma le_fun_rk m (ih : OrderTheoreticLemmas m) :
+    forall f g, (max (rk_fun f) (rk_fun g) <= m)%nat ->
+           valid_fun f -> 
+           valid_fun g ->
+           le_fun f g -> rk_fun f <= rk_fun g.
+Proof.
+  induction f as [|[u v]f].
+  move=> g RK Vf Vg LE. cbn. lia.
+  move=> g RK Vf Vg LE.
+  cbn in RK.
+  cbn.
+  cbn in LE.
+  destruct (app g u) eqn:APPu; try done.
+  move: LE => /andP [LEve LEf]. fold (le_fun f g) in LEf.
+  move: (valid_fun_tail Vf) => Vt.
+  move: (valid_fun_head Vf) => Vh.
+  specialize (IHf g ltac:(lia) Vt Vg LEf).
+  move: (rk_app APPu) => RK1.
+  destruct (~~is_bot e) eqn:NB.
+  - move: (rk_app2 Vg APPu NB) => RK2.
+    move: (@rk_le _ ih v e ltac:(lia) LEve) => RKve.
+    lia.
+  - destruct e; try done.
+    move: (val_nbot Vh) => NB2. rewrite LEve in NB2. done.
+Qed.
+*)
 
 Lemma OTLs : forall k, OrderTheoreticLemmas k.
 Proof.
@@ -2906,7 +3056,7 @@ Qed.
 (* existence of app f u when valid (tpi a f) holds. *)
 Lemma app_tpi_exists a f u :
   valid (tpi a f) -> valid u ->
-  exists t, app f u = Some t /\ valid t.
+  { t & (app f u = Some t) * (valid t)}.
 Proof.
   move=> V Vu.
   cbn in V. move: V => /andP [_ Vf].
@@ -2996,23 +3146,23 @@ Qed.
 Lemma lub_succ_inv (u v:elt) (w : elt) :
   ~~ is_bot u -> ~~ is_bot v ->
   lub u v = Some (succ w) -> 
-  exists u1, exists v1, (u = succ u1) /\ (v = succ v1) 
-       /\ lub u1 v1 = Some w.
+  { u1 & { v1 & (u = succ u1) * ((v = succ v1) 
+       * (lub u1 v1 = Some w))}}.
 Proof.
   destruct u; destruct v; try done.
   all: cbn. destruct (n =? n0); try done.
-  destruct (lub u v) eqn:hl; try done.
-  move=> _ _ h. inversion h. subst. eauto.
-  destruct (compatible_fun l l0); try done.
-  destruct (lub u v); done.
-  destruct (compatible_fun l l0); try done.
+  - destruct (lub u v) eqn:hl; try done.
+    move=> _ _ h. inversion h. subst. eauto.
+  - destruct (compatible_fun l l0); try done.
+    destruct (lub u v); done.
+  - destruct (compatible_fun l l0); try done.
 Qed.
 
 Lemma lub_abs_inv (u v:elt) (f : list (elt * elt)) :
   ~~ is_bot u -> ~~ is_bot v ->
   lub u v = Some (abs f) -> 
-  exists f1, exists f2, (u = abs f1) /\ (v = abs f2) 
-       /\ (f = f1 ++ f2)%list.
+  { f1 & { f2 & (u = abs f1) * ((v = abs f2) 
+       * (f = f1 ++ f2)%list )}}. 
 Proof.
   destruct u; destruct v; try done.
   all: cbn. destruct (n =? n0); done.
@@ -3026,9 +3176,9 @@ Qed.
 Lemma lub_tpi_inv (u v:elt) a f :
   ~~ is_bot u -> ~~ is_bot v ->
   lub u v = Some (tpi a f) -> 
-  exists a1 f1 a2 f2, (u = tpi a1 f1) /\ (v = tpi a2 f2) 
-       /\ lub a1 a2 = Some a
-       /\ (f = f1 ++ f2)%list.
+  { a1 & { f1 & { a2 & { f2 & (u = tpi a1 f1) * ((v = tpi a2 f2) 
+       * ((lub a1 a2 = Some a)
+       * (f = f1 ++ f2)%list))}}}}.
 Proof.
   destruct u; destruct v; try done.
   all: cbn. 

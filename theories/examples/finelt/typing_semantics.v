@@ -106,22 +106,21 @@ Hint Resolve fits_valid_env : valid typing.
 Lemma fits_var {n} (Γ : Ctx n)(ρ : Env n) :
   fits Γ ρ ->
   forall x,
-  exists a i, typing Γ (lookup x Γ) (Core.tuniv i) /\
-         EvalRel (lookup x Γ) ρ a /\
-         wt a (tuniv i) /\
-         wt (ρ x) a.
+  exists a i (h: wt a (tuniv i)) (h2 : wt (ρ x) a),
+    typing Γ (lookup x Γ) (Core.tuniv i) /\
+    EvalRel (lookup x Γ) ρ a.
 Proof.
   move=> h.
   induction h. done.
   auto_case.
-  + destruct (IHh f) as [b [j [Ht [E [WT1 WT2]]]]].
-    exists b. exists j.
+  + destruct (IHh f) as [b [j [WT1 [WT2 [Ht E ]]]]].
+    exists b. exists j. exists WT1. exists WT2.
     repeat split; auto.
     eapply renaming_typing with (A := Core.tuniv j);
       eauto with renaming.
     eapply c_cons; eauto using typing_ctx.
     eapply EvalRel_wk; eauto.
-  + exists a. exists i.
+  + exists a. exists i. 
     repeat split; eauto.
     eapply renaming_typing with (A := Core.tuniv i);
       eauto with renaming.
@@ -141,8 +140,8 @@ Qed.
    ===================================================================== *)
 
 Definition Typed {n:nat} (M : Tm n) (A : Tm n) ρ u :=
-  exists v , exists a,
-    le u v /\ EvalRel M ρ v /\ wt v a /\ EvalRel A ρ a.
+  exists v , exists a, exists (h : wt v a),
+    le u v /\ EvalRel M ρ v /\ EvalRel A ρ a.
 
 Definition InvTyped
   {n:nat} (Γ: Ctx n) (M : Tm n) (A : Tm n) (ρ : Env n) :=
@@ -164,6 +163,7 @@ Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) :
 Proof.
   exists bot. exists bot.
   repeat split; eauto using EvalRel_bot, wt_bot.
+  eapply wt_bot. eapply wt_bot. eapply (@wt_tuniv 0 1). lia.
 Qed.
 
 (* =====================================================================
@@ -251,13 +251,12 @@ Lemma Lam_L1 u {n} (A : Tm n) M ρ :
   EvalRel (Core.abs A M) ρ u ->
   valid_env ρ ->
   ~~ is_bot u ->
-  exists a g i,
+  exists a g i (h : wt a (tuniv i)),
     EvalRel A ρ a 
-    /\ wt a (tuniv i)
     /\ le u (abs g)
     /\ valid (abs g)
     /\ (forall x y, In (x,y) g ->
-         exists z, le z x /\ wt z a /\ EvalRel M (z .: ρ) y).
+         exists z (hz: wt z a), le z x /\ EvalRel M (z .: ρ) y).
 Proof.
   destruct u; try done.
   move=> h Vρ _.
@@ -289,16 +288,16 @@ Qed.
 Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
   EvalRel (Core.tpi A B) ρ (tpi b f) ->
   valid_env ρ ->
-  exists a i,
-    EvalRel A ρ a /\ wt a (tuniv i) /\
+  exists a i (h : wt a (tuniv i)),
+    EvalRel A ρ a /\ 
     le (tpi b f) (tpi a f) /\
     valid (tpi a f) /\
     (forall x y, In (x,y) f ->
-       exists z, le z x /\ wt z a /\ EvalRel B (z .: ρ) y).
+       exists z (hz: wt z a), le z x /\ EvalRel B (z .: ρ) y).
 Proof.
   move=> h Vρ.
   cbn in h.
-  destruct h as [Vb [Vf [i [Wb [EA Hbody]]]]].
+  destruct h as [Vb [Vf [i [EA [Wb Hbody]]]]].
   exists b, i.
   have Vtpi : valid (tpi b f).
   { eapply valid_tpi_intro; eauto. } 
@@ -332,11 +331,11 @@ Proof.
   cbn in Eu.
   destruct Eu as [Vb [Vf [j [WTbj [EAb Hbody]]]]].
   (* Apply IHA to enlarge the type code b to b', well-typed at tuniv i *)
-  destruct (IHA _ EAb) as [b' [c [LEbb' [EAb' [WTb'c LEcuniv]]]]].
+  destruct (IHA _ EAb) as [b' [c [WTb'c [LEbb' [EAb'  LEcuniv]]]]].
   cbn in LEcuniv.
   have Vb' : valid b' by eapply EvalRel_valid; exact EAb'.
   have Vti : valid (tuniv i) by [].
-  have WTb' : wt b' (tuniv i) by eapply wt_le; eauto.
+  have WTb' : wt b' (tuniv i). eapply wt_le; eauto. admit. admit.
   (* For each edge (ui, vi) ∈ l, the per-edge witness xi has wt xi b,
      hence wt xi b' by wt_le. Applying IHB at (xi, b') gives a typed
      enlargement vi' of vi with wt vi' (tuniv i).
@@ -369,7 +368,7 @@ Proof.
   have Vρ : valid_env ρ. eauto with valid.
   destruct (~~ is_bot u) eqn:Bu.
   - destruct (Lam_L1 EL Vρ Bu) as 
-      (a & g & i0 & EA & WTa & LEu & Vg & h).
+      (a & g & i0 & WTa & EA &  LEu & Vg & h).
     clear EL.
     specialize (TA _ EA). unfold Typed in TA.
 Admitted.

@@ -46,7 +46,7 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
     : Env n -> elt -> list (elt * elt) -> Prop := 
     fun ρ a g => 
       forall u v, In (u,v) g -> 
-       exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ) v
+       exists x, exists (h : wt x a), le x u /\ EvalRel M (x .: ρ) v
   in 
   match t return Env n -> elt -> Prop with 
   | Core.var i => 
@@ -69,8 +69,8 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
         | tpi a g => 
             valid a 
             /\ valid_fun g
-            /\ exists i, wt a (tuniv i) 
-            /\ EvalRel A ρ a 
+            /\ exists i (h: wt a (tuniv i)),
+             EvalRel A ρ a 
             /\ EvalRel_fun B ρ a g
         | _ => False
         end
@@ -84,8 +84,8 @@ Fixpoint EvalRel {n} (t : Tm n) : Env n -> elt -> Prop :=
          | abs g => 
                 valid_fun g 
               /\ ~~ is_nil g
-              /\ exists i a, wt a (tuniv i) 
-              /\ EvalRel A ρ a
+              /\ exists i a (h: wt a (tuniv i)),
+                EvalRel A ρ a
               /\ EvalRel_fun M ρ a g
               
                 
@@ -99,7 +99,7 @@ Definition EvalRel_fun {n} (M : Tm (S n))
     : Env n -> elt -> list (elt * elt) -> Prop := 
     fun ρ a g => 
       forall u v, In (u,v) g -> 
-       exists x, le x u /\ wt x a /\ EvalRel M (x .: ρ) v.
+       exists x (h: wt x a), le x u /\ EvalRel M (x .: ρ) v.
 
 (** * validity *)
 
@@ -223,7 +223,7 @@ Lemma lam_edgewise {n} {A : Tm n} {M ρ g} :
   EvalRel (Core.abs A M) ρ (abs g) -> 
   exists a, EvalRel A ρ a 
        /\ forall u v, In (u,v) g -> 
-         exists x, wt x a /\ EvalRel M (x .: ρ) v.
+         exists x (h: wt x a), EvalRel M (x .: ρ) v.
 Proof.
   move=> E1.
   cbn [EvalRel] in E1.
@@ -262,11 +262,11 @@ Proof.
   apply /forallb_forall.
   move=> [u1 v1] Inl.
   specialize (h1 _ _ Inl).
-  move: h1 => [x1 [LE1 [WTx1 E21]]].
+  move: h1 => [x1 [WTx1 [LE1 E21]]].
   apply /forallb_forall.
   move=> [u2 v2] Inl0.
   specialize (h2 _ _ Inl0).
-  move: h2 => [x0 [LE0 [WTx0 E20]]].
+  move: h2 => [x0 [WTx0 [LE0 E20]]].
     
   apply /implyP.
   move=> Cu.
