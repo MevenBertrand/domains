@@ -437,7 +437,7 @@ Section exp_functor.
   Lemma unimage_jrel_directed (y:joinable_relation hf B D) :
     (forall a : A,
      directed hf
-       (erel_image A C {| orddec := eff_ord_dec A (PLT.effective A) |}
+       (erel_image A C {| ord_dec := eff_ord_dec A (PLT.effective A) |}
           (unimage_jrel (proj1_sig y)) a)).
   Proof.
     intro a.

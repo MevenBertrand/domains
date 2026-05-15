@@ -163,7 +163,7 @@ Proof.
         ** exists (x::y::nil).
            split. apply cons_subset; auto. apply cons_subset; auto. apply nil_subset.
            split. exists x. apply cons_elem; auto.
-           split. apply ub_cons; auto. apply ub_cons; auto. apply ub_nil.
+           split. apply ub_cons; auto. apply ub_cons; auto. apply ub_emp.
            intros. apply H5. apply H6. apply cons_elem; auto.
            apply H6. apply cons_elem. right. apply cons_elem. auto.
         ** apply sub_lubs_correct in H0.

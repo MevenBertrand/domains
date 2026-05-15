@@ -10,6 +10,8 @@
   },
   "ocaml.sandbox": {
     "kind": "opam",
-    "switch": "rocq.9.0"
-  }
+    "switch": "with-sulfur"
+  },
+  "vscoq.path": "/Users/sweirich/.opam/with-sulfur/bin/vsrocqtop",
+  "vscoq.proof.delegation": "None"
 }

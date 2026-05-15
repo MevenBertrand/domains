@@ -1,611 +1,667 @@
-(* Copyright (c) 2014, Robert Dockins *)
+(** * domains.esets: the set theory of enumerable sets *)
+From Stdlib Require Import Arith Arith.Cantor ssreflect ssrfun List
+  Relations Classes.RelationClasses Classes.Morphisms Lia.
+From HB Require Import structures.
 
-From Stdlib Require Import Relations.
-From Stdlib Require Import List.
-From Stdlib Require Import NArith.
+Require Import utils.all nat_isos categories.all preord sets finsets.
 
-Require Import basics.
-Require Import preord.
-Require Import categories.
-Require Import pairing.
-Require Import sets.
-Require Import finsets.
-
-(**  * The theory of enumerable sets.
-
-       Here we define the theory of "enumerable" sets.  Concretely,
-       enumerable sets of [A] are represented by functions [N -> option A].
-       We consider an element [x] to be in a set [X] if there exists
-       an [n] such that [X n = Some x'] with [x ≈ x'].
+(** ** Here we define the theory of "enumerable" sets.  Concretely,
+       enumerable sets of [A] are represented by the extensional quotient
+       of functions [nat -> option A].
 
        The singleton set is given by the constant function.  The image function
        is defined in the straightforward way as a composition of functions.
-       Union is defined by using the isomorphism between [N] and [N×N] defined
+       Union is defined by using the isomorphism between [nat] and [N×N] defined
        in pairing.
   *)
-Module eset.
-Section eset.
-  Definition eset (A:preord) := N -> option A.
-  Definition esingle (A:preord) (a:A) := fun n:N => Some a.
-  Definition emember (A:preord) (a:A) (P:eset A) :=
-      exists n, match P n with None => False | Some a' => a ≈ a' end.
-  Definition eimage (A B:preord) (f:A → B) (P:eset A) (n:N) :=
-      match P n with None => None | Some x => Some (f#x) end.
-  Definition eunion (A:preord) (PS : eset (set.set_preord eset emember A)) : eset A :=
-    fun n => let (p,q) := unpairing n in
-       match PS p with
-       | None => None
-       | Some P => P q
-       end.
 
-  Theorem mixin : set.mixin_of eset emember esingle eimage eunion.
-  Proof.
-    constructor.
+Definition fun_member {A} (a : A) (X: nat -> option A) :=
+  exists n, X n = Some a.
 
-    - intros.
-      destruct H0 as [n ?]. exists n.
-      destruct (X n); eauto.
+Definition funset_ext A : relation (nat -> option A) := fun X X' =>
+  forall a, fun_member a X <-> fun_member a X'.
 
-    - unfold emember, esingle.
-      simpl; firstorder.
-      exact N0.
-
-    - intros.
-      intuition.
-      + destruct H as [n ?].
-        unfold eunion in H.
-        case_eq (unpairing n); intros.
-        rewrite H0 in H.
-        unfold emember.
-        case_eq (XS n0); intros.
-        * rewrite H1 in H.
-          case_eq (c n1); intros.
-          ** rewrite H2 in H.
-             exists c. split; eauto.
-             *** exists n0. rewrite H1. auto.
-             *** exists n1. rewrite H2. auto.
-          ** rewrite H2 in H. elim H.
-        * rewrite H1 in H. elim H.
-      + destruct H as [X [??]].
-        destruct H as [n1 ?].
-        destruct H0 as [n2 ?].
-        case_eq (XS n1); intros.
-        * rewrite H1 in H.
-          case_eq (X n2); intros.
-          ** rewrite H2 in H0.
-             destruct H.
-             destruct (H c0); eauto.
-             *** hnf; eauto.
-                 exists n2. rewrite H2. auto.
-             *** case_eq (c x); intros.
-                 **** rewrite H5 in H4.
-                      exists (pairing (n1,x)).
-                      unfold eunion.
-                      rewrite unpairing_pairing.
-                      rewrite H1.
-                      rewrite H5.
-                      eauto.
-                 **** rewrite H5 in H4. elim H4.
-          ** rewrite H2 in H0. elim H0.
-        * rewrite H1 in H. elim H.
-
-    - intros.
-      split; intros [n ?].
-      + exists n.
-        unfold eimage in *.
-        destruct (X n); auto.
-        + exists n.
-          unfold eimage in *.
-          destruct (X n); auto.
-
-    - intros.
-      destruct H as [n ?].
-      exists n.
-      unfold eimage.
-      destruct (P n); auto.
-
-    - intros.
-      destruct H as [n ?].
-      unfold eimage in H.
-      case_eq (P n); intros.
-      rewrite H0 in H.
-      exists c. split; auto.
-      exists n. rewrite H0. auto.
-      rewrite H0 in H. elim H.
-  Qed.
-End eset.
-End eset.
-
-Canonical Structure eset_theory : set.theory :=
-  set.Theory
-    eset.eset
-    eset.emember
-    eset.esingle
-    eset.eimage
-    eset.eunion
-    eset.mixin.
-
-Notation eset := (set_preord eset_theory).
-
-Definition cl_eset_theory CL := cset_theory eset_theory CL.
-Notation cl_eset CL := (set_preord (cl_eset_theory CL)).
-
-
-(**  * Countable indefinite description
-
-     A version of the principle of indefinite description can be proved for
-     enumerable sets.  This takes the form of a choice function which,
-     given an inhabited enumerable set, calculates an inhabitant of the set.
-
-     The choice function works by simply counting upwards through the
-     set's indexes until it finds an element.  This process terminates
-     because we assume the set is inhabited.  We convince Coq's termination
-     checker of this fact by using an auxilary inductive definition
-     [einhabited].
-  *)
-Section countable_ID.
-  Variable A:preord.
-
-  (** Here we define inhabitedness of an enumerable set as an inductive
-      predicate with a single constructor.  This enables us to define
-      a constructive choice function on inhabited enumerable sets.
-    *)
-  Inductive einhabited (P:eset A) : Prop :=
-    | einh :
-        (P N0 = None -> einhabited (fun n => P (N.succ n))) ->
-        einhabited P.
-
-  Lemma member_inhabited : forall (P:eset A), (exists a, a ∈ P) -> einhabited P.
-  Proof.
-    intros. destruct H as [a [n ?]].
-    revert P H.
-    induction n using N.peano_ind; intros.
-    constructor; intros.
-    rewrite H0 in H. elim H.
-    constructor; intros.
-    apply IHn. auto.
-  Defined.
-
-  (**  [find_inhabitant] is defined by recursion on the [einhabited] fact,
-       and it finds the smallest index in the set [P] that is defined.
-    *)
-  Definition find_inhabitant : forall P (H:einhabited P),
-    { a:A & { n | P n = Some a /\
-      forall n' a', P n' = Some a' -> (n <= n')%N} }.
-  Proof.
-    refine (
-        fix find_inhabitant P (H:einhabited P) :
-          { a:A & { n | P n = Some a /\
-                        forall n' a', P n' = Some a' -> (n <= n')%N} } :=
-          match H with | einh _ H' => _ end).
-
-    generalize (refl_equal (P N0)).
-    pattern (P N0) at 2.
-    case (P N0).
-    - intros a HP. exists a. exists N0.
-      split; auto.
-      intros. 
-      intros. compute. destruct n'; discriminate.
-    - intros HP. case (find_inhabitant _ (H' HP)).
-      intros x Hx. clear find_inhabitant.
-      case Hx as [n ?].
-      exists x. exists (N.succ n). 
-      destruct a.
-      split; auto.
-      intros.
-      revert H2.
-      pattern n'.
-      apply (N.case_analysis).
-      + hnf. simpl. intuition. subst; auto.
-        subst; auto.
-      + intros. rewrite H2 in HP. discriminate.
-      + intros.
-        apply H1 in H2; auto.
-        rewrite <- N.succ_le_mono; auto.
-  Defined.
-
-Global Opaque find_inhabitant.
-
-  Definition choose P (H:einhabited P) : A
-    := projT1 (find_inhabitant P H).
-
-  Lemma choose_elem : forall P H, (choose P H) ∈ P.
-  Proof.
-    intros. unfold choose. destruct (find_inhabitant); auto.
-    simpl. destruct s as [n ?]. exists n. 
-    destruct a. rewrite H0; auto.
-  Qed.
-
-  Lemma inhabited_einhabited : forall P, color_prop inhabited P <-> einhabited P.
-  Proof.
-    intuition.
-    apply member_inhabited; auto.
-    apply find_inhabitant in H.
-    destruct H as [a H]. exists a; auto.
-    destruct H as [n ?]. exists n. destruct a0. rewrite H. auto.
-  Qed.
-End countable_ID.
-Arguments einhabited {A} P.
-
-Theorem countable_indefinite_description (A:preord) (X:eset A) :
-  (exists x:A, x ∈ X) -> { x:A | x ∈ X }.
+Instance funset_equiv {A} : Equivalence (funset_ext A).
 Proof.
-  intros.
-  assert (einhabited X).
-  { apply inhabited_einhabited. simpl; auto. }
-  exists (choose A X H0). apply choose_elem.
+  split ; red ; unfold funset_ext in *.
+  - easy.
+  - intros * H **.
+    now rewrite H.
+  - intros * H H' **.
+    now rewrite H H'.
 Qed.
 
+Definition eeset (A : Poset) : Type := quot (funset_ext A).
+Definition eefun {A : Poset} (X : nat -> option A) : eeset A := to_quot X.
+
+Instance Proper_fun_member {A : Poset} (a : A) : Proper (funset_ext A ==> eq) (fun_member a).
+Proof.
+  cbv -[iff fun_member].
+  intros.
+  now ext.
+Qed.
+
+Definition emember {A : Poset} (a : A) : (eeset A) -> Prop := quot_rec (fun_member a).
+
+Lemma eesetP {A : Poset} (a : A) (X : nat -> option A) :
+  emember a (eefun X) <-> exists n, (X n) = Some a.
+Proof.
+  by rewrite /member /= /emember quot_rec_eq /fun_member.
+Qed.
+
+Lemma eset_ext A (X X' : eeset A) :
+  (forall a, emember a X <-> emember a X') ->
+  X = X'.
+Proof.
+  induction X using quot_ind.
+  induction X' using quot_ind.
+  intros.
+  apply quot_ext.
+  rewrite /funset_ext /fun_member.
+  intros.
+  now rewrite -!eesetP.
+Qed.
+
+Definition eset : Poset -> Poset :=
+  promote_set eeset (@emember) eset_ext.
+
+HB.instance Definition _ : IsBaseSetTheory.axioms_ eset :=
+  SetIncl eset (@emember) eset_ext.
+
+Definition efun {A : Poset} (f : nat -> option A) : eset A := eefun f.
+
+Lemma esetP {A : Poset} (a : A) (X : nat -> option A) :
+  a ∈ (efun X) <-> exists n, (X n) = Some a.
+Proof.
+  apply eesetP.
+Qed.
+
+Definition esingle {A : Poset} (a : A) :  eset A := efun (fun n => Some a).
+
+Lemma esingleP {A : Poset} (a a' : A) : emember a (esingle a') <-> a = a'.
+Proof.
+  rewrite /emember /esingle quot_rec_eq /fun_member.
+  split.
+  - now intros [_ [= ->]].
+  - now intros -> ; exists (0%nat).
+Qed.
+
+(* Lemma countable_single A (a : A) : countable (single a).
+Proof.
+  exists (esingle a).
+  intros.
+  by rewrite esingleP singleP.
+Qed. *)
+
+Definition emap {A B} (f : A -> B) : (nat -> option A) -> nat -> option B :=
+  (fun X n => option_map f (X n)).
+
+Instance Proper_emap {A B} f : Proper (funset_ext A ==> funset_ext B) (emap f).
+Proof.
+  rewrite /Proper /funset_ext /fun_member /emap.
+  eintros x y H b.
+  split.
+  all: intros [n [? [e ->]]%option_map_some].
+  - edestruct H as [[n' e'] _].
+    1: eauto.
+    exists n'; by rewrite e'.
+  - edestruct H as [_ [n' e']].
+    1: eauto.
+    exists n'; by rewrite e'.
+Qed.
+
+Definition eimage {A B : Poset} (f : A -> B) (X : eset A) : eset B :=
+  quot_map (emap f) X.
+
+Lemma emapP {A B : Poset} (f : A -> B) (X : nat -> option A) (y : B) :
+  fun_member y (emap f X) <-> exists x, (fun_member x X) /\ y = f x.
+Proof.
+  split.
+  - intros [n [? [e ->]]%option_map_some].
+    eexists ; split ; [..|easy].
+    rewrite /fun_member.
+    now eexists.
+  - intros [? [[n e] ->]].
+    exists n.
+    now rewrite /emap e //.
+Qed.
+
+Lemma eimageP {A B : Poset} (f : A -> B) (X : eset A) (y : B) :
+  y ∈ (eimage f X) <-> exists x, (x ∈ X) /\ y = f x.
+Proof.
+  induction X using quot_ind.
+  rewrite /eimage quot_map_eq /member /= /emember !quot_rec_eq emapP.
+  split.
+  all: move => [x []].
+  all: rewrite ?quot_rec_eq.
+  all: exists x.
+  all: rewrite ?quot_rec_eq ; now subst.
+Qed.
+
+Definition fun_union {A} (XS : nat -> option (nat -> option A)) : nat -> option A :=
+  fun n => let (p,q) := Cantor.of_nat n in
+      match XS p with
+      | None => None
+      | Some P => P q
+      end.
+
+Lemma fun_unionP {A} (XS : nat -> option (nat -> option A)) a :
+  fun_member a (fun_union XS) <->
+    exists (X : nat -> option A), fun_member X XS /\ fun_member a X.
+Proof.
+  split.
+  - intros [n Hn].
+    rewrite /fun_union in Hn.
+    destruct (Cantor.of_nat n) as [p q] eqn:en.
+    destruct (XS p) as [X|] eqn:eX.
+    2: now congruence.
+    exists X.
+    rewrite /fun_member.
+    split ; eexists ; eassumption.
+  - intros [X [[p Hp] [q Hq]]].
+    rewrite /fun_member in Hp, Hq |- *.
+    exists (Cantor.to_nat (p,q)).
+    now rewrite /fun_union cancel_of_to Hp.
+Qed.
+
+Instance Proper_fun_union {A} :
+  Proper (pointwise_relation nat (option_rel (funset_ext A)) ==> funset_ext A) fun_union.
+Proof.
+  intros f f' r a.
+  rewrite /pointwise_relation /funset_ext /= in r. 
+  rewrite !fun_unionP.
+  split.
+  all: intros (X&[n e]&Hin).
+  all: specialize (r n) => /=.
+  all: rewrite e in r => /=.
+  1: destruct (f' n) as [X'|] eqn:? ; cbn in * ; [|easy].
+  2: destruct (f n) as [X'|] eqn:? ; cbn in * ; [|easy].
+  all: exists X' ; split ; [|now apply r].
+  all: now eexists.
+Qed.
+
+Definition pull_quot_option {B : Type} {R : relation B} `{! Equivalence R} :
+  option (quot R) -> quot (option_rel R) :=
+  fun o =>
+  match o with
+  | Some v => quot_map Some v
+  | None => to_quot None
+  end.
+
+Lemma pull_quot_option_some  {B : Type} {R : relation B} `{! Equivalence R}
+  (b : B) (x : option (quot R)) :
+  pull_quot_option x = to_quot (Some b) <-> x = Some (to_quot b).
+Proof.
+  split.
+  - destruct x as [q|] ; cbn.
+    + induction q as [b'] using quot_ind.
+      rewrite quot_map_eq.
+      intros e%quot_eq.
+      cbn in e.
+      now ext.
+    + intros e%quot_eq.
+      now cbn in e.
+  - intros -> => /=.
+    now rewrite quot_map_eq.
+Qed.
+
+Definition fun_eset_union {A} (XS : nat -> option (eset A)) : eset A :=
+  quot_map fun_union (pull_quot_nat (pull_quot_option \o XS)).
+
+Lemma fun_eset_unionP {A} (XS : nat -> option (eset A)) a :
+  emember a (fun_eset_union XS) <->
+    exists (X : eset A), fun_member X XS /\ emember a X.
+Proof.
+  rewrite /fun_eset_union.
+  set (XS' := (pull_quot_nat (pull_quot_option \o XS))).
+  assert (forall n, eval_quot XS' n = pull_quot_option (XS n)) as eXS'
+    by rewrite /XS' pull_quot_nat_eq //.
+  clearbody XS'.
+  induction XS' as [XS'] using quot_ind.
+  rewrite !quot_map_eq /emember quot_rec_eq fun_unionP.
+  split.
+  - intros (X&(n&HXin)&HinX).
+    exists (to_quot X).
+    rewrite quot_rec_eq.
+    split ; [|easy].
+    exists n.
+    apply pull_quot_option_some.
+    rewrite -eXS' eval_quot_eq /= HXin //.
+  - intros (X&(n&HXin)&HinX).
+    induction X as [X] using quot_ind.
+    rewrite quot_rec_eq in HinX.
+    apply pull_quot_option_some in HXin.
+    rewrite -eXS' eval_quot_eq /= in HXin.
+    apply quot_eq in HXin.
+    destruct (XS' n) as [X'|] eqn:e => //.
+    cbn in HXin.
+    exists X'.
+    split ; [now eexists|].
+    now apply HXin.
+Qed.
+
+Instance Proper_fun_eset_union {A : Poset} : Proper (funset_ext (eset A) ==> eq) fun_eset_union.
+Proof.
+  intros ?? e.
+  apply eset_ext.
+  intros a.
+  rewrite !fun_eset_unionP.
+  unfold funset_ext in e.
+  now setoid_rewrite e.
+Qed.
+
+Definition eunion {A : Poset} : eset (eset A) -> eset A := quot_rec fun_eset_union.
+
+Lemma eunionP {A : Poset} XS (a : A) :
+  emember a (eunion XS) <-> exists X, emember X XS /\ emember a X.
+Proof.
+  induction XS using quot_ind.
+  rewrite /eunion !quot_rec_eq fun_eset_unionP.
+  split.
+  all: intros (X&[HX]) ; exists X ; split ; [|easy].
+  2: red.
+  all: apply (esetP (A := eset A)) ; eassumption.
+Qed.
+
+HB.instance Definition _ :=
+  IsPreSetTheory.Build eset (@esingle) (@eimage) (@eunion).
+
+HB.instance Definition _ :=
+  IsSetTheory.Build eset (@esingleP) (@eimageP) (@eunionP).
 
 
-(** * Additional operations on enumerable sets. *)
+(** Countable indefinite description was present in the original dev, but is not
+  valid: it does not respect the setoid structure. It looks like it is not used
+  anywhere. *)
+
+(** ** Additional operations on enumerable sets. *)
 
 (** The empty set is easily definable.  *)
-Definition empty (A:preord) : eset A := fun n => None.
+Definition eempty {A:Poset} : eset A := efun (fun n => None).
 
-(** Every list (qua finite set) generates an enumerable set. *)
-Definition elist (A:preord) (l:list A) : eset A := fun n => nth_error l (N.to_nat n).
-Arguments elist {A} l _.
+Lemma eemptyP (A : Poset) (x : A) : x ∈ eempty <-> False.
+Proof.
+  rewrite /eempty esetP.
+  split ; [|easy].
+  intros [] ; congruence.
+Qed.
+
+(** Every list generates an enumerable set. *)
+Definition elist {A:Poset} (l:list A) : eset A := efun (fun n => nth_error l n).
+
+Lemma elistP {A:Poset} (l : list A) (x : A) : x ∈ (elist l) <-> In x l.
+Proof.
+  rewrite /elist esetP In_iff_nth_error.
+  reflexivity.
+Qed.
+
+(** Thus every finite set gives an equivalent enumerable set *)
+Instance Proper_elist {A:Poset} : Proper (list_ext A ==> eq) elist.
+Proof.
+  intros ?? e.
+  apply set_ext ; intros.
+  now rewrite !elistP e.
+Qed.
+
+Definition fset_eset {A} (f : finset A) : eset A := quot_rec elist f.
+
+Lemma fset_esetP {A} (f : finset A) x : x ∈ (fset_eset f) <-> x ∈ f.
+Proof.
+  induction f using quot_ind.
+  now rewrite /fset_eset quot_rec_eq elistP finsetP.
+Qed.
 
 (**  The intersection of enumerable sets can be defined if we have a decidable equality on the
      elements.
   *)
-Definition intersection {A:preord} (eqdec:forall x y:A, {x ≈ y}+{x ≉ y}) (P Q:eset A) : eset A :=
-    fun n => let (p,q) := unpairing n in 
+
+Definition fun_inter2 {A:EqTy} (P Q : nat -> option A) : nat -> option A :=
+    fun n => let (p,q) := Cantor.of_nat n in 
        match P p, Q q with
        | Some x, Some y => if eqdec x y then Some x else None
        | _, _ => None
        end.
 
+Lemma fun_inter2P {A:EqTy} (P Q : nat -> option A) x :
+  fun_member x (fun_inter2 P Q) <-> (fun_member x P /\ fun_member x Q).
+Proof.
+  split.
+  - intros [n Hn].
+    rewrite /fun_inter2 in Hn.
+    rewrite /fun_member.
+    destruct (of_nat n) as (p,q) ; clear n.
+    destruct (P p) as [a|] eqn:eP ; [|congruence].
+    destruct (Q q) as [a'|] eqn:eQ ; [|congruence].
+    destruct (eqdec a a') eqn:ea ; [subst|congruence].
+    split ; eexists.
+    all: now rewrite <- Hn.
+  - intros [[p Hp] [q Hq]].
+    exists (Cantor.to_nat (p,q)).
+    now rewrite /fun_inter2 cancel_of_to Hp Hq eqdec_refl.
+Qed.
+
+Instance Proper_inter2 {A:DecPoset} : Proper (funset_ext A ==> funset_ext A ==> funset_ext A) fun_inter2.
+Proof.
+  intros ?? HP ?? HQ a.
+  rewrite fun_inter2P HP HQ -fun_inter2P.
+  reflexivity.
+Qed.
+
+Definition einter2 {A:DecPoset} : eset A -> eset A -> eset A := quot_map2 fun_inter2.
+
+Lemma einter2P {A : DecPoset} (P Q : eset A) x : x ∈ (einter2 P Q) <-> (x ∈ P) /\ (x ∈ Q).
+Proof.
+  induction P using quot_ind.
+  induction Q using quot_ind.
+  rewrite /einter2 quot_map2_eq !esetP.
+  setoid_rewrite fun_inter2P.
+  rewrite /fun_member.
+  reflexivity.
+Qed.
+
+Fixpoint list_inter {A:DecPoset} (X : eset A) (XS : list (eset A)) : eset A :=
+  match XS with
+  | nil => X
+  | X' :: XS => einter2 X' (list_inter X XS)
+  end.
+
+Lemma list_interP {A:DecPoset} (X : eset A) (XS : list (eset A)) x :
+  x ∈ (list_inter X XS) <-> (x ∈ X /\ (forall X', In X' XS -> x ∈ X')).
+Proof.
+  induction XS ; cbn.
+  1: now intuition.
+  rewrite einter2P IHXS.
+  intuition (subst ; eauto).
+Qed.
+
+Instance Proper_list_inter {A:DecPoset} X : Proper (list_ext (eset A) ==> eq) (list_inter X).
+Proof.
+  intros ?? e.
+  ext.
+  rewrite !list_interP.
+  red in e.
+  now setoid_rewrite e.
+Qed.
+
+Definition finter {A:DecPoset} (X : eset A) (XS : finset (eset A)) : eset A :=
+  quot_rec (list_inter X) XS.
+
+Lemma finterP {A:DecPoset} (X : eset A) (XS : finset (eset A)) x :
+  x ∈ (finter X XS) <-> (x ∈ X /\ (forall X', X' ∈ XS -> x ∈ X')).
+Proof.
+  induction XS as [XS] using quot_ind.
+  rewrite /finter quot_rec_eq list_interP.
+  setoid_rewrite finsetP.
+  reflexivity.
+Qed.
+
 (**  We also have binary unions *)
-Definition union2 {A} (P:eset A) (Q:eset A) : eset A :=
-  fun n =>
-    match n with
-    | N0          => P N0
-    | Npos xH     => Q N0
-    | Npos (xO p) => P (Npos p)
-    | Npos (xI q) => Q (Npos q)
-    end.
+Definition fun_union2 {A} (P: nat -> option A) (Q : nat -> option A) : nat -> option A :=
+  fun n => match (sum_of_nat n) with
+  | inl n' => P n'
+  | inr n' => Q n'
+  end.
+
+Lemma fun_union2P {A} (P Q: nat -> option A) x :
+  fun_member x (fun_union2 P Q) <-> (fun_member x P \/ fun_member x Q).
+Proof.
+  rewrite /fun_member.
+  split.
+  - intros [n Hn].
+    rewrite /fun_union2 in Hn.
+    destruct (sum_of_nat n) eqn:e.
+    + left ; eexists ; eassumption.
+    + right ; eexists ; eassumption.
+  - rewrite /fun_union2.
+    intros [[n HP]|[n HQ]].
+    1: exists (sum_to_nat (inl n)).
+    2: exists (sum_to_nat (inr n)).
+    all: now rewrite cancel_of_to_sum.
+Qed.
+
+Instance Proper_fun_union2 {A : Poset} :
+  Proper (funset_ext A ==> funset_ext A ==> funset_ext A) fun_union2.
+Proof.
+  intros ?? HP ?? HQ ?.
+  now rewrite !fun_union2P HP HQ.
+Qed.
+
+Definition eunion2 {A}: eset A -> eset A -> eset A :=
+  quot_map2 fun_union2.
+
+Lemma eunion2P {A} (P Q : eset A) x : (x ∈ eunion2 P Q) <-> (x ∈ P) \/ (x ∈ Q).
+Proof.
+  induction P as [f] using quot_ind.
+  induction Q as [g] using quot_ind.
+  rewrite /eunion2 quot_map2_eq !esetP.
+  setoid_rewrite fun_union2P.
+  reflexivity.
+Qed.
 
 (** The disjoint union of two enumerable sets. *)
-Definition esum {A B} (P:eset A) (Q:eset B) : eset (sum_preord A B) :=
-  fun n =>
-    match n with
-    | N0          => match P N0 with | None => None | Some x => Some (inl _ x) end
-    | Npos xH     => match Q N0 with | None => None | Some y => Some (inr _ y) end
-    | Npos (xO p) => match P (Npos p) with | None => None | Some x => Some (inl _ x) end
-    | Npos (xI q) => match Q (Npos q) with | None => None | Some y => Some (inr _ y) end
-    end.
+Definition esum {A B : Poset} (P : eset A) (Q : eset B) : eset (A + B) :=
+  eunion2 (image (set := eset) ι₁ P) (image ι₂ Q).
 
-(** The binary product of enumerable sets. *)
-Definition eprod {A B} (P:eset A) (Q:eset B) : eset (prod_preord A B) :=
-  fun n => let (p,q) := unpairing n in
+Lemma esum_leftP A B (P:eset A) (Q:eset B) x :
+  (inl x) ∈ (esum P Q) <-> x ∈ P.
+Proof.
+  rewrite /esum eunion2P !imageP.
+  split.
+  - now intros [[? [? [= ->]]]|[? [? [=]]]].
+  - intros.
+    left ; eexists ; eauto.
+Qed.
+    
+Lemma esum_rightP A B (P:eset A) (Q:eset B) x :
+  (inr x) ∈ (esum P Q) <-> x ∈ Q.
+Proof.
+  rewrite /esum eunion2P !imageP.
+  split.
+  - now intros [[? [? [=]]]|[? [? [= ->]]]].
+  - intros.
+    right ; eexists ; eauto.
+Qed.
+
+(** The binary product of enumerable sets *)
+Definition fun_prod {A B} (P:nat -> option A) (Q:nat -> option B) :
+  nat -> option (A * B) :=
+  fun n => let (p,q) := (Cantor.of_nat n) in
     match P p, Q q with
     | Some x, Some y => Some (x,y)
     | _, _ => None
     end.
 
-(** Correctness lemmas for the above. *)
-Lemma union2_elem : forall A (P Q:eset A) x,
-  x ∈ (union2 P Q) <-> (x ∈ P \/ x ∈ Q).
+Lemma fun_prodP {A B} (P:nat -> option A) (Q:nat -> option B) x:
+  fun_member x (fun_prod P Q) <-> fun_member (fst x) P /\ fun_member (snd x) Q.
 Proof.
-  intros. split; intro.
-  - red in H. simpl in H.
-    destruct H as [n ?].
-    unfold union2 in H.
-    destruct n.
-    + left. exists N0; auto.
-    + destruct p.
-      * right. exists (Npos p); auto.
-      * left. exists (Npos p); auto.
-      * right. exists N0; auto.
-  - destruct H.
-    + destruct H as [n ?].
-      destruct n.
-      * exists N0. auto.
-      * exists (Npos (xO p)); auto.
-    + destruct H as [n ?].
-      destruct n.
-      * exists (Npos xH). auto.
-      * exists (Npos (xI p)); auto.
+  destruct x.
+  rewrite /fun_member.
+  split.
+  - rewrite /fun_prod.
+    intros [n e].
+    destruct (Cantor.of_nat n) as [p q], (P p) eqn:eP, (Q q) eqn:eQ ; try solve [congruence].
+    inversion e ; subst ; clear e.
+    now split ; eexists.
+  - intros [[p Hp] [q Hq]].
+    exists (Cantor.to_nat (p,q)).
+    by rewrite /fun_prod cancel_of_to Hp Hq.
 Qed.
 
-Lemma esum_left_elem :  forall A B (P:eset A) (Q:eset B) x,
-  (inl B x) ∈ (esum P Q) <-> x ∈ P.
+Instance Proper_fun_prod {A B : Poset} :
+  Proper (funset_ext A ==> funset_ext B ==> funset_ext (A * B)) fun_prod.
 Proof.
-  intuition.
-
-  - destruct H as [n ?].
-    destruct n.
-    + simpl in H.
-      case_eq (P N0); intros.
-      * rewrite H0 in H.
-        exists N0.
-        rewrite H0. apply H.
-      * rewrite H0 in H. elim H.
-    + destruct p.
-      * simpl in H.
-        case_eq (Q (Npos p)); intros.
-        ** rewrite H0 in H.
-           destruct H. elim H.
-        ** rewrite H0 in H. elim H.
-      * simpl in H.
-        case_eq (P (Npos p)); intros.
-        ** rewrite H0 in H.
-           exists (N.pos p). rewrite H0. apply H.
-        ** rewrite H0 in H. elim H.
-      * simpl in H.
-        case_eq (Q N0); intros.
-        ** rewrite H0 in H. destruct H. elim H.
-        ** rewrite H0 in H. elim H.
-
-  - destruct H as [n ?].
-    case_eq (P n); intros.
-    + rewrite H0 in H.
-      destruct n.
-      * exists N0.
-        unfold esum.
-        rewrite H0.
-        auto.
-      * exists (Npos (xO p)).
-        unfold esum.
-        rewrite H0. auto.
-    + rewrite H0 in H. elim H.
+  intros ?? HP ?? HQ ?.
+  by rewrite !fun_prodP HP HQ.
 Qed.
 
-Lemma esum_right_elem :  forall (A B:preord) (P:eset A) (Q:eset B) (y:B),
-  (inr _ y) ∈ (esum P Q) <-> y ∈ Q.
+Definition eprod {A B}: eset A -> eset B -> eset (A*B) :=
+  quot_map2 fun_prod.
+
+Lemma eprodP {A B} (P : eset A) (Q : eset B) x : (x ∈ eprod P Q) <-> (fst x ∈ P) /\ (snd x ∈ Q).
 Proof.
-  intuition.
-
-  - destruct H as [n ?].
-    unfold esum in H.
-    destruct n.
-    + case_eq (P N0); intros.
-      * rewrite H0 in H.
-        destruct H. elim H.
-      * rewrite H0 in H. elim H.
-    + destruct p.
-      * case_eq (Q (N.pos p)); intros.
-        ** rewrite H0 in H. 
-           exists (Npos p). rewrite H0. apply H.
-        ** rewrite H0 in H. elim H.
-      * case_eq (P (Npos p)); intros.
-        ** rewrite H0 in H.
-           destruct H. elim H.
-        ** rewrite H0 in H. elim H.
-      * case_eq (Q N0); intros.
-        ** rewrite H0 in H.
-           exists N0.
-           rewrite H0.
-           auto.
-        ** rewrite H0 in H. elim H.
-
-  - destruct H as [n ?].
-    case_eq (Q n); intros.
-    + rewrite H0 in H.
-      destruct n.
-      * exists (Npos xH).
-        unfold esum.
-        rewrite H0.
-        auto.
-      * exists (Npos (xI p)).
-        unfold esum.
-        rewrite H0. auto.
-    + rewrite H0 in H. elim H.
+  induction P as [f] using quot_ind.
+  induction Q as [g] using quot_ind.
+  rewrite /eprod quot_map2_eq !esetP.
+  setoid_rewrite fun_prodP.
+  reflexivity.
 Qed.
 
-Lemma eprod_elem : forall (A B:preord) (P:eset A) (Q:eset B) (x:A) (y:B),
-  (x,y) ∈ (eprod P Q) <-> x ∈ P /\ y ∈ Q.
+(** *** Filter + map *)
+
+Section FilterMap.
+  Context {A B:Type} (f : A -> option B).
+
+  Definition filter_map_fun (g : nat -> option A) : nat -> option B :=
+    (option_bind f) \o g.
+
+  Lemma filter_map_funP (g : nat -> option A) b :
+    fun_member b (filter_map_fun g) <-> exists a, fun_member a g /\ f a = Some b.
+  Proof.
+    rewrite /filter_map_fun /fun_member /=.
+    split.
+    - intros (n&?).
+      destruct (g n) eqn:e ; cbn in *.
+      2: congruence.
+      now eexists.
+    - intros (?&[? e]&?).
+      eexists.
+      now erewrite e. 
+  Qed.
+
+  Instance filter_Proper : Proper (funset_ext A ==> funset_ext B) filter_map_fun.
+  Proof.
+    intros ?? e ?.
+    rewrite !filter_map_funP.
+    red in e.
+    now setoid_rewrite e.
+  Qed.
+
+End FilterMap.
+
+Existing Instance filter_Proper.
+
+Definition efilter_map {A B : Poset} (f : A -> option B) : eset A -> eset B :=
+  quot_map (filter_map_fun f).
+
+Lemma efilter_mapP {A B : Poset} (f : A -> option B) (X : eset A) (x : B) :
+  x ∈ (efilter_map f X) <->
+  exists a, a ∈ X /\ (f a = Some x).
 Proof.
-  intros. split; intros.
-
-  - destruct H as [n ?].
-    unfold eprod in H.
-    case_eq (unpairing n); intros p q Hn.
-    rewrite Hn in H.
-    case_eq (P p); intros.
-    + rewrite H0 in H.
-      case_eq (Q q); intros.
-      * rewrite H1 in H.
-        split.
-        ** exists p. rewrite H0. destruct H; auto.
-           destruct H; destruct H2; split; auto.
-        ** exists q. rewrite H1. destruct H.
-           destruct H; destruct H2; split; auto.
-      * rewrite H1 in H. elim H.
-    + rewrite H0 in H. elim H.
-
-  - destruct H.
-    destruct H as [p ?].
-    destruct H0 as [q ?].
-    exists (pairing (p,q)).
-    case_eq (P p); intros; rewrite H1 in H. 2: elim H.
-    case_eq (Q q); intros; rewrite H2 in H0. 2: elim H0.
-    unfold eprod.
-    rewrite unpairing_pairing.
-    rewrite H1. rewrite H2.
-    destruct H; destruct H0.
-    split; split; simpl; auto.
+  induction X as [X] using quot_ind.
+  rewrite -/(efun X) /efilter_map quot_map_eq !esetP.
+  setoid_rewrite filter_map_funP.
+  setoid_rewrite esetP.
+  reflexivity.
 Qed.
 
-Notation "∅" := (empty _).
+(** *** Subset **)
 
-Lemma empty_elem : forall (A:preord) (x:A),
-  x ∈ ∅ -> False.
-Proof.
-  intros. destruct H as [n ?].
-  hnf in H. auto.
-Qed.
+(** We can take the subset of a finite set if the
+    predicate we wish to use to take the subset is decidable.
+  *)
 
-Lemma elist_elem : forall (A:preord) (l:finset A) (x:A),
-  x ∈ (elist l) <-> x ∈ l.
-Proof.
-  intuition.
-  - hnf in H.
-    destruct H as [n ?].
-    unfold elist in H.
-    case_eq (nth_error l (N.to_nat n)); auto; intros.
-    + rewrite H0 in H.
-      exists c. split; auto.
-      { clear -H0.
-        revert H0. generalize (N.to_nat n).
-        clear n. intro n. revert l.
-        induction n; simpl; intuition.
-        - destruct l; inversion H0; subst.
-          simpl; eauto.
-        - destruct l; simpl in *.
-          inversion H0.
-          right. eapply IHn; eauto.
-      }
-    + rewrite H0 in H. elim H.
+Section ESubset.
+  Context {A:Poset} (P : A -> Prop) {Hdec : forall x, Decision (P x)}.
 
-  - destruct H as [x' [??]].
-    simpl.
-    induction l.
-    + inversion H.
-    + simpl in H. destruct H; subst.
-      * exists N0. simpl. auto.
-      * destruct IHl as [n ?]; auto.
-        exists (N.succ n).
-        unfold elist.
-        rewrite N2Nat.inj_succ. simpl.
-        auto.
-Qed.
+  Definition esubset_dec : eset A -> eset A :=
+    efilter_map (fun x => if (Hdec x) then (Some x) else None).
 
+  Lemma esubset_decP (X : eset A) x : x ∈ (esubset_dec X) <-> x ∈ X /\ P x.
+  Proof.
+    rewrite /esubset_dec efilter_mapP.
+    setoid_rewrite dec_Some.
+    split.
+    - intros (?&?&?&?) ; subst ; eauto.
+    - intros ; eexists ; intuition eauto.
+  Qed.
 
-Lemma intersection_elem : forall (A:preord) eqdec (P Q:eset A) (x:A),
-  x ∈ (intersection eqdec P Q) <->
-  (x ∈ P /\ x ∈ Q).
-Proof.
-  intros. split; intros.
-  - destruct H as [z ?].
-    unfold intersection in H.
-    case_eq (unpairing z); intros p q ?.
-    rewrite H0 in H.
-    case_eq (P p); intros; rewrite H1 in H.
-    + case_eq (Q q); intros; rewrite H2 in H.
-      * destruct (eqdec c c0).
-        ** split.
-           *** exists p. rewrite H1. auto.
-           *** exists q. rewrite H2.
-               eapply eq_trans; eauto.
-        ** elim H.
-      * elim H.
-    + elim H.
-
-  - destruct H as [[p Hp] [q Hq]].
-    exists (pairing (p,q)).    
-    unfold intersection.
-    rewrite unpairing_pairing.
-    destruct (P p); intuition.
-    destruct (Q q); intuition.
-    destruct (eqdec c c0); auto.
-    elim f. eapply eq_trans; eauto.
-Qed.
-
+End ESubset.
 
 (**  The finite subets of an enumerable set are enumerable.
   *)
 
-Fixpoint choose_finset (A:preord) (X:eset A) (n:nat) (z:N) : finset A :=
+Fixpoint choose_finset {A : Poset} (X:nat -> option A) (n:nat) (z:nat) : finset A :=
   match n with
-  | 0 => nil
-  | S n' => let (p,q) := unpairing z in
+  | 0 => fempty
+  | S n' => let (p,q) := Cantor.of_nat z in
               match X p with
-              | None => choose_finset A X n' q
-              | Some a => a :: choose_finset A X n' q
+              | None => choose_finset X n' q
+              | Some a => fcons a (choose_finset X n' q)
               end
   end.
 
-Lemma choose_finset_sub : forall A X n z,
-  choose_finset A X n z ⊆ X.
+Lemma choose_finset_sound (A : Poset) (X : nat -> option A) n z : choose_finset X n z ⊆ efun X.
 Proof.
-  induction n; simpl; intros.
-  - red; simpl; intros.
-    destruct H as [?[??]]. elim H.
-  - case_eq (unpairing z); intros p q ?.
-    case_eq (X p); intros.
-    + red; simpl; intros.
-      destruct H1 as [b [??]].
-      simpl in H1; intuition subst.
-      * exists p. rewrite H0. auto.
-      * apply (IHn q). rewrite H2.
-        exists b. split; auto.
+  induction n in z |- * ; simpl; intros.
+  - apply: fempty_incl.
+  - destruct (of_nat z) as [p q] eqn: ez.
+    destruct (X p) eqn:ep.
+    + move => ? /fconsP [<- | /IHn] //.
+      rewrite esetP.
+      now eexists.
     + apply IHn.
 Qed.
 
-Lemma choose_finset_in : forall A X (Q:finset A),
-  Q ⊆ X -> exists n, exists z, choose_finset A X n z ≈ Q.
+Lemma choose_finset_complete (A : Poset) (X : nat -> option A) (Y:finset A) :
+  Y ⊆ (efun X) -> exists n, exists z, choose_finset X n z = Y.
 Proof.
-  intros. induction Q. 
-  - exists 0. exists N0. simpl; auto.
-  - destruct IHQ as [n [z ?]].
-    + apply incl_trans with finset_theory (a::Q); auto.
-      red; simpl; intros.
-      destruct H0 as [b [??]].
-      exists b; split; simpl; auto.
-    + assert (a ∈ X).
-      { apply H.
-        exists a. split; simpl; auto.
-      } 
-      destruct H1 as [p ?].
-      exists (S n). exists (pairing (p,z)).
-      simpl.
-      rewrite unpairing_pairing.
-      destruct (X p).
-      * split; red; simpl; intros.
-        ** destruct H2 as [b [??]].
-           simpl in H2; intuition subst.
-           *** exists a. split; simpl; eauto.
-           *** destruct H0.
-               destruct (H0 b).
-               exists b; split; auto.  
-               destruct H5.
-               exists x.  
-               split; simpl; eauto.
-        ** destruct H2 as [b [??]].
-           simpl in H2; intuition subst.
-           *** exists c.
-               split; simpl; eauto.
-           *** destruct H0.
-               destruct (H2 b); eauto.
-               **** exists b. split; auto.
-               **** destruct H5.
-                    exists x; split; simpl; eauto.
-      * elim H1.
+  induction Y as [|a Y IHY] using finset_ind.
+  - exists 0, 0.
+    reflexivity.
+  - intros.
+    edestruct IHY as [n [z HX]].
+    + intros x Hx.
+      now apply H, fconsP.
+    + subst.
+      assert (fun_member a X) as [p Hp]
+        by now apply esetP, H, fconsP.
+      exists (S n), (Cantor.to_nat (p,z)).
+      cbn -[to_nat].
+      now rewrite cancel_of_to Hp.
 Qed.
 
-Definition finsubsets A (X:eset A) : eset (finset A) :=
-  fun n => let (p,q) := unpairing n in Some (choose_finset A X (N.to_nat p) q).
+Definition fun_fpow {A : Poset} (X:nat -> option A) : nat -> option (finset A) :=
+  fun n => let (p,q) := (Cantor.of_nat n) in
+    Some (choose_finset X p q).
 
+Lemma fun_fpowP (A : Poset) (X:nat -> option A) (Q: finset A) :
+  Q ⊆ (efun X) <-> Q ∈ (efun (A := finset A) (fun_fpow X)).
+Proof.
+  split.
+  - move => /choose_finset_complete [n [z H]].
+    rewrite /fun_fpow esetP /fun_member.
+    exists (Cantor.to_nat (n,z)).
+    now rewrite cancel_of_to H.
+  - rewrite esetP /fun_fpow /fun_member => [[n ]].
+    destruct (of_nat n) as [p q] => [= <-].
+    now apply choose_finset_sound.
+Qed.
+
+Instance Proper_fun_fpow {A : Poset} : Proper (funset_ext A ==> funset_ext (finset A)) fun_fpow.
+Proof.
+  intros f g H X.
+  rewrite /fun_member -!(esetP (A := finset A)) -!fun_fpowP.
+  split.
+  all: now move => H' ? /H' /esetP /H /esetP.
+Qed.
+
+Definition fpow {A} : eset A -> eset (finset A) := quot_map fun_fpow.
+
+Lemma fpowP {A} (X : eset A) (Q : finset A) : Q ⊆ X <-> Q ∈ fpow X.
+Proof.
+  induction X using quot_ind.
+  rewrite fun_fpowP /fpow quot_map_eq //.
+Qed.
+
+(*
 Definition ne_finsubsets A (X:eset A) : eset (finset A) :=
   fun n => 
     let (p,q) := unpairing n in
-    let l := choose_finset A X (N.to_nat p) q in
+    let l := choose_finset A X (nat.to_nat p) q in
     match l with
     | nil => None
     | _ => Some l
     end.
-
-Lemma finsubsets_complete : forall A (X:eset A) (Q:finset A),
-  Q ⊆ X <-> Q ∈ finsubsets A X.
-Proof.
-  intros. split; intros.
-  - apply choose_finset_in in H.
-    destruct H as [n [z ?]].
-    exists (pairing (N.of_nat n,z)).
-    unfold finsubsets.
-    rewrite unpairing_pairing.
-    rewrite Nat2N.id.
-    auto.
-  - destruct H as [z ?].
-    unfold finsubsets in H.
-    case_eq (unpairing z); intros.
-    rewrite H0 in H.
-    rewrite H.
-    apply choose_finset_sub.
-Qed.
 
 Lemma ne_finsubsets_complete : forall A (X:eset A) (Q:finset A),
   ((exists x, x ∈ Q) /\ Q ⊆ X) <-> Q ∈ ne_finsubsets A X.
@@ -614,7 +670,7 @@ Proof.
   - destruct H.
     apply choose_finset_in in H0.
     destruct H0 as [n [z ?]].
-    exists (pairing (N.of_nat n,z)).
+    exists (pairing (nat.of_nat n,z)).
     unfold ne_finsubsets.
     rewrite unpairing_pairing.
     rewrite Nat2N.id.
@@ -633,7 +689,7 @@ Proof.
     unfold ne_finsubsets in H.
     case_eq (unpairing z); intros.
     rewrite H0 in H.
-    case_eq (choose_finset A X (N.to_nat n) n0); intros.
+    case_eq (choose_finset A X (nat.to_nat n) n0); intros.
     + rewrite H1 in H. elim H.
     + rewrite H1 in H.
       split.
@@ -643,432 +699,174 @@ Proof.
       * rewrite H. rewrite <- H1.
         apply choose_finset_sub.
 Qed.
+*)
 
-Lemma unitpo_dec : ord_dec unitpo.
-Proof.
-  constructor. intros. left. hnf. auto.
-Qed.
+(** ** Semidecidable predicates *)
 
-(**  A predicate is semidecidable if its truth is equal
+(** A predicate is semidecidable if its truth is equal
      to the inhabitedness of an enumerable set.
   *)
-Record semidec (P:Prop) :=
-  Semidec
-  { decset : eset unitpo
-  ; decset_correct : tt ∈ decset <-> P
+Class SemiDec (P:Prop) :=
+  { decset : eset unit
+  ; decsetP : tt ∈ decset <-> P
   }.
+
+Arguments decset _ {_}.
 
 (**  Decidable predicates are semidecidable.
   *)
-Program Definition dec_semidec (P:Prop)
-  (Hdec : {P}+{~P}) :
-  semidec P :=
-  Semidec _ (if Hdec then single tt else ∅) _.
-Next Obligation.
-  intros.
-  destruct Hdec.
-  intuition. apply single_axiom. auto.
-  intuition.
-  apply empty_elem in H. elim H.
-Qed.
-
-Program Definition semidec_true : semidec True
-  := Semidec _ (single tt) _.
-Next Obligation.
-  intros; split; auto.
-  intro. 
-  apply single_axiom. 
-  auto.
-Qed.
-
-Program Definition semidec_false : semidec False
-  := Semidec _ ∅ _.
-Next Obligation.
-  intuition.
-  apply empty_elem in H. auto.
-Qed.
-
-Program Definition semidec_disj (P Q:Prop) (HP:semidec P) (HQ:semidec Q)
-  : semidec (P \/ Q)
-  := Semidec _ (union2 (decset P HP) (decset Q HQ)) _.
-Next Obligation.
-  intuition.
-  - apply union2_elem in H.
-    destruct H.
-    rewrite decset_correct in H; auto.
-    rewrite decset_correct in H; auto.
-  - apply union2_elem.
-    left. rewrite decset_correct. auto.
-  - apply union2_elem.
-    right. rewrite decset_correct. auto.
-Qed.
-
-Program Definition semidec_conj (P Q:Prop) (HP:semidec P) (HQ:semidec Q) 
-  : semidec (P /\ Q)
-  := Semidec _ (intersection (PREORD_EQ_DEC _ unitpo_dec) 
-                     (decset P HP) (decset Q HQ)) _.
-Next Obligation.
-  intros; split; intros.
-  - apply intersection_elem in H.
-    destruct H; split.
-    + rewrite decset_correct in H; auto.
-    + rewrite decset_correct in H0; auto.
-  - destruct H. apply intersection_elem.
-    split; apply decset_correct; auto.
-Qed.
-
-Lemma semidec_iff (P Q:Prop)  :
-  (P <-> Q) ->
-  semidec P -> semidec Q.
+#[refine]Instance dec_semidec P `{!Decision P} : SemiDec P :=
+  {| decset := (if (decide P) then single tt else eempty) ; decsetP := _ |}.
 Proof.
-  intros.
-  destruct X.
-  apply Semidec with decset0.
-  intros.
-  rewrite decset_correct0. auto.
+  destruct (decide P).
+  all: rewrite ?singleP ?eemptyP ; intuition.
 Qed.
 
-Program Definition const {A B:preord} (x:B) : A → B :=
-  Preord.Hom A B (fun _ => x) _.
-Next Obligation.
-  intros; auto.
-Qed.
-
-Lemma semidec_in (A:preord) (HA:ord_dec A) (X:eset A) x :
-  semidec (x ∈ X).
+#[refine]Instance semidec_true : SemiDec True
+  := {| decset := (single tt) ; decsetP := _ |}.
 Proof.
-  apply Semidec with (image (const tt) 
-    (intersection (PREORD_EQ_DEC A HA) X (eset.esingle A x))).
-  split; intros.
-  - apply image_axiom2 in H.
-    destruct H as [y [??]].
-    apply intersection_elem in H.
-    destruct H.
-    apply single_axiom in H1. rewrite <- H1. auto.
-  - apply image_axiom1'.
-    exists x. split.
-    + simpl. auto.
-    + apply intersection_elem.
-      split; auto.
-      apply single_axiom. auto.
+  rewrite singleP ; intuition.
 Qed.
 
-(*
-Lemma semidec_in_finset (A B:preord) (HA:ord_dec A) (X:finset A) f :
-  (forall b b':B, b ≤ b' -> f b ≤ f b') ->
-  semidec (fun x:B => f x ∈ X).
+#[refine]Instance semidec_false : SemiDec False
+  := {| decset := eempty ; decsetP := _ |}.
 Proof.
-  intros.
-  apply dec_semidec.
-  intros. apply member_eq with (f x); auto.
-  intro. apply finset_dec. auto.
-Qed.
-*)
-
-Fixpoint all_finset_setdec
-  (A:preord) (DECSET:A -> eset unitpo) (X:finset A) : eset unitpo :=
-  match X with
-  | nil => single tt
-  | x::xs => intersection (PREORD_EQ_DEC _ unitpo_dec)
-                (DECSET x) (all_finset_setdec A DECSET xs)
-  end.
-
-Program Definition all_finset_semidec {A:preord} (P:A -> Prop) 
-  (Hok : forall a b, a ≈ b -> P a -> P b)
-  (H:forall a, semidec (P a)) (X:finset A)
-  : semidec (forall a:A, a ∈ X -> P a)
-  := Semidec _ (all_finset_setdec A (fun a => decset (P a) (H a)) X) _.
-Next Obligation.
-  intros. induction X.
-  - simpl; intuition.
-    apply nil_elem in H1. elim H1.
-    apply single_axiom. auto.
-  - split.
-    + intros.
-      simpl all_finset_setdec in H0.
-      apply intersection_elem in H0.
-      destruct H0.
-      rewrite IHX in H2.
-      apply cons_elem in H1. destruct H1.
-      * rewrite decset_correct in H0.
-        apply Hok with a; auto.
-      * apply H2; auto.
-    + intros.
-      simpl. apply intersection_elem.
-      split.
-      * apply decset_correct.
-        apply H0. apply cons_elem; auto.
-      * apply IHX.
-        intros. apply H0. apply cons_elem; auto.
+  now rewrite eemptyP.
 Qed.
 
-Fixpoint ex_finset_setdec
-  (A:preord) (DECSET:A -> eset unitpo) (X:finset A) : eset unitpo :=
-  match X with
-  | nil => empty unitpo
-  | x::xs => union2 (DECSET x) (ex_finset_setdec A DECSET xs)
-  end.
-
-Program Definition ex_finset_semidec {A:preord} (P:A -> Prop) 
-  (Hok:forall a b, a ≈ b -> P a -> P b)
-  (H:forall a, semidec (P a))
-  (X:finset A)
-  : semidec (exists a:A, a ∈ X /\ P a)
-  := Semidec _ (ex_finset_setdec A (fun a => decset (P a) (H a)) X) _.
-Next Obligation.
-  intros. induction X.
-  - split; simpl; intros.
-    + apply empty_elem in H0. elim H0.
-    + destruct H0 as [a [??]]. apply nil_elem in H0. elim H0.
-  - split; simpl; intros.
-    + apply union2_elem in H0.
-      destruct H0.
-      * rewrite decset_correct in H0.
-        exists a. split; auto. apply cons_elem; auto.
-      * rewrite IHX in H0.
-        destruct H0 as [b [??]].
-        exists b. split; auto.
-        apply cons_elem; auto.
-    + destruct H0 as [q[??]].
-      apply cons_elem in H0. destruct H0.
-      * apply union2_elem.
-        left. apply decset_correct; auto.
-        apply Hok with q; auto.
-      * apply union2_elem.
-        right. apply IHX.
-        exists q. split; auto.
-Qed.
-
-Definition eimage' (A B:preord) (f:A -> B) (P:eset A) : eset B :=
-  fun n => match P n with None => None | Some x => Some (f x) end.
-
-Program Definition esubset {A:preord} (P:A -> Prop) 
-  (H:forall a, semidec (P a)) (X:eset A) :=
-  eset.eunion A 
-    (eimage' _ _ (fun x => eimage' _ _ (fun _ => x) (decset (P x) (H x))) X).
-
-Lemma esubset_elem (A:preord) (P:A->Prop) (dec:forall a, semidec (P a)) 
-  (Hok:forall a b, a ≈ b -> P a -> P b)
-  X x :
-  x ∈ esubset P dec X <-> (x ∈ X /\ P x).
+#[refine]Instance semidec_disj (P Q:Prop) `{HP : SemiDec P} `{HQ : SemiDec Q}
+  : SemiDec (P \/ Q)
+  := {| decset := (eunion2 (decset P) (decset Q)) ; decsetP := _|}.
 Proof.
-  split; intros.
-  - unfold esubset in H.
-    apply union_axiom in H.
-    destruct H as [Q [??]].
-    destruct H as [n ?].
-    unfold eimage' in H.
-    case_eq (X n); intros.
-    + rewrite H1 in H.
-      destruct H.
-      generalize H0.
-      intros.
-      apply H in H0.
-      destruct H0 as [m ?].
-      case_eq (decset (P c) (dec c) m); intros.
-      * rewrite H4 in H0.
-        split.
-        ** exists n. rewrite H1. auto.
-        ** apply Hok with c; auto.
-           apply (decset_correct _ (dec c)).
-           exists m. rewrite H4; auto.
-           destruct c0; auto.
-      * rewrite H4 in H0. elim H0.
-    + rewrite H1 in H. elim H.
+  now rewrite eunion2P !decsetP.
+Qed.
 
-  - destruct H.
-    unfold esubset.
-    apply union_axiom.
-    exists
-      ((fun x0 : A =>
-          eimage' unitpo A (fun _ : unitpo => x0) (decset (P x0) (dec x0))) x).
+#[refine]Instance semidec_conj (P Q:Prop) `{HP : SemiDec P} `{HQ : SemiDec Q}
+  : SemiDec (P /\ Q)
+  := {| decset := (einter2 (decset P) (decset Q)) ; decsetP := _|}.
+Proof.
+  now rewrite einter2P !decsetP.
+Qed.
+
+Program Definition semidec_in {A : DecPoset} (X:eset A) x : SemiDec (x ∈ X) :=
+  {| decset := image (const_mon tt) (einter2 X (single x)) ; decsetP := _|}.
+Next Obligation.
+  rewrite imageP.
+  split.
+  - intros [? [Hin _]].
+    rewrite einter2P singleP in Hin.
+    now destruct Hin as [? ->].
+  - eexists.
+    split ; [|easy].
+    now rewrite einter2P singleP.
+Qed.
+
+Hint Extern 100 (SemiDec (_ ∈ _)) => (apply: semidec_in) : typeclass_instances. 
+
+#[refine]Instance semidec_all {A : DecPoset} (X:finset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
+  SemiDec (∀ a ∈ X, P a) :=
+  {|
+    decset :=
+      image (const_mon tt) (finter (esingle tt)
+        (fimage (fun a => decset (P a)) X)) ;
+    decsetP := _
+  |}.
+Proof.
+  rewrite imageP.
+  setoid_rewrite finterP.
+  setoid_rewrite fimageP.
+  split.
+  - intros ([]&[_ H]&_) a Hin.
+    apply decsetP, H.
+    now eexists.
+  - intros.
+    exists tt.
+    repeat split.
+    1: now rewrite singleP.
+    intros ? (?&[]) ; subst.
+    now apply decsetP.
+Qed.
+
+#[refine]Instance semidec_ex {A : DecPoset} (X:eset A) (P : A -> Prop) `{HP : forall a, SemiDec (P a)} :
+  SemiDec (∃ a ∈ X, P a) :=
+  {|
+    decset :=
+      image (const_mon tt) (union (eimage (fun a => decset (P a)) X)) ;
+    decsetP := _
+  |}.
+Proof.
+  rewrite imageP.
+  setoid_rewrite unionP.
+  setoid_rewrite eimageP.
+  split.
+  - intros ([]&(?&(?&?&?)&?)&_) ; subst.
+    eexists ; split ; tea.
+    now apply decsetP.
+  - intros (?&[]).
+    exists tt.
+    repeat split.
+    eexists ; split ; eauto.
+    now apply decsetP.
+Qed.
+
+(** It is enough to have a *semi-decidable* proposition
+  for the corresponding subset to be enumerable. *)
+
+Definition esubset {A : Poset} (P:A -> Prop) 
+  `{! forall a, SemiDec (P a)} (X:eset A) : eset A :=
+    ∪ (eimage (fun (a : A) => (image (const_mon a) (decset (P a)))) X).
+
+Lemma esubsetP {A : Poset} (P:A -> Prop)  `{! forall a, SemiDec (P a)} (X:eset A) (x : A) :
+  x ∈ esubset P X <-> x ∈ X /\ P x.
+Proof.
+  rewrite /esubset unionP.
+  setoid_rewrite eimageP.
+  split.
+  - intros (?&(?&?&?)&Him) ; subst.
+    rewrite imageP /= in Him.
+    destruct Him as ([]&?&<-).
+    split ; [easy|].
+    now apply decsetP.
+  - intros [].
+    exists (single x).
     split.
-    + red; simpl. red.
-      unfold eimage'. simpl.
-      destruct H as [n ?].
-      exists n.
-      destruct (X n); auto.
-      split; simpl; intros; red; simpl; intros.
-      * destruct H1 as [m ?]. simpl in H1.
-        case_eq (decset (P x) (dec x) m); intros.
-        ** rewrite H2 in H1.
-           assert (P x).
-           { apply (decset_correct _ (dec x)).
-             exists m. rewrite H2. destruct c0; auto.
-           }
-           assert (P c).
-           { apply Hok with x; auto. }
-           rewrite <- (decset_correct _ (dec c)) in H4.
-           destruct H4 as [p ?].
-           exists p. destruct (decset (P c) (dec c) p); auto.
-           rewrite H1; auto.
-        ** rewrite H2 in H1. elim H1.
-      * destruct H1 as [m ?].
-        case_eq (decset (P c) (dec c) m); intros.
-        ** rewrite H2 in H1.
-           assert (P c).
-           { rewrite <- (decset_correct _ (dec c)).
-             exists m. rewrite H2. destruct c0; auto.
-           } 
-           assert (P x).
-           { apply Hok with c; auto. }
-           rewrite <- (decset_correct _ (dec x)) in H4.
-           destruct H4 as [p ?].
-           exists p. destruct (decset (P x) (dec x) p); auto.
-           rewrite H1; auto.
-        ** rewrite H2 in H1. elim H1.
-
-    + rewrite <- (decset_correct _ (dec x)) in H0.
-      destruct H0 as [n ?].
-      case_eq (decset _ (dec x) n); intros.
-      * rewrite H1 in H0.
-        exists n.
-        unfold eimage'.
-        rewrite H1. auto.
-      * rewrite H1 in H0. elim H0.
+    2: now rewrite singleP.
+    exists x ; split ; [easy|].
+    ext.
+    rewrite singleP imageP.
+    split.
+    + intros ->.
+      exists tt.
+      now rewrite decsetP.
+    + now intros ([]&?&?).
 Qed.
 
-Definition esubset_dec (A:preord) (P:A -> Prop) (dec:forall x:A, {P x}+{~P x})
-  (X:eset A) : eset A :=
-  fun n => match X n with
-           | None => None
-           | Some a => 
-               match dec a with
-               | left H => Some a
-               | right _ => None
-               end
-           end.
+(** ** Enumerable relations *)
 
-Lemma esubset_dec_elem : forall (A:preord) (P:A->Prop) dec X x,
-  (forall x y, x ≈ y -> P x -> P y) ->
-  (x ∈ esubset_dec A P dec X <-> (x ∈ X /\ P x)).
-Proof.  
-  intros. split; intros.
-  - red in H0. simpl in H0.
-    destruct H0 as [n ?].
-    unfold esubset_dec in H0.
-    case_eq (X n); intros.
-    + rewrite H1 in H0.
-      destruct (dec c).
-      * split; auto.
-        exists n. rewrite H1. auto.
-        apply H with c; auto.
-      * elim H0.
-    + rewrite H1 in H0. elim H0.
+Definition erel (A B:Poset) := eset (A * B).
 
-  - destruct H0.
-    destruct H0 as [n ?].
-    exists n.
-    unfold esubset_dec.
-    destruct (X n); auto.
-    destruct (dec c); auto.
-    apply n0. apply H with x; auto.
-Qed.
+Definition erel_image {A : DecPoset} {B : Poset} (R : erel A B) (a : A) : eset B :=
+  image π₂ (esubset_dec (fun x => a = (fst x)) R).
 
-Definition erel (A B:preord) := eset (A × B).
-
-Definition erel_image (A B:preord) (dec : ord_dec A) (R:erel A B) (x:A) : eset B :=
-  image π₂ (esubset_dec
-                    (A×B)
-                    (fun p => π₁#p ≈ x)
-                    (fun p => PREORD_EQ_DEC A dec (π₁#p) x) R).
-
-Lemma erel_image_elem : forall A B dec R x y,
-  y ∈ erel_image A B dec R x <-> (x,y) ∈ R.
-Proof.  
-  intros. split; intros.
-
-  - unfold erel_image in H.
-    apply image_axiom2 in H.
-    destruct H as [p [??]].
-    apply esubset_dec_elem in H.
-    + destruct H.
-      assert (p ≈ (x,y)).
-      { destruct p; simpl in *.
-        destruct H1.
-        destruct H0.
-        split; split; auto.
-      }
-      rewrite <- H2. auto.
-    + intros.
-      rewrite <- H2. auto.
-
-  - unfold erel_image.
-    change y with (π₂# ((x,y) : A×B)).
-    apply image_axiom1.
-    apply esubset_dec_elem.
-    + intros. rewrite <- H0; auto.
-    + split; auto.
-Qed.
-
-Definition erel_inv_image 
-  (A B:preord) (dec : ord_dec B) (R:erel A B) (y:B) : eset A :=
-  image π₁ (esubset_dec (A×B)
-                    (fun p => π₂#p ≈ y)
-                    (fun p => PREORD_EQ_DEC B dec (π₂#p) y) R).
-
-Lemma erel_inv_image_elem : forall A B dec R x y,
-  x ∈ erel_inv_image A B dec R y <-> (x,y) ∈ R.
-Proof.  
-  intros. split; intros.
-
-  - unfold erel_inv_image in H.
-    apply image_axiom2 in H.
-    destruct H as [p [??]].
-    apply esubset_dec_elem in H.
-    + destruct H.
-      assert (p ≈ (x,y)).
-      { destruct p; simpl in *.
-        destruct H1; destruct H0.
-        split; split; auto.
-      } 
-      rewrite <- H2; auto.
-    + intros. rewrite <- H2; auto.
-  - unfold erel_inv_image.
-    change x with (π₁# ((x,y) : A × B)).
-    apply image_axiom1.
-    apply esubset_dec_elem.
-    + intros. rewrite <- H0; auto.
-    + split; auto.
-Qed.
-
-(** * Weak countable choice 
-
-     Countable indefinite description gives rise to a functional choice principle:
-       "Every total enumerable relation gives rise to a (computable) function."
-
-     There are two subtle points regarding the formal statemet: first,
-     we need need to assume a decidable order on A (and thus decidable
-     setoid equality); second, the choice function is _constructed_
-     not just asserted to exist.
-
-     This statement is weaker than the "standard" version of countable choice.
-     In countable choice, the domain [A] is assumed to be countable,
-     but the cardinality of the relation [R] is unconstrained.
-
-     Here, we instead require [R] to be enumerable and [A] to have a decidable
-     order.  Because [R] is total, this implies [A] is countable (and
-     effective, as defined in "effective.v.")  Hence this statement is
-     implied by countable choice (more precisely, a statement of countable choice
-     that constructs a function, rather than merely asserting it to exist).
-     This statement is _strictly_ weaker, as the usual version of
-     countable choice is not provable in Coq.
-  *)
-Theorem weak_countable_choice (A B:preord) (HA:ord_dec A) (R:erel A B) :
-  (forall a:A, exists b, (a,b) ∈ R) ->
-  { f:A -> B | forall a, (a, f a) ∈ R }.
+Lemma erel_imageP {A : DecPoset} {B : Poset} (R : erel A B) (x : A) (y : B) :
+  y ∈ erel_image R x <-> (x,y) ∈ R.
 Proof.
-  intros.
+  rewrite /erel_image imageP.
+  setoid_rewrite esubset_decP.
+  split.
+  - intros ([]&?) ; intuition (subst ; eauto).
+  - now eexists.
+Qed.
 
-  assert (Hrng : forall a, einhabited (erel_image A B HA R a)).
-  { intros. apply member_inhabited.
-    destruct (H a) as [b ?]. exists b.
-    apply erel_image_elem. auto.
-  }
-  exists (fun a => choose B (erel_image A B HA R a) (Hrng a)).
+Definition erel_inv_image {A : Poset} {B : DecPoset} (R : erel A B) (b : B) : eset A :=
+  image π₁ (esubset_dec (fun (x : A * B) => b = (snd x)) R).
 
-  intros.
-  generalize (choose_elem B (erel_image A B HA R a) (Hrng a)).
-  intros. apply erel_image_elem in H0.
-  auto.
+Lemma erel_inv_imageP {A : Poset} {B : DecPoset} (R : erel A B) (x : A) (y : B) :
+  x ∈ erel_inv_image R y <-> (x,y) ∈ R.
+Proof.
+  rewrite /erel_inv_image imageP.
+  setoid_rewrite esubset_decP.
+  split.
+  - intros ([]&?) ; intuition (subst ; eauto).
+  - now eexists.
 Qed.

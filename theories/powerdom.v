@@ -396,7 +396,7 @@ Section powerdom.
           - destruct IHc as [z0 [?[??]]].
             destruct (mub_complete Xplt nil a) as [a' [??]].
             { rewrite H0. hnf. auto. }
-            { apply ub_nil. }
+            { apply ub_emp. }
             exists (a'::z0).
             repeat split; intros.
             + apply cons_elem in H6. destruct H6.
@@ -493,7 +493,7 @@ Section powerdom.
               destruct (H10 m) as [my [??]]; auto.
               destruct (mub_complete Xplt (mx::my::nil) m) as [q0 [??]].
               { apply directed.elem_inh with mx. apply cons_elem; auto. }
-              { apply ub_cons; auto. apply ub_cons; auto. apply ub_nil. }
+              { apply ub_cons; auto. apply ub_cons; auto. apply ub_emp. }
               exists q0. apply Hq.
               split.
               - split.
@@ -561,7 +561,7 @@ Section powerdom.
                   destruct (H3 y0) as [q2 [??]]; auto.
                   destruct (mub_complete Xplt (q1::q2::nil) y0).
                   { eapply directed.elem_inh. apply cons_elem. left; eauto. }
-                  { apply ub_cons; auto. apply ub_cons; auto. apply ub_nil. }
+                  { apply ub_cons; auto. apply ub_cons; auto. apply ub_emp. }
 
                   destruct H12.
                   exists x0. split; auto.
@@ -599,7 +599,7 @@ Section powerdom.
                   destruct (H11 q1) as [q2 [??]]; auto.
                   destruct (mub_complete Xplt (x0::q2::nil) q1).
                   { eapply directed.elem_inh. apply cons_elem. left; eauto. }
-                  { apply ub_cons. auto. apply ub_cons; auto. apply ub_nil. }
+                  { apply ub_cons. auto. apply ub_cons; auto. apply ub_emp. }
                   destruct H14.
                   exists x1. split.
                   **** apply Hq. split.
@@ -630,7 +630,7 @@ Section powerdom.
                        destruct (H11 q1) as [q2 [??]]; auto.
                        destruct (mub_complete Xplt (x0::q2::nil) q1).
                        { eapply directed.elem_inh. apply cons_elem. left; eauto. }
-                       { apply ub_cons; auto. apply ub_cons; auto. apply ub_nil. }
+                       { apply ub_cons; auto. apply ub_cons; auto. apply ub_emp. }
 
                        destruct H14.
                        exists x1. split.
@@ -675,7 +675,7 @@ Section powerdom.
                              destruct (H9 y0) as [q2 [??]]; auto.
                              destruct (mub_complete Xplt (q1::q2::nil) y0).
                              { eapply directed.elem_inh. apply cons_elem. left; eauto. }
-                             { apply ub_cons; auto. apply ub_cons; auto. apply ub_nil. }
+                             { apply ub_cons; auto. apply ub_cons; auto. apply ub_emp. }
                              destruct H14.
                              exists x0. split; auto.
                              apply Hq.
@@ -5304,7 +5304,7 @@ Section powerdom_functor.
       destruct (embed_directed2 f qy qa qb) as [q [?[??]]]; auto.
       destruct (mub_complete (PLT.plotkin X) (qa::qb::nil) q) as [q0 [??]].
       { apply elem_inh with qa. apply cons_elem; auto. }
-      { apply ub_cons; auto. apply ub_cons; auto. apply ub_nil. }
+      { apply ub_cons; auto. apply ub_cons; auto. apply ub_emp. }
       exists q0. split.
       - apply Hq.
         split. split.

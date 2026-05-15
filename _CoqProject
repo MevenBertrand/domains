@@ -1,47 +1,75 @@
 -R theories Domains
--arg -w -arg -redundant-canonical-projection
--arg -w -arg -projection-no-head-constant
 
-theories/notations.v
-theories/pairing.v
-theories/basics.v
-theories/categories.v
-theories/bicategories.v
+theories/utils/notations.v
+theories/utils/tactics.v
+theories/utils/basics.v
+theories/utils/decision.v
+theories/utils/axioms.v
+theories/utils/all.v
+
+theories/nat_isos.v
+theories/categories/categories.v
+theories/categories/morphisms.v
+theories/categories/functors.v
+theories/categories/category_hierarchy.v
+theories/categories/monads.v
+# theories/categories/bicategories.v
+theories/categories/all.v
+
 theories/preord.v
 theories/sets.v
+theories/colsets.v
 theories/finsets.v
 theories/esets.v
-theories/effective.v
-theories/plotkin.v
-theories/cusl.v
-theories/directed.v
-theories/cont_functors.v
-theories/cpo.v
-theories/joinable.v
-theories/approx_rels.v
-theories/bilimit.v
-theories/profinite.v
-theories/rational_intervals.v
-theories/realdom.v
-theories/realops.v
-theories/embed.v
-theories/profinite_adj.v
-theories/cont_profinite.v
-theories/exp_functor.v
-theories/sumprod_functor.v
-theories/cont_adj.v
-theories/atoms.v
-theories/permutations.v
-theories/nominal.v
-theories/fixes.v
-theories/discrete.v
-theories/flat.v
-theories/lam_models.v
-theories/powerdom.v
-theories/strict_utils.v
-theories/finprod.v
+theories/sets_choice.v
 
-theories/examples/ski.v
-theories/examples/skiy.v
-theories/examples/st_lam.v
-theories/examples/st_lam_fix.v
+theories/effective.v
+theories/directed.v
+# theories/plotkin.v
+# theories/cusl.v
+# theories/cont_functors.v
+# theories/cpo.v
+# theories/joinable.v
+# theories/approx_rels.v
+# theories/bilimit.v
+# theories/profinite.v
+# theories/rational_intervals.v
+# theories/realdom.v
+# theories/realops.v
+# theories/embed.v
+# theories/profinite_adj.v
+# theories/cont_profinite.v
+# theories/exp_functor.v
+# theories/sumprod_functor.v
+# theories/cont_adj.v
+# theories/atoms.v
+# theories/permutations.v
+# theories/nominal.v
+# theories/fixes.v
+# theories/discrete.v
+# theories/flat.v
+# theories/lam_models.v
+# theories/powerdom.v
+# theories/strict_utils.v
+# theories/finprod.v
+
+# theories/examples/ski.v
+# theories/examples/skiy.v
+# theories/examples/st_lam.v
+# theories/examples/st_lam_fix.v
+
+theories/examples/finelt/findom.v
+theories/examples/finelt/types.v
+theories/examples/finelt/raw_semantics.v
+theories/examples/finelt/eval_substitution.v
+theories/examples/finelt/typing_semantics.v
+theories/examples/finelt/raw_validity2.v
+theories/examples/finelt/finite_projection.v
+theories/examples/finelt/adequacy.v
+
+theories/autosubst/core.v
+theories/autosubst/fintype.v
+theories/examples/syntax/syntax.v
+theories/examples/syntax/fin_util.v
+theories/examples/syntax/typing.v
+theories/examples/syntax/relations.v
