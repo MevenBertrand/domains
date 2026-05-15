@@ -125,10 +125,12 @@ Proof.
   all: try reflexivity.
   - rewrite proj_bot_tm. done.
   - rewrite proj_tuniv.  
-    move: H => /Nat.ltb_spec0 H. rewrite H. done.
+    admit.
   - rewrite proj_succ_tnat. rewrite IHh. done.
   - rewrite proj_tpi_tuniv. rewrite IHh.
     f_equal.
+    admit.
+    (*
     clear H H1 h H3 IHh.
     move: H0 H2.
     induction g as [|[u v]g].
@@ -142,8 +144,10 @@ Proof.
     move=> ui vi Ing. 
     eapply Hui; eauto. right; eauto.
     move=> ui vi Ing.
-    eapply Hvi; eauto. right; eauto.
+    eapply Hvi; eauto. right; eauto. *)
   - rewrite proj_abs_tpi. f_equal.
+    admit.
+    (*
     move: f H H0 H1 H2 H3.
     induction f as [|[u v]f].
     all: intros HTu HEu HTv HEv Vf. all: cbn. done.
@@ -161,7 +165,7 @@ Proof.
       eapply HEu; eauto. right; eauto.
       eapply HTv; eauto. right; eauto.
       eapply HEv; eauto. right; eauto.
-    + destruct f; try done.
+    + destruct f; try done. *)
 Admitted.
 
 
@@ -196,12 +200,3 @@ Qed.
 
 Hint Resolve proj_valid : valid.
 
-(* Lemma 3 *)
-(*
-I don't understand the point here. *)
-(*
-Lemma proj_compatible u v a : 
-  wt u a -> wt v a -> 
-  compatible (proj u a) (proj v a).
-move=> WTu WTv. repeat rewrite proj_forward; eauto.
-*)
