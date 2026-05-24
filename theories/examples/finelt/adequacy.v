@@ -785,15 +785,7 @@ Qed.
 (* piConv (Corollary 6, parts 1–3):
    From conv Γ A₀ (tpi B₁ F₁) (tuniv i) extract HeadRed A₀ (tpi B₀ F₀)
    and conversions on the domain and codomain.
-
-   The Agda proof applies adequacyEqSub2 at botEnv with idSub (the
-   n-ary identity substitution) and reads the result off through
-   substExpr-id.  Our adequacyEqSub2 is defined for *closing*
-   substitutions only (σ : fin g → Tm 0), so the same argument runs
-   verbatim for closed Γ (i.e. n = 0, where idSub coincides with the
-   empty closing substitution null).  The n > 0 case requires
-   generalizing adequacyEqSub2 to non-empty target contexts and is
-   admitted. *)
+ *)
 Lemma piConv {n} (Γ : Ctx n) (A0 : Tm n) (B1 : Tm n) (F1 : Tm (S n)) i :
   conv Γ A0 (Core.tpi B1 F1) (Core.tuniv i) ->
   exists B0 F0,
@@ -820,11 +812,9 @@ Proof.
   have Vpi : valid (tpi bot nil) by [].
   have Hwt : wt u (tuniv i).
   { rewrite /u. apply: (@wt_tpi bot nil i).
-  admit. 
-  (*
-    - move=> ?? IN; inversion IN.
-    - move=> ?? IN; inversion IN.
-    - apply: wt_bot; done.
+    - econstructor; eauto. 
+    - apply: wt_bot. eapply wt_tuniv.
+      instantiate (1:= S i). lia.
     - exact: Vpi. }
 
   (* EvalRel for (tpi B1 F1) and (transported via conv) for A0. *)

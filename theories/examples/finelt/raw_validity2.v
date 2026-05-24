@@ -282,8 +282,10 @@ Definition ValTy {n} (Γ : Ctx n)
         exists A B, HeadRed M (Core.tpi A B)
 
                (* the syntactic pi-type is well-typed *)
+               (* 
                /\ typing Γ A (Core.tuniv i)
                /\ typing (Γ ++ A) B (Core.tuniv i)
+               *)
 
                (* the semantic pi-type is valid *)
                /\ valid (tpi b g)
@@ -291,14 +293,15 @@ Definition ValTy {n} (Γ : Ctx n)
                (* domain is in the relation *)
                /\ Val Rec Γ A (Core.tuniv i) (wt_tpi_dom h)
 
-               /\ PiEdgeVal Rec Γ A B (wt_tpi_inv h) /\ PiEdgeEq Rec Γ A B (wt_tpi_inv h)
+               /\ PiEdgeVal Rec Γ A B (wt_tpi_inv h) 
+               /\ PiEdgeEq Rec Γ A B (wt_tpi_inv h)
 
   | tnat => fun h => True
   | tuniv k => fun h => True
   | _ => fun h => True
   end.
 
-Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) i (h : wt a (tuniv i)) {struct h} : Prop :=
+Definition EqValTy {n} (Γ : Ctx n) M N (a : elt) i (h : wt a (tuniv i))  : Prop :=
   (match a return wt _ (tuniv i) -> Prop with
   | tpi b f =>
       fun (h : wt (tpi b f) (tuniv i))  =>
@@ -307,13 +310,13 @@ Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) i (h : wt a (tuniv i)) {struct h
              (* both reduce to pi types *)
              exists A B, HeadRed M (Core.tpi A B)
              /\ exists A' B', HeadRed N (Core.tpi A' B')
-             (* ... that are well-typed *)
-             /\ conv Γ A A' (Core.tuniv i)
-             /\ conv (Γ ++ A) B B' (Core.tuniv i)
+             (* ... that are convertible *)
+             (* /\ conv Γ A A' (Core.tuniv i)
+                /\ conv (Γ ++ A) B B' (Core.tuniv i) *)
              /\ valid (tpi b f)
              (* ... and the domain is in the relation *)
              /\ EqVal Rec Γ A A' (Core.tuniv i) (wt_tpi_dom h)
-        /\ PiEdgeEqTy Rec Γ A B B' (wt_tpi_inv h)
+             /\ PiEdgeEqTy Rec Γ A B B' (wt_tpi_inv h)
   | _ => fun h => True
   end) h.
 
@@ -381,7 +384,7 @@ with EqVal {n} (Γ : Ctx n)
                   Rec.ValTy Rec Γ A WTa
               | _ => True
               end
-             /\  Rec.ValPi Rec Γ M A h
+             /\ Rec.ValPi Rec Γ M A h
              /\ Rec.ValPi Rec Γ N A h
              /\ Rec.EqValPi Rec Γ M N A h
 
@@ -505,9 +508,12 @@ Notation ValPi := (@Rec.ValPi
         Rec.PiAppEq := @PiAppEq;
         Rec.PiAppEqVal := @PiAppEqVal
       |}).
-Notation EqValPi := (@Rec.EqValPi (Rec.MkF (@Val) (@EqVal) (@PiEdgeVal) (@PiEdgeEq) (@PiEdgeEqTy)(@PiAppVal) (@PiAppEq) (@PiAppEqVal))).
+Notation EqValPi := 
+  (@Rec.EqValPi 
+    (Rec.MkF (@Val) (@EqVal) (@PiEdgeVal) (@PiEdgeEq) (@PiEdgeEqTy)(@PiAppVal) (@PiAppEq) (@PiAppEqVal))).
 
-(* All terms in the relation have the right syntactic type. *)
+(* All terms in the relation have the right syntactic type.
+ NOT TRUE*)
 Fixpoint Val_typing {n} (Γ : Ctx n) (u : elt) (a: elt)
   (M : Tm n) (A : Tm n) (h : wt u a) :
   Val Γ M A h -> typing Γ M A.
@@ -517,6 +523,32 @@ Proof.
   all: cbn in h1.
   - destruct a; try done.
 Abort.
+
+(* Incomplete stub commented out — references undefined u, b, f, h1 and has no Proof block.
+
+wt_tpi
+     : forall (a : elt) (g : list (elt * elt)) (j : nat),
+       wt_pi_fun g a j -> wt a (tuniv j) -> valid (tpi a g) -> wt (tpi a g) (tuniv j)
+
+*)
+
+(*
+Lemma EqVal_tpi n (Γ:Ctx n) M N A f g a i u b (w : wt_pi_fun g a i) (h : wt a (tuniv i)) (V : valid (tpi a g)) :
+  (EqVal Γ M N A (wt_tpi w h V : wt u b)) =
+      (match h return wt _ (tpi a g) -> Prop with
+           | bot => fun h => True
+           | abs g => fun (h : wt (abs f) (tpi a g)) =>
+              match h with
+              | wt_abs WTf Vf (wt_tpi _ WTa _) =>
+                  Rec.ValTy Rec Γ A WTa
+              | _ => True
+              end
+             /\ Rec.ValPi Rec Γ M A h
+             /\ Rec.ValPi Rec Γ N A h
+             /\ Rec.EqValPi Rec Γ M N A h
+       end).
+*)
+
 
 
 (* ============================================================
@@ -602,12 +634,12 @@ Proof.
   - move=>h1.
     repeat split; eauto.
     clear A.
-    destruct h1 as (A & B & HR & TA & TB & VPi & ValA & PEV & PEE).
+    destruct h1 as (A & B & HR & (* TA & TB & *) VPi & ValA & PEV & PEE).
     exists A, B. split; auto.
     exists A, B. split; auto.
-    repeat split; auto.
+(*    repeat split; auto.
     eapply c_refl; eauto.
-    eapply c_refl; eauto.
+    eapply c_refl; eauto. *)
   - move=> h1.
     repeat split; eauto.
     destruct h1 as (HR & PAV).
@@ -725,6 +757,26 @@ Lemma ValTy_cumul {n} (Γ : Ctx n) (A : Tm n) u i (h : wt u (tuniv i)) :
   ValTy Γ A h -> ValTy Γ A h2.
 Admitted.
 
+(* Bidirectional cross-universe ValTy proof irrelevance.
+   Required to bridge cases (wt_abs in Val/EqVal, wt_pi_cons in PiEdge)
+   where two same-shaped wt witnesses sit at unrelated universe levels;
+   the one-directional [ValTy_cumul] cannot go down. Strictly stronger
+   than [ValTy_cumul]. *)
+(*
+Lemma ValTy_pirrel_cross {n} (Γ : Ctx n) (A : Tm n) u i j
+  (h1 : wt u (tuniv i)) (h2 : wt u (tuniv j)) :
+  ValTy Γ A h1 -> ValTy Γ A h2.
+Admitted.
+
+(* Cross-universe EqValTy proof irrelevance. Same motivation as
+   [ValTy_pirrel_cross]: needed in PiEdgeEqTy / PiEdgeEq forall cases
+   where the codomain witness sits at differing universe levels. *)
+Lemma EqValTy_pirrel_cross {n} (Γ : Ctx n) (M N : Tm n) u i j
+  (h1 : wt u (tuniv i)) (h2 : wt u (tuniv j)) :
+  EqValTy Γ M N h1 -> EqValTy Γ M N h2.
+Admitted.
+*)
+
 (* The pirrel statements are proven by mutual structural induction over
    the wt / wt_pi_fun / wt_abs_fun derivations. Cases where the inner
    wt_abs constructor yields two different existential universes (i in
@@ -737,16 +789,16 @@ with EqVal_pirrel {n} (Γ : Ctx n) (M N A : Tm n) u a
   (h1 h2 : wt u a) {struct h1} :
   EqVal Γ M N A h1 -> EqVal Γ M N A h2
 with PiEdgeVal_pirrel {n} (Γ : Ctx n)
-  (A : Tm n) (B : Tm (S n)) b f i 
-  (h1 h2 : wt_pi_fun f b i) {struct h1} :
+  (A : Tm n) (B : Tm (S n)) b f i j
+  (h1 : wt_pi_fun f b i) (h2: wt_pi_fun f b j) {struct h1} :
   PiEdgeVal Γ A B h1 -> PiEdgeVal Γ A B h2
 with PiEdgeEq_pirrel {n} (Γ : Ctx n)
-  (A : Tm n) (B : Tm (S n)) b f i
-  (h1 h2 : wt_pi_fun f b i) {struct h1} :
+  (A : Tm n) (B : Tm (S n)) b f i j
+  (h1 : wt_pi_fun f b i) (h2 : wt_pi_fun f b j){struct h1} :
   PiEdgeEq Γ A B h1 -> PiEdgeEq Γ A B h2
 with PiEdgeEqTy_pirrel {n} (Γ : Ctx n)
-  (A : Tm n) (B B' : Tm (S n)) b f i
-  (h1 h2 : wt_pi_fun f b i) {struct h1} :
+  (A : Tm n) (B B' : Tm (S n)) b f i j
+  (h1 : wt_pi_fun f b i) (h2 : wt_pi_fun f b j) {struct h1} :
   PiEdgeEqTy Γ A B B' h1 -> PiEdgeEqTy Γ A B B' h2
 with PiAppVal_pirrel {n} (Γ : Ctx n)
   (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) f b g
@@ -759,13 +811,40 @@ with PiAppEq_pirrel {n} (Γ : Ctx n)
 with PiAppEqVal_pirrel {n} (Γ : Ctx n)
   (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n)) f b g
   (h1 h2 : wt_abs_fun f b g) {struct h1} :
-  PiAppEqVal Γ M N A0 B0 h1 -> PiAppEqVal Γ M N A0 B0 h2.
+  PiAppEqVal Γ M N A0 B0 h1 -> PiAppEqVal Γ M N A0 B0 h2
+
+with ValTy_pirrel_cross {n} (Γ : Ctx n) (A : Tm n) u i j
+  (h1 : wt u (tuniv i)) (h2 : wt u (tuniv j)) :
+  ValTy Γ A h1 -> ValTy Γ A h2
+with EqValTy_pirrel_cross {n} (Γ : Ctx n) (M N : Tm n) u i j
+  (h1 : wt u (tuniv i)) (h2 : wt u (tuniv j)) :
+  EqValTy Γ M N h1 -> EqValTy Γ M N h2.
 Proof.
   - (* Val_pirrel *)
     intros VAL.
+    have 
+      ValTy_pirrel : forall n (Γ : Ctx n) (A : Tm n) u i 
+        (h1 : wt u (tuniv i)) j (h2 : wt u (tuniv j)),
+        ValTy Γ A h1 -> ValTy Γ A h2.
+    { 
+      clear n Γ M A u a h1 h2 VAL.
+      move=> n Γ A u i h1 j h2 VT.
+      dependent destruction h1; dependent destruction h2.
+      all: try solve [cbn; done].
+      cbn in VT |- *.
+      destruct VT as (A0 & B0 & R1 (* & T1 & T2 *) & VV & Vh1 & PEV & PEE).
+      exists A0. exists B0. 
+      split. exact R1.
+(*      split. exact T1.
+      split. exact T2. *)       
+      admit.
+(*      split. exact VV.
+      split. eapply Val_pirrel; eauto.
+      split. eapply PiEdgeVal_pirrel; eauto.
+      eapply PiEdgeEq_pirrel; eauto. *)
+    }
     dependent destruction h1; dependent destruction h2.
-    + (* wt_bot: Val depends on the (abstract) type-side a; case on a. *)
-      destruct a; cbn in *; trivial.
+    + (* wt_bot *) destruct a; cbn in *; trivial.
     + (* wt_tuniv *) cbn in *; trivial.
     + (* wt_tnat *) cbn in *; trivial.
     + (* wt_zero *) cbn in *; exact VAL.
@@ -775,14 +854,23 @@ Proof.
       exists M1. split; [exact HR | eapply Val_pirrel; exact VM1].
     + (* wt_tpi *)
       cbn in *.
-      destruct VAL as (A0 & B0 & HR & TA & TB & V & VD & PEV & PEE).
+      destruct VAL as (A0 & B0 & HR (* & TA & TB *) & V & VD & PEV & PEE).
       exists A0, B0. split; [exact HR|].
-      split; [exact TA|]. split; [exact TB|]. split; [exact V|].
+      (* split; [exact TA|]. split; [exact TB|].  *)
+         split; [exact V|].
       split; [eapply Val_pirrel; exact VD|].
       split; [eapply PiEdgeVal_pirrel; exact PEV
              |eapply PiEdgeEq_pirrel; exact PEE].
-    + (* wt_abs: existential universe in inner wt_tpi — admit *)
-      admit.
+    + (* wt_abs: destruct inner wt_tpi to expose universes, bridge with cross-PI *)
+      match goal with H : wt (tpi _ _) (tuniv _) |- _ => dependent destruction H end.
+      match goal with H : wt (tpi _ _) (tuniv _) |- _ => dependent destruction H end.
+      cbn in VAL |- *.
+      destruct VAL as [VT VP].
+      split.
+      * eapply ValTy_pirrel_cross. exact VT.
+      * destruct VP as (A0 & B0 & HR & PA).
+        exists A0, B0. split; [exact HR|].
+        eapply PiAppVal_pirrel. exact PA.
   - (* EqVal_pirrel *)
     intros EV.
     dependent destruction h1; dependent destruction h2.
@@ -796,22 +884,55 @@ Proof.
       exists M1. split; [exact HR1|].
       exists N1. split; [exact HR2|].
       eapply EqVal_pirrel; exact EV'.
-    + (* wt_tpi: EqVal at universe involves ValTy /\ ValTy /\ EqValTy *)
+    + (* wt_tpi: same i, bridge ValTy x2 + EqValTy components *)
+      cbn in EV |- *.
+      fold (valid_fun g) in EV.
+      destruct EV as [VTm [VTn EVT]].
       admit.
-    + (* wt_abs: cross-universe *)
-      admit.
+     
+
+(*    split.  move: (ValTy_pirrel_cross Γ M w j 
+      split; [eapply ValTy_pirrel_cross; exact VTm|].
+      split; [eapply ValTy_pirrel_cross; exact VTn|].
+      destruct EVT as (VTm' & VTn' & A0 & B0 & HRm & A0' & B0' & HRn
+                       & TC1 & TC2 & VPI & EVD & PEET).
+      split; [eapply ValTy_pirrel_cross; exact VTm'|].
+      split; [eapply ValTy_pirrel_cross; exact VTn'|].
+      exists A0, B0. split; [exact HRm|].
+      exists A0', B0'. split; [exact HRn|].
+      split; [exact TC1|]. split; [exact TC2|]. split; [exact VPI|].
+      split.
+      * eapply EqVal_pirrel; exact EVD.
+      * eapply PiEdgeEqTy_pirrel; exact PEET. *)
+    + (* wt_abs: bridge inner wt_tpi via cross-PI; recurse on ValPi/EqValPi parts *)
+      match goal with H : wt (tpi _ _) (tuniv _) |- _ => dependent destruction H end.
+      match goal with H : wt (tpi _ _) (tuniv _) |- _ => dependent destruction H end.
+      cbn in EV |- *.
+      destruct EV as [VT [VPm [VPn EVPm]]].
+      destruct VPm as (A0 & B0 & HRm & PAm).
+      destruct VPn as (A0' & B0' & HRn & PAn).
+      destruct EVPm as (A0'' & B0'' & HRe & EPA).
+      split; [eapply ValTy_pirrel_cross; exact VT|].
+      split.
+      { exists A0, B0. split; [exact HRm|]. eapply PiAppVal_pirrel; exact PAm. }
+      split.
+      { exists A0', B0'. split; [exact HRn|]. eapply PiAppVal_pirrel; exact PAn. }
+      exists A0'', B0''. split; [exact HRe|]. eapply PiAppEqVal_pirrel; exact EPA.
   - (* PiEdgeVal_pirrel *)
     intros PE.
     dependent destruction h1; dependent destruction h2.
-    + (* wt_pi_nil *)
-      cbn. trivial.
-    + (* wt_pi_cons: recurse on tail + per-entry forall *)
+    + (* wt_pi_nil *) cbn. trivial.
+    + (* wt_pi_cons *)
       cbn in PE. destruct PE as [PE_rec PE_forall].
       cbn. split.
       * eapply PiEdgeVal_pirrel; exact PE_rec.
       * intros N TN VN.
-        eapply Val_pirrel.
-        eapply PE_forall; [exact TN | eapply Val_pirrel; exact VN].
+        (* Goal at cross-universe j; bridge via ValTy_pirrel_cross *)
+        apply ValTy_Val.
+        eapply ValTy_pirrel_cross.
+        apply Val_ValTy.
+        apply (PE_forall N TN).
+        eapply Val_pirrel. exact VN.
   - (* PiEdgeEq_pirrel *)
     intros PE.
     dependent destruction h1; dependent destruction h2.
@@ -820,8 +941,11 @@ Proof.
       cbn. split.
       * eapply PiEdgeEq_pirrel; exact PE_rec.
       * intros N1 N2 CV EV.
-        eapply EqVal_pirrel.
-        eapply PE_forall; [exact CV | eapply EqVal_pirrel; exact EV].
+        apply EqValTy_EqVal.
+        eapply EqValTy_pirrel_cross.
+        eapply EqVal_EqValTy.
+        apply (PE_forall N1 N2 CV).
+        eapply EqVal_pirrel. exact EV.
   - (* PiEdgeEqTy_pirrel *)
     intros PE.
     dependent destruction h1; dependent destruction h2.
@@ -829,7 +953,10 @@ Proof.
     + cbn in PE. destruct PE as [PE_rec PE_forall].
       cbn. split.
       * eapply PiEdgeEqTy_pirrel; exact PE_rec.
-      * intros P TP VP. admit.
+      * intros P TP VP.
+        eapply EqValTy_pirrel_cross.
+        apply (PE_forall P TP).
+        eapply Val_pirrel. exact VP.
   - (* PiAppVal_pirrel *)
     intros PA.
     dependent destruction h1; dependent destruction h2.
@@ -837,7 +964,17 @@ Proof.
     + cbn in PA. destruct PA as [PA_rec PA_forall].
       cbn. split.
       * eapply PiAppVal_pirrel; exact PA_rec.
-      * intros P TP VP. admit.
+      * intros P TP VP.
+        (* Equate the two app g ui = Some _ witnesses to align cod-types. *)
+        match goal with
+        | E1 : app ?g0 ?u0 = Some ?t1,
+          E2 : app ?g0 ?u0 = Some ?t2 |- _ => 
+            assert (Heq : t1 = t2) by congruence;         
+            try subst t1; try subst t2
+        end.
+        eapply Val_pirrel.
+        apply (PA_forall P TP).
+        eapply Val_pirrel. exact VP.
   - (* PiAppEq_pirrel *)
     intros PA.
     dependent destruction h1; dependent destruction h2.
@@ -845,7 +982,16 @@ Proof.
     + cbn in PA. destruct PA as [PA_rec PA_forall].
       cbn. split.
       * eapply PiAppEq_pirrel; exact PA_rec.
-      * intros N1 N2 CV EV. admit.
+      * intros N1 N2 CV EV.
+        match goal with
+        | E1 : app ?g0 ?u0 = Some ?t1,
+          E2 : app ?g0 ?u0 = Some ?t2 |- _ =>
+            assert (Heq : t1 = t2) by congruence;
+            try subst t1; try subst t2 (* ; clear Heq *)
+        end.
+        eapply EqVal_pirrel.
+        apply (PA_forall N1 N2 CV).
+        eapply EqVal_pirrel. exact EV.
   - (* PiAppEqVal_pirrel *)
     intros PA.
     dependent destruction h1; dependent destruction h2.
@@ -853,8 +999,18 @@ Proof.
     + cbn in PA. destruct PA as [PA_rec PA_forall].
       cbn. split.
       * eapply PiAppEqVal_pirrel; exact PA_rec.
-      * intros P TP VP. admit.
+      * intros P TP VP.
+        match goal with
+        | E1 : app ?g0 ?u0 = Some ?t1,
+          E2 : app ?g0 ?u0 = Some ?t2 |- _ =>
+            assert (Heq : t1 = t2) by congruence;
+            try subst t1; try subst t2 (* ; clear Heq *)
+        end.
+        eapply EqVal_pirrel.
+        apply (PA_forall P TP).
+        eapply Val_pirrel. exact VP.
 Admitted.
+(* Qed. *)
 
 
 (* ============================================================

@@ -190,11 +190,10 @@ Fixpoint ForallT (A : Type) (P : A -> Type) (l : list A) : Type :=
   | x :: l => P x * ForallT P l
   end.
 
-
-(** well typed elements, smaller than a given rank:  (finMem) *)
-Inductive wt : elt -> elt -> Type := 
-  | wt_bot a i :
-    wt a (tuniv i) ->
+(** well typed elements (finMem) *)
+Polymorphic Inductive wt : elt -> elt -> Type := 
+  | wt_bot a j :
+    wt a (tuniv j) ->
     wt bot a 
 
   | wt_tuniv i j :
@@ -241,14 +240,14 @@ with wt_abs_fun : list (elt * elt) -> elt -> list (elt * elt) ->  Type :=
     wt_abs_fun (cons (ui,vi) f) a g 
   .
 
-Fixpoint wt_cumul : 
+Fixpoint wt_cumul :
   forall a i, wt a (tuniv i) -> forall j, (i <= j)%nat -> wt a (tuniv j)
 with wt_pi_fun_cumul :
   forall g a i, wt_pi_fun g a i -> forall j, (i <= j)%nat -> wt_pi_fun g a j.
 - move=> a i h.
   dependent destruction h.
-  all: move=> j LE.
-  + eapply wt_bot. instantiate (1:=S j). eapply wt_tuniv. lia.
+  all: move=> j0 LE.
+  + eapply wt_bot. instantiate (1:=S j0). eapply wt_tuniv. lia.
   + eapply wt_tuniv. lia.
   + eapply wt_tnat.
   + eapply wt_tpi; eauto.
