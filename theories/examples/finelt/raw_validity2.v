@@ -100,7 +100,7 @@ move=>h. inversion h. done. Defined.
    (And: if we want to have a recursively defined wt
    we also need to update abs)
  *)
-
+(*
 Lemma wt_abs_dom f a g : 
   wt (abs f) (tpi a g) -> { i & wt a (tuniv i) }.
 Proof.
@@ -112,7 +112,7 @@ Lemma wt_abs_tpi f a g :
   wt (abs f) (tpi a g) -> { i &  wt (tpi a g) (tuniv i) }.
 move=> h. inversion h. subst. eexists. eauto.
 Qed.
-
+*)
 (*
 Lemma wt_abs_key (a : elt) (f g : list (elt * elt)) :
   wt (abs f) (tpi a g) -> 
@@ -160,27 +160,29 @@ Module Rec.
 
 Record F := MkF {
    Val   : forall {n} (Γ : Ctx n),
-              Tm n -> Tm n -> forall u a, wt u a -> Prop;
+              Tm n -> Tm n -> forall u a, wt u a -> forall i, wt a (tuniv i) -> Prop;
    EqVal : forall {n} (Γ : Ctx n),
-              Tm n -> Tm n -> Tm n -> forall u a, wt u a -> Prop;
+              Tm n -> Tm n -> Tm n -> forall u a, wt u a -> forall i, wt a (tuniv i) -> Prop;
    PiEdgeVal : forall {n} (Γ : Ctx n)
      (A : Tm n) (B : Tm (S n)) (b: elt) (f : list (elt * elt))
      i (h : wt_pi_fun f b i), Prop ;
    PiEdgeEq  : forall {n} (Γ : Ctx n)
-                 (A : Tm n) (B : Tm (S n)) (b: elt) (f : list (elt * elt))
+                 (A : Tm n) (B : Tm (S n)) (b: elt)
+                 (f : list (elt * elt))
                  i (h : wt_pi_fun f b i), Prop;
    PiEdgeEqTy: forall {n} (Γ : Ctx n) (A:Tm n) (B B': Tm (S n))
-                 b f i (h : wt_pi_fun b f i), Prop;
+                 b f i (h : wt_pi_fun f b i), Prop;
    PiAppVal: forall {n} (Γ : Ctx n)
      (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-     (h : wt_abs_fun g b f) , Prop;
+     (h1 : wt_abs_fun g b f)
+     i (h2 : wt_pi_fun f b i), Prop;
    PiAppEq :forall {n} (Γ : Ctx n)
   (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt_abs_fun g b f), Prop;
+  (h1 : wt_abs_fun g b f)
+  i (h2 : wt_pi_fun f b i), Prop;
 PiAppEqVal : forall {n} (Γ : Ctx n)
   (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt_abs_fun g b f), Prop
-
+  (h : wt_abs_fun g b f) i (h2 : wt_pi_fun f b i), Prop
 }.
 
 
@@ -263,106 +265,108 @@ Proof.
 Defined.
 
 Definition ValPi {n} (Γ : Ctx n)
-  (M : Tm n) (A : Tm n) g b f (h : wt (abs g) (tpi b f)) :=
+  (M : Tm n) (A : Tm n) g b f (h : wt (abs g) (tpi b f))
+  i (h2 : wt (tpi b f) (tuniv i)):=
   exists A0, exists B0, HeadRed A (Core.tpi A0 B0)
-  /\ PiAppVal Rec Γ M A0 B0 (wt_abs_inv h) .
+  /\ PiAppVal Rec Γ M A0 B0 (wt_abs_inv h) (wt_tpi_inv h2) .
 
 Definition EqValPi {n} (Γ : Ctx n)
-  (M : Tm n) (N: Tm n) (A : Tm n) g b f (h : wt (abs g) (tpi b f)) :=
+  (M : Tm n) (N: Tm n) (A : Tm n) g b f 
+  (h : wt (abs g) (tpi b f)) i (h2 : wt (tpi b f) (tuniv i)) :=
   exists A0, exists B0, HeadRed A (Core.tpi A0 B0)
-  /\ PiAppEqVal Rec Γ M N A0 B0 (wt_abs_inv h).
+  /\ 
+    PiAppEqVal Rec Γ M N A0 B0 (wt_abs_inv h) (wt_tpi_inv h2).
 
 Definition ValTy {n} (Γ : Ctx n)
-  (M : Tm n) u i : wt u (tuniv i) -> Prop  :=
-  match u return wt _ (tuniv i) -> Prop with
+  (M : Tm n) u i : wt u (tuniv i) -> forall j, wt (tuniv i) (tuniv j) -> Prop  :=
+  match u return wt _ (tuniv i) -> forall j, wt (tuniv i) (tuniv j) -> Prop with
   | tpi b g =>
-      fun (h : wt (tpi b g) (tuniv i)) =>
+      fun (h : wt (tpi b g) (tuniv i)) j (h2 : wt (tuniv i) (tuniv j)) =>
         (* ValTyPi M (tuniv i) *)
         (* M reduces to a pi type *)
         exists A B, HeadRed M (Core.tpi A B)
 
-               (* the syntactic pi-type is well-typed *)
-               (* 
+               (* the syntactic pi-type is well-typed *)              
                /\ typing Γ A (Core.tuniv i)
                /\ typing (Γ ++ A) B (Core.tuniv i)
-               *)
+               
 
                (* the semantic pi-type is valid *)
                /\ valid (tpi b g)
 
                (* domain is in the relation *)
                /\ Val Rec Γ A (Core.tuniv i) (wt_tpi_dom h)
-
+                                            h2
                /\ PiEdgeVal Rec Γ A B (wt_tpi_inv h) 
                /\ PiEdgeEq Rec Γ A B (wt_tpi_inv h)
 
-  | tnat => fun h => True
-  | tuniv k => fun h => True
-  | _ => fun h => True
+  | tnat => fun h1 j h2 => True
+  | tuniv k => fun h1 j h2 => True
+  | _ => fun h1 j h2 => True
   end.
 
-Definition EqValTy {n} (Γ : Ctx n) M N (a : elt) i (h : wt a (tuniv i))  : Prop :=
-  (match a return wt _ (tuniv i) -> Prop with
+Definition EqValTy {n} (Γ : Ctx n) M N (a : elt) i (h : wt a (tuniv i)) :  forall j, wt (tuniv i) (tuniv j) -> Prop :=
+  (match a return wt _ (tuniv i) ->  forall j, wt (tuniv i) (tuniv j) -> Prop with
   | tpi b f =>
-      fun (h : wt (tpi b f) (tuniv i))  =>
-        ValTy Γ M h /\ ValTy Γ N h /\
+      fun (h : wt (tpi b f) (tuniv i)) j h2  =>
+        ValTy Γ M h h2 /\ ValTy Γ N h h2 /\
         (* EqValTyPi Val EqVal EqValTy M N h *)
              (* both reduce to pi types *)
              exists A B, HeadRed M (Core.tpi A B)
              /\ exists A' B', HeadRed N (Core.tpi A' B')
              (* ... that are convertible *)
-             (* /\ conv Γ A A' (Core.tuniv i)
-                /\ conv (Γ ++ A) B B' (Core.tuniv i) *)
+             /\ conv Γ A A' (Core.tuniv i)
+             /\ conv (Γ ++ A) B B' (Core.tuniv i) 
              /\ valid (tpi b f)
              (* ... and the domain is in the relation *)
-             /\ EqVal Rec Γ A A' (Core.tuniv i) (wt_tpi_dom h)
+             /\ EqVal Rec Γ A A' (Core.tuniv i) (wt_tpi_dom h) h2
              /\ PiEdgeEqTy Rec Γ A B B' (wt_tpi_inv h)
-  | _ => fun h => True
+  | _ => fun h j h2 => True
   end) h.
 
 End Helpers.
 End Rec.
 
 Fixpoint Val {n} (Γ : Ctx n)
-  (M : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a) { struct h } : Prop :=
+  (M : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a) i (h2 : wt a (tuniv i)) { struct h } : Prop :=
   let Rec := Rec.MkF (@Val) (@EqVal) (@PiEdgeVal) (@PiEdgeEq) (@PiEdgeEqTy)
   (@PiAppVal) (@PiAppEq) (@PiAppEqVal) in
-      (match a return wt u _ -> Prop with
+      (match a return wt u _ -> forall j, wt _ (tuniv j) -> Prop with
 
-      | bot => fun h => True
+      | bot => fun h j h2 => True
 
-      | tuniv i => fun (h : wt u (tuniv i)) =>
-          Rec.ValTy Rec Γ M h
+      | tuniv i => fun (h : wt u (tuniv i)) j h2 =>
+          Rec.ValTy Rec Γ M h h2
 
-      | tpi b f => fun h =>
-           (match u return wt _ (tpi b f) -> Prop with
+      | tpi b f => fun h j h2 =>
+           (match u return wt _ (tpi b f) ->  forall j, wt (tpi b f) (tuniv j) -> Prop with
 
-            | abs g => fun (h : wt (abs g) (tpi b f)) =>
+            | abs g => fun (h : wt (abs g) (tpi b f)) j h2 =>
                         match h with 
-                        | wt_abs WTf Vf (wt_tpi _ WTb _) =>
-                            Rec.ValTy Rec Γ A WTb
+                        | wt_abs WTf Vf Vtpi =>
+                            Rec.ValTy Rec Γ A h2 (@wt_tuniv j (S j) ltac:(lia))
                         | _ => True
                         end
                         
-                      /\ Rec.ValPi Rec Γ M A h
+                      /\ Rec.ValPi Rec Γ M A h h2
 
-            | _ => fun h => True
-            end) h
+            | _ => fun h j h2 => True
+            end) h j h2
 
-      | tnat => fun h =>
-          (match u return wt _ tnat -> Prop with
-               | zero => fun h =>
+      | tnat => fun h j h2 =>
+          (match u return wt _ tnat ->  forall j, wt _ (tuniv j) -> Prop with
+               | zero => fun h j h2 =>
                  HeadRed M (Core.zero)
-               | succ v => fun (h : wt (succ v) tnat) =>
+               | succ v => fun (h : wt (succ v) tnat) j h2 =>
                  exists M1, HeadRed M (Core.succ M1)
-                 /\ Val Γ M1 Core.tnat (wt_succ_inv h)
-               | _ =>  fun h => True
-               end) h
-      | _ => fun h => True
-    end) h
+                 /\ Val Γ M1 Core.tnat (wt_succ_inv h) h2
+               | _ =>  fun h j h2 => True
+               end) h j h2
+      | _ => fun h j h2 => True
+    end) h i h2
 (* Binary logical relation *)
 with EqVal {n} (Γ : Ctx n)
-  (M : Tm n) (N : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a) { struct h } : Prop :=
+  (M : Tm n) (N : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a) i (h2 : wt a (tuniv i)) { struct h } : Prop :=
   let Rec := Rec.MkF (@Val) (@EqVal) (@PiEdgeVal) (@PiEdgeEq) (@PiEdgeEqTy)(@PiAppVal) (@PiAppEq) (@PiAppEqVal) in
        
      (match a return wt u _ -> Prop with
@@ -438,7 +442,7 @@ with
       EqVal Γ B[N1..] B[N2..] (Core.tuniv i) WTvi
   end
 with
-  PiEdgeEqTy {n} (Γ : Ctx n) A B B' b f i (h : wt_pi_fun b f i) 
+  PiEdgeEqTy {n} (Γ : Ctx n) A B B' b f i (h : wt_pi_fun f b i)            
     {struct h} := 
   let Rec := Rec.MkF (@Val) (@EqVal) (@PiEdgeVal) (@PiEdgeEq) (@PiEdgeEqTy)(@PiAppVal) (@PiAppEq) (@PiAppEqVal) in
 
@@ -455,7 +459,7 @@ with
   end
 with PiAppVal {n} (Γ : Ctx n)
   (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt_abs_fun g b f) : Prop :=
+  (h : wt_abs_fun g b f) j (h2: wt_pi_fun f b j) : Prop :=
   match h with 
   | wt_abs_nil _ _ => True
   | @wt_abs_cons  ui vi f a g t WTui APPu WTvi WTf => 
@@ -467,7 +471,7 @@ with PiAppVal {n} (Γ : Ctx n)
   end
 with PiAppEq {n} (Γ : Ctx n)
   (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt_abs_fun g b f) :=
+  (h : wt_abs_fun g b f) j (h2: wt_pi_fun f b j) :=
   match h with 
   | wt_abs_nil _ _ => True
   | @wt_abs_cons  ui vi f a g t WTui APPu WTvi WTf => 
@@ -479,7 +483,7 @@ with PiAppEq {n} (Γ : Ctx n)
   end
 with PiAppEqVal {n} (Γ : Ctx n)
   (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt_abs_fun g b f) :=
+  (h : wt_abs_fun g b f) j (h2: wt_pi_fun f b j) :=
   match h with 
   | wt_abs_nil _ _ => True
   | @wt_abs_cons  ui vi f a g t WTui APPu WTvi WTf => 

@@ -163,7 +163,7 @@ Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) :
 Proof.
   exists bot. exists bot.
   repeat split; eauto using EvalRel_bot, wt_bot.
-  eapply wt_bot. eapply wt_bot. eapply (@wt_tuniv 0 1). lia.
+(*  eapply wt_bot. eapply wt_bot. eapply (@wt_tuniv 0 1). lia. *)
 Qed.
 
 (* =====================================================================

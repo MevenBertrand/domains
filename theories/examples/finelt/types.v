@@ -191,9 +191,10 @@ Fixpoint ForallT (A : Type) (P : A -> Type) (l : list A) : Type :=
   end.
 
 (** well typed elements (finMem) *)
-Polymorphic Inductive wt : elt -> elt -> Type := 
-  | wt_bot a j :
-    wt a (tuniv j) ->
+Inductive wt : elt -> elt -> Type := 
+  | wt_bot a :
+(*    wt a (tuniv j) -> *)
+    valid a ->
     wt bot a 
 
   | wt_tuniv i j :
@@ -216,12 +217,13 @@ Polymorphic Inductive wt : elt -> elt -> Type :=
     valid (tpi a g) ->
     wt (tpi a g) (tuniv j)
 
-  | wt_abs a f g i :  
+  | wt_abs a f g :  
     wt_abs_fun f a g ->
     (* make sure tm is valid *)
     valid (abs f) ->
-    (* make sure type is type *)
-    wt (tpi a g) (tuniv i) -> 
+    (* make sure type is valid *)
+    valid (tpi a g) ->
+(*     wt (tpi a g) (tuniv i) ->  *)
     wt (abs f) (tpi a g)
 with wt_pi_fun : list (elt * elt) -> elt -> nat -> Type := 
   | wt_pi_nil a i : wt_pi_fun nil a  i
@@ -247,7 +249,7 @@ with wt_pi_fun_cumul :
 - move=> a i h.
   dependent destruction h.
   all: move=> j0 LE.
-  + eapply wt_bot. instantiate (1:=S j0). eapply wt_tuniv. lia.
+  + eapply wt_bot. eauto with valid.
   + eapply wt_tuniv. lia.
   + eapply wt_tnat.
   + eapply wt_tpi; eauto.
@@ -312,11 +314,13 @@ Proof. move=> h. inversion h. done. Qed.
 (* FinMem-a-in-U *)
 Lemma wt_ty_tuniv u a : wt u a -> { i & wt a (tuniv i) }.
 Proof. 
+Abort.
+(*
   induction 1; eauto.
   - exists (S j). eapply wt_tuniv; eauto.
   - exists (S j). eapply wt_tuniv; eauto.
   - exists 0. eapply wt_tnat; eauto.
-Qed.
+Qed. *)
 
 Lemma valid_tpi1 a g : valid (tpi a g) -> valid a.
 move=> /andP [h1 h2]. exact h1.
@@ -601,7 +605,7 @@ Proof.
   - move=> h.
     dependent destruction h. 
     all: move=> b LE ii WTa WTb.
-  + eapply wt_bot; eauto. 
+  + eapply wt_bot; eauto with valid.
   + apply le_tuniv_inv in LE. subst. 
     eapply wt_tuniv; eauto.
   + apply le_tuniv_inv in LE. subst.
@@ -615,11 +619,12 @@ Proof.
   + (* abs case: know wt (abs f) (tpi a g), 
        WTP wt (abs f) (tpi a1 g1) where a <= a1 and g <= g1  *)
     destruct (le_tpi_inv LE) as [a1 [g1 [-> [LEa LEg]]]].
+(*
     have WTpi: wt (tpi a g) (tuniv (max ii i)).
       { eapply wt_cumul; eauto. lia. }
     have WTpi1: wt (tpi a1 g1) (tuniv (max ii i)).
-      { eapply wt_cumul; eauto. lia. }
-    eapply wt_abs; eauto.
+      { eapply wt_cumul; eauto. lia. } *)
+    eapply wt_abs; eauto with valid.
 
   - move=> h.
     dependent destruction h.
@@ -631,31 +636,40 @@ Proof.
       eapply wt_le; eauto.
       auto.
       eapply wt_pi_le; eauto.
-  - move=> h.
+  - (* abs_fun *)
+    move=> h.
     dependent destruction h.
     all: move=> a2 LEa g2 LEg ii WTa WTb.
     + eapply wt_abs_nil.
-    + inversion WTa. inversion WTb. subst. inversion H9. subst.
+    + inversion WTa. 
+      inversion WTb. subst.
+      match goal with [H9 : tuniv _ = tuniv _ |- _ ] => inversion H9;clear H9 end. subst.
       have Vui: valid ui. eauto with valid.
       have Vg: valid_fun g. eauto with valid.
       have Vg2: valid_fun g2. eauto with valid.
+      destruct (valid_app_exists Vg2 Vui) as 
+        [w2 [APP2 Vw2]].
+      
       have WTt : wt t (tuniv j).
-      { admit. } (* need to know that wt_pi_fun g a j and app g ui = Some t
-                    and wt ui a 
-                    implies  wt t (tuniv j) *)
+      { admit. } 
+      (* need to know that wt_pi_fun g a j
+         and app g ui = Some t
+         and wt ui a 
+         implies  wt t (tuniv j) *)
       have Wtui1 : wt ui a2.
       { eapply wt_le; eauto. } 
-      destruct (valid_app_exists Vg2 Vui) as [w2 [APP2 Vw2]].
+      
       have WTw2 : wt w2 (tuniv j).
-      { admit. } (* need to know that wt_pi_fun g2 a2 j and app g2 ui = Some w2
-                    and wt ui a2
-                    implies  wt w2 (tuniv j) *)
+      { admit. } 
+      (* need to know that 
+         wt_pi_fun g2 a2 j and app g2 ui = Some w2
+         and wt ui a2
+         implies  wt w2 (tuniv j) *)
 
       have LFM: le t w2. 
-      { eapply (le_fun_mono Vg Vg2 LEg Vui e APP2). } 
+      { eapply (le_fun_mono Vg Vg2 LEg Vui e APP2). }
       have WTvi: wt vi w2. 
       { eapply wt_le; eauto. } 
-
       eapply wt_abs_cons; eauto.
 Admitted.
 
@@ -809,7 +823,6 @@ Proof.
         eapply IHw'; eauto. }
       destruct w'; try done. cbn in Ar'. inversion Ar'. subst r'.
       eapply wt_bot; eauto. 
-      admit.
     }
     destruct (compatible ui u && le ui u) eqn:EQui.
     + (* ui compatible with u and ui <= u: r = lub vi r' *)
@@ -817,7 +830,8 @@ Proof.
       (* Get wi = app f ui and show wt vi wi *)
       have [wi [Awi Vwi]] : { wi & ((app f ui = Some wi) * (valid wi))%type }
         by eapply app_tpi_exists; eauto.
-      have WTvi_wi : wt vi wi. inversion HuiAll. subst. rewrite Awi in H3. inversion H3. subst t0. clear H3. done.
+      (* 
+      have WTvi_wi : wt vi wi. inversion HuiAll. subst. rewrite Awi in H3. inversion H3. subst t0. clear H3. done. *)
  
       (* wi <= t by monotonicity of app f (or trivially if f is nil) *)
       have LEwit : le wi t.
@@ -827,8 +841,10 @@ Proof.
           { eapply le_fun_mono_arg with (h := f) (u1 := ui) (u2 := u); eauto. }
           exact LE. }
       }
-      have WTvi_t : wt vi t. eapply wt_le; eauto. admit. admit.
+(*
+      have WTvi_t : wt vi t. eapply wt_le; eauto. admit. admit. *)
       eapply wt_lub with (u := vi) (v := r'); eauto.
+      admit.
     + (* no contribution from (ui,vi): r = r' *)
       inversion A1. subst r. done.
 Admitted.
