@@ -1,6 +1,10 @@
 (* Fundamental theorem of the logical relation
 
    see Adequacy2.adga
+
+
+   There are no tricky termination arguments in this file. 
+   (I hope!)
  *)
 
 
@@ -214,11 +218,11 @@ Proof.
   eapply VS; eauto.
 Qed.
 
-Lemma st_conv M A B i : 
+Lemma st_conv M A B  : 
   typing Γ M A -> 
-  conv Γ A B (Core.tuniv i) ->
+  conv Γ A B Core.tuniv ->
   semantic_typing Γ M A -> 
-  semantic_conv2 Γ A B (Core.tuniv i) ->
+  semantic_conv2 Γ A B Core.tuniv ->
 (* ------------------------- *)
   semantic_typing Γ M B.
 Proof.
@@ -236,23 +240,23 @@ Proof.
   destruct (TB _ Ea1) as [a3 [uj [LEa3 [Ea3 [WTa3 Euj]]]]]. clear TB.
 Admitted.
 
-Lemma st_abs A B M i : 
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
-  semantic_typing Γ A (Core.tuniv i) -> 
-  semantic_typing (Γ ++ A) B (Core.tuniv i) -> 
+Lemma st_abs A B M : 
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
+  semantic_typing Γ A Core.tuniv -> 
+  semantic_typing (Γ ++ A) B Core.tuniv -> 
   semantic_typing (Γ ++ A) M B ->
 (* ------------------------- *)
   semantic_typing Γ (Core.abs A M) (Core.tpi A B).
 Admitted.
 
-Lemma st_app A B N M i : 
-  typing Γ A (Core.tuniv i) -> 
-  typing (Γ ++ A) B (Core.tuniv i) -> 
+Lemma st_app A B N M : 
+  typing Γ A Core.tuniv -> 
+  typing (Γ ++ A) B Core.tuniv -> 
   typing Γ M (Core.tpi A B) -> 
   typing Γ N A  -> 
-  semantic_typing Γ A (Core.tuniv i) -> 
-  semantic_typing (Γ ++ A) B (Core.tuniv i) -> 
+  semantic_typing Γ A Core.tuniv -> 
+  semantic_typing (Γ ++ A) B Core.tuniv -> 
   semantic_typing Γ M (Core.tpi A B) -> 
   semantic_typing Γ N A  -> 
 (* ------------------------ *)
@@ -280,7 +284,7 @@ Admitted.
 Lemma st_nat :
   ctx Γ ->
 (* ------------------------- *)
-  semantic_typing Γ Core.tnat (Core.tuniv 0).
+  semantic_typing Γ Core.tnat Core.tuniv.
 Proof.
   move=> _ ρ m Δ σ TS FR VS u a WT EM EA.
   asimpl.
@@ -290,7 +294,6 @@ Proof.
     destruct a; cbn in EA; try done.
     + (* a = bot: wt tnat bot impossible *) inversion WT.
     + (* a = tuniv n0; le (tuniv n0) (tuniv 0) ⟹ n0 = 0 *)
-      apply Nat.eqb_eq in EA. subst.
       dependent destruction WT. done.
 Qed.
 
@@ -325,7 +328,7 @@ Proof.
   { destruct u; try done. apply Val_Bot. }
   cbn in EM. rewrite HU in EM.
   move: EM => [Vu [a' [LEs EMa]]].
-  destruct u as [| | |v0| | |]; cbn in HU; try done.
+  destruct u as [| | | | | |]; cbn in HU; try done.
   destruct a; cbn in EA; try done.
   - (* a = bot: wt (succ v0) bot impossible *) inversion WT.
   - (* a = tnat *)
@@ -342,12 +345,12 @@ Qed.
 
 (* t_nrec: T : (Γ ++ tnat) ⊢ tuniv i, M0 : T[zero..], M1 : tpi tnat (tpi T U⟨↑⟩)
    ⟹ nrec T M0 M1 : tpi tnat T *)
-Lemma st_nrec (T U : Tm (S n)) M0 M1 i :
-  typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+Lemma st_nrec (T U : Tm (S n)) M0 M1 :
+  typing (Γ ++ Core.tnat) T Core.tuniv ->
   typing Γ M0 (T[Core.zero..]) ->
   U = T[rho] ->
   typing Γ M1 (Core.tpi Core.tnat (Core.tpi T U⟨↑⟩)) ->
-  semantic_typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+  semantic_typing (Γ ++ Core.tnat) T Core.tuniv ->
   semantic_typing Γ M0 (T[Core.zero..]) ->
   semantic_typing Γ M1 (Core.tpi Core.tnat (Core.tpi T U⟨↑⟩)) ->
 (* ------------------------- *)
@@ -355,32 +358,21 @@ Lemma st_nrec (T U : Tm (S n)) M0 M1 i :
 Proof. Admitted.
 
 (* t_tpi: A : tuniv i, (Γ ++ A) ⊢ B : tuniv i ⟹ tpi A B : tuniv i *)
-Lemma st_tpi A B i :
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
-  semantic_typing Γ A (Core.tuniv i) ->
-  semantic_typing (Γ ++ A) B (Core.tuniv i) ->
+Lemma st_tpi A B :
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
+  semantic_typing Γ A Core.tuniv ->
+  semantic_typing (Γ ++ A) B Core.tuniv ->
 (* ------------------------- *)
-  semantic_typing Γ (Core.tpi A B) (Core.tuniv i).
+  semantic_typing Γ (Core.tpi A B) Core.tuniv.
 Proof. Admitted.
 
-(* t_cum: A : tuniv i, i < j ⟹ A : tuniv j *)
-Lemma st_cum A i j :
-  typing Γ A (Core.tuniv i) ->
-  (i < j)%nat ->
-  semantic_typing Γ A (Core.tuniv i) ->
-(* ------------------------- *)
-  semantic_typing Γ A (Core.tuniv j).
-Proof. Admitted.
-
-(* t_univ: ctx Γ, i < j ⟹ tuniv i : tuniv j *)
-Lemma st_univ i j :
+Lemma st_univ :
   ctx Γ ->
-  (i < j)%nat ->
 (* ------------------------- *)
-  semantic_typing Γ (Core.tuniv i) (Core.tuniv j).
+  semantic_typing Γ Core.tuniv Core.tuniv.
 Proof.
-  move=> _ _ ρ m Δ σ TS FR VS u a WT EM EA.
+  move=> _ ρ m Δ σ TS FR VS u a WT EM EA.
   asimpl.
   destruct u; cbn in EM; try done.
   - apply Val_Bot.
@@ -396,11 +388,11 @@ Qed.
 (* -------- semantic conversion rules -------- *)
 
 (* c_conv: M ≡ N : A, A ≡ B : tuniv i ⟹ M ≡ N : B *)
-Lemma sc_conv M N A B i :
+Lemma sc_conv M N A B :
   conv Γ M N A ->
-  conv Γ A B (Core.tuniv i) ->
+  conv Γ A B Core.tuniv ->
   semantic_conv2 Γ M N A ->
-  semantic_conv2 Γ A B (Core.tuniv i) ->
+  semantic_conv2 Γ A B Core.tuniv ->
 (* ------------------------- *)
   semantic_conv2 Γ M N B.
 Proof. Admitted.
@@ -432,13 +424,13 @@ Lemma sc_trans M N P A :
 Proof. Admitted.
 
 (* c_app1: N ≡ N' : (tpi A B), M : A ⟹ app N M ≡ app N' M : B[M..] *)
-Lemma sc_app1 A B N N' M i :
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
+Lemma sc_app1 A B N N' M :
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
   conv Γ N N' (Core.tpi A B) ->
   typing Γ M A ->
-  semantic_typing Γ A (Core.tuniv i) ->
-  semantic_typing (Γ ++ A) B (Core.tuniv i) ->
+  semantic_typing Γ A Core.tuniv ->
+  semantic_typing (Γ ++ A) B Core.tuniv ->
   semantic_conv2 Γ N N' (Core.tpi A B) ->
   semantic_typing Γ M A ->
 (* ------------------------- *)
@@ -446,13 +438,13 @@ Lemma sc_app1 A B N N' M i :
 Proof. Admitted.
 
 (* c_app2: N : (tpi A B), M ≡ M' : A ⟹ app N M ≡ app N M' : B[M..] *)
-Lemma sc_app2 A B N M M' i :
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
+Lemma sc_app2 A B N M M' :
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
   typing Γ N (Core.tpi A B) ->
   conv Γ M M' A ->
-  semantic_typing Γ A (Core.tuniv i) ->
-  semantic_typing (Γ ++ A) B (Core.tuniv i) ->
+  semantic_typing Γ A Core.tuniv ->
+  semantic_typing (Γ ++ A) B Core.tuniv ->
   semantic_typing Γ N (Core.tpi A B) ->
   semantic_conv2 Γ M M' A ->
 (* ------------------------- *)
@@ -460,13 +452,13 @@ Lemma sc_app2 A B N M M' i :
 Proof. Admitted.
 
 (* c_beta: A, B, body N, arg M ⟹ app (abs A N) M ≡ N[M..] : B[M..] *)
-Lemma sc_beta A B M N i :
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
+Lemma sc_beta A B M N :
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
   typing (Γ ++ A) N B ->
   typing Γ M A ->
-  semantic_typing Γ A (Core.tuniv i) ->
-  semantic_typing (Γ ++ A) B (Core.tuniv i) ->
+  semantic_typing Γ A Core.tuniv ->
+  semantic_typing (Γ ++ A) B Core.tuniv ->
   semantic_typing (Γ ++ A) N B ->
   semantic_typing Γ M A ->
 (* ------------------------- *)
@@ -474,15 +466,15 @@ Lemma sc_beta A B M N i :
 Proof. Admitted.
 
 (* c_eta: function extensionality *)
-Lemma sc_eta A B (N N' : Tm n) i :
-  typing Γ A (Core.tuniv i) ->
-  typing (Γ ++ A) B (Core.tuniv i) ->
+Lemma sc_eta A B (N N' : Tm n) :
+  typing Γ A Core.tuniv ->
+  typing (Γ ++ A) B Core.tuniv ->
   typing Γ N (Core.tpi A B) ->
   typing Γ N' (Core.tpi A B) ->
   conv (Γ ++ A) (Core.app N⟨↑⟩ (var var_zero))
                 (Core.app N'⟨↑⟩ (var var_zero)) A⟨↑⟩ ->
-  semantic_typing Γ A (Core.tuniv i) ->
-  semantic_typing (Γ ++ A) B (Core.tuniv i) ->
+  semantic_typing Γ A Core.tuniv ->
+  semantic_typing (Γ ++ A) B Core.tuniv ->
   semantic_typing Γ N (Core.tpi A B) ->
   semantic_typing Γ N' (Core.tpi A B) ->
   semantic_conv2 (Γ ++ A) (Core.app N⟨↑⟩ (var var_zero))
@@ -492,11 +484,11 @@ Lemma sc_eta A B (N N' : Tm n) i :
 Proof. Admitted.
 
 (* c_nrec_Z: app (nrec T M0 M1) zero ≡ M0 : T[zero..] *)
-Lemma sc_nrec_Z M0 M1 (T : Tm (S n)) i :
-  typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+Lemma sc_nrec_Z M0 M1 (T : Tm (S n)) :
+  typing (Γ ++ Core.tnat) T Core.tuniv ->
   typing Γ M0 (T[Core.zero..]) ->
   typing Γ M1 (Core.tpi Core.tnat (Core.tpi T T[rho]⟨↑⟩)) ->
-  semantic_typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+  semantic_typing (Γ ++ Core.tnat) T Core.tuniv ->
   semantic_typing Γ M0 (T[Core.zero..]) ->
   semantic_typing Γ M1 (Core.tpi Core.tnat (Core.tpi T T[rho]⟨↑⟩)) ->
 (* ------------------------- *)
@@ -504,11 +496,11 @@ Lemma sc_nrec_Z M0 M1 (T : Tm (S n)) i :
 Proof. Admitted.
 
 (* c_nrec_S: app (nrec T M0 M1) (succ n) ≡ app (app M1 n) (app (nrec ...) n) : T[(succ n)..] *)
-Lemma sc_nrec_S (T : Tm (S n)) M0 M1 (e : Tm n) i :
-  typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+Lemma sc_nrec_S (T : Tm (S n)) M0 M1 (e : Tm n) :
+  typing (Γ ++ Core.tnat) T Core.tuniv ->
   typing Γ M0 (T[Core.zero..]) ->
   typing Γ M1 (Core.tpi Core.tnat (Core.tpi T T[rho]⟨↑⟩)) ->
-  semantic_typing (Γ ++ Core.tnat) T (Core.tuniv i) ->
+  semantic_typing (Γ ++ Core.tnat) T Core.tuniv ->
   semantic_typing Γ M0 (T[Core.zero..]) ->
   semantic_typing Γ M1 (Core.tpi Core.tnat (Core.tpi T T[rho]⟨↑⟩)) ->
 (* ------------------------- *)
@@ -517,23 +509,22 @@ Lemma sc_nrec_S (T : Tm (S n)) M0 M1 (e : Tm n) i :
                    T[(Core.succ e)..].
 Proof. Admitted.
 
-(* c_tuniv: M ≡ N : tuniv i, i < j ⟹ M ≡ N : tuniv j *)
-Lemma sc_tuniv M N i j :
-  conv Γ M N (Core.tuniv i) ->
-  (i < j)%nat ->
-  semantic_conv2 Γ M N (Core.tuniv i) ->
+
+Lemma sc_tuniv M N  :
+  conv Γ M N Core.tuniv ->
+  semantic_conv2 Γ M N Core.tuniv ->
 (* ------------------------- *)
-  semantic_conv2 Γ M N (Core.tuniv j).
+  semantic_conv2 Γ M N Core.tuniv.
 Proof. Admitted.
 
 (* c_tpi: A0 ≡ A1 : tuniv i, B0 ≡ B1 : tuniv i ⟹ tpi A0 B0 ≡ tpi A1 B1 : tuniv i *)
-Lemma sc_tpi A0 A1 (B0 B1 : Tm (S n)) i :
-  conv Γ A0 A1 (Core.tuniv i) ->
-  conv (Γ ++ A0) B0 B1 (Core.tuniv i) ->
-  semantic_conv2 Γ A0 A1 (Core.tuniv i) ->
-  semantic_conv2 (Γ ++ A0) B0 B1 (Core.tuniv i) ->
+Lemma sc_tpi A0 A1 (B0 B1 : Tm (S n)) :
+  conv Γ A0 A1 Core.tuniv ->
+  conv (Γ ++ A0) B0 B1 Core.tuniv ->
+  semantic_conv2 Γ A0 A1 Core.tuniv ->
+  semantic_conv2 (Γ ++ A0) B0 B1 Core.tuniv ->
 (* ------------------------- *)
-  semantic_conv2 Γ (Core.tpi A0 B0) (Core.tpi A1 B1) (Core.tuniv i).
+  semantic_conv2 Γ (Core.tpi A0 B0) (Core.tpi A1 B1) Core.tuniv.
 Proof. Admitted.
 
 
@@ -598,7 +589,6 @@ Proof.
     + eapply st_succ; eauto.
     + eapply st_nrec; eauto.
     + eapply st_tpi; eauto.
-    + eapply st_cum; eauto.
     + eapply st_univ; eauto.
   - move=> h. dependent destruction h.
     + eapply sc_conv; eauto. 
@@ -615,78 +605,9 @@ Proof.
     + eapply sc_tpi; eauto.
 Qed.
 
-
-(*
-Lemma ValSub_id {n} (Γ : Ctx n) (ρ : Env n)
-  : ValSub Γ Γ var ρ.
-move: ρ.
-induction Γ.
-intros. done.
-move=> ρ.
-unfold ValSub.
-move=> i u Vu LE a ER h. 
-destruct i as [i|].
-+ cbn. cbn in ER.
-  replace ρ with (ρ var_zero .: ↑ >> ρ) in ER.
-  2:   ext; eapply scons_eta'.
-  eapply EvalRel_unwk in ER.
-  specialize (IHΓ (↑ >> ρ)).
-  asimpl. 
-  unfold ValSub in IHΓ.
-  specialize (IHΓ i u Vu LE a ER h).
-  admit.
-
-+ cbn. cbn in ER.
-  replace ρ with (ρ var_zero .: ↑ >> ρ) in ER.
-  2: ext; eapply scons_eta'.
-  eapply EvalRel_unwk in ER.
-  asimpl.
-*)  
-
 Definition empty {n} : fin 0 -> Tm n := 
   fun f => match f with end. 
 
-(*
-Corollary typing_adequacy {n} (Δ : Ctx n) 
-  (M A : Tm n) u a (h : wt u a) :
-  typing Δ M A -> forall ρ, fits Δ ρ ->
-  EvalRel M ρ u -> EvalRel A ρ a ->
-  Val Δ M A h.
-Proof.
-  move=> T ρ F EM EA. 
-  eapply adequacySub in T.
-  unfold semantic_typing in T.
-  have CD: ctx Δ. admit.
-  have VS: ValSub Δ Δ var ρ. admit.
-  specialize (T ρ n Δ var (typing_subst_id _ CD) F). 
-  specialize (T VS _ _ h EM EA).
-  auto_unfold in *. rewrite idSubst_Tm in T. done.
-  rewrite idSubst_Tm in T. done.
-  done.
-Admitted.
-  
-
-Corollary conv_adequacy (M N A : Tm 0) u a (h : wt u a) :
-  conv ctx_empty M N A -> EvalRel M null u -> EvalRel N null u ->
-  EvalRel A null a ->
-  EqVal ctx_empty M N A h.
-Proof.
-  move=> T EM EN EA. 
-  eapply adequacyEqSub in T.
-  unfold semantic_conv2 in T.
-  specialize (T null null null
-                (typing_subst_null ctx_empty)
-                (typing_subst_null ctx_empty)
-             fits_empty EqValSub_empty).
-  replace M[null] with M in T.
-  replace N[null] with N in T.
-  replace A[null] with A in T.
-  eapply T; eauto.
-  auto_unfold. rewrite idSubst_Tm; eauto. done.
-  auto_unfold. rewrite idSubst_Tm; eauto. done.
-  auto_unfold. rewrite idSubst_Tm; eauto. done.
-Qed.
-*)
 
 (* ===========================================================
    Translation of PiInjectivity.agda
@@ -730,14 +651,10 @@ Proof.
   induction 1.
   - rewrite bot_env_null. exact fits_empty.
   - rewrite bot_env_cons.
-    eapply (@fits_cons _ _ _ _ bot bot i); eauto.
+    eapply (@fits_cons _ _ _ _ bot bot); eauto.
     + apply EvalRel_bot.
-    + eapply wt_bot. instantiate (1:= S i). eapply 
-      wt_tuniv. lia.
-    + eapply wt_bot. eapply wt_bot.
-      instantiate (1:=1).
-      instantiate (1:=0).  
-      eapply wt_tuniv. lia.
+    + eapply wt_bot. eapply wt_tuniv.
+    + eapply wt_bot. eapply wt_bot. eapply wt_tuniv. 
 Qed.
 
 Lemma ValSub_id n (Γ:Ctx n) :
@@ -773,10 +690,9 @@ Proof.
   cbn.
   split; first by [].                      (* valid bot *)
   split; first by [].                      (* valid_fun nil *)
-  exists 0.
   split.                                    (* wt bot (tuniv 0) *)
-  { eapply wt_bot . instantiate (1:=1).
-    eapply wt_tuniv. done. }
+  { eapply wt_bot . 
+    eapply wt_tuniv.  }
   split.                                    (* EvalRel A ρ bot *)
   { apply EvalRel_bot. }
   move=> u v IN. inversion IN.              (* EvalRel_fun B ρ bot nil: vacuous *)
@@ -786,12 +702,12 @@ Qed.
    From conv Γ A₀ (tpi B₁ F₁) (tuniv i) extract HeadRed A₀ (tpi B₀ F₀)
    and conversions on the domain and codomain.
  *)
-Lemma piConv {n} (Γ : Ctx n) (A0 : Tm n) (B1 : Tm n) (F1 : Tm (S n)) i :
-  conv Γ A0 (Core.tpi B1 F1) (Core.tuniv i) ->
+Lemma piConv {n} (Γ : Ctx n) (A0 : Tm n) (B1 : Tm n) (F1 : Tm (S n)) :
+  conv Γ A0 (Core.tpi B1 F1) Core.tuniv ->
   exists B0 F0,
     HeadRed A0 (Core.tpi B0 F0)
-    /\ conv Γ B0 B1 (Core.tuniv i)
-    /\ conv (Γ ++ B0) F0 F1 (Core.tuniv i).
+    /\ conv Γ B0 B1 Core.tuniv
+    /\ conv (Γ ++ B0) F0 F1 Core.tuniv.
 Proof.
   move=> Cv.
   pose ρ : Env n := bot_env.
@@ -810,29 +726,28 @@ Proof.
   (* Pick the witness u = (tpi bot nil) at type (tuniv i). *)
   pose u := tpi bot nil.
   have Vpi : valid (tpi bot nil) by [].
-  have Hwt : wt u (tuniv i).
-  { rewrite /u. apply: (@wt_tpi bot nil i).
+  have Hwt : wt u (tuniv).
+  { rewrite /u. apply: (@wt_tpi bot nil ).
     - econstructor; eauto. 
     - apply: wt_bot. eapply wt_tuniv.
-      instantiate (1:= S i). lia.
     - exact: Vpi. }
 
   (* EvalRel for (tpi B1 F1) and (transported via conv) for A0. *)
   have EvalPi : EvalRel (Core.tpi B1 F1) ρ u.
   { rewrite /u. exact: evalRel_Pi_trivial. }
   have EvA0 : EvalRel A0 ρ u.
-  { have IC : InvConv Γ A0 (Core.tpi B1 F1) (Core.tuniv i) ρ.
+  { have IC : InvConv Γ A0 (Core.tpi B1 F1) Core.tuniv ρ.
     { eapply conv_EvalRel; eauto. }
     move: IC => [_ [_ [_ bwd]]]. apply: bwd. exact: EvalPi. }
-  have EvUni : EvalRel (Core.tuniv i) ρ (tuniv i).
-  { cbn. exact: PeanoNat.Nat.eqb_refl. }
+  have EvUni : EvalRel Core.tuniv ρ (tuniv).
+  { cbn. auto. }
 
   (* Apply adequacyEqSub2 to the conversion at the chosen witness. *)
   move:
-    (@adequacyEqSub _ Γ A0 (Core.tpi B1 F1) (Core.tuniv i) Cv) => ev2.
+    (@adequacyEqSub _ Γ A0 (Core.tpi B1 F1) Core.tuniv Cv) => ev2.
   unfold semantic_conv2 in ev2.
   specialize (ev2 ρ _ Γ σ σ TSσ TSσ Fρ EVSσ
-       u (tuniv i) Hwt EvA0 EvUni) as ev2.
+       u tuniv Hwt EvA0 EvUni) as ev2.
   (* ev2 : EqVal Γ A0[σ] (tpi B1 F1)[σ] (tuniv i)[σ] Hwt *)
 
   asimpl in ev2.
@@ -865,10 +780,10 @@ Qed.
    extract domain and codomain conversions.
    Mirrors piInjectivity in PiInjectivity.agda. *)
 Lemma piInjectivity {n} (Γ : Ctx n)
-  (A0 A1 : Tm n) (B0 B1 : Tm (S n)) i :
-  conv Γ (Core.tpi A0 B0) (Core.tpi A1 B1) (Core.tuniv i) ->
-  conv Γ A0 A1 (Core.tuniv i) /\
-  conv (Γ ++ A0) B0 B1 (Core.tuniv i).
+  (A0 A1 : Tm n) (B0 B1 : Tm (S n)) :
+  conv Γ (Core.tpi A0 B0) (Core.tpi A1 B1) Core.tuniv ->
+  conv Γ A0 A1 Core.tuniv /\
+  conv (Γ ++ A0) B0 B1 Core.tuniv.
 Proof.
   move=> H.
   destruct (piConv H) as [B0' [F0' [HR [convD convC]]]].
@@ -879,6 +794,5 @@ Proof.
   { eapply HeadRed_tpi_det. exact HR. apply ms_refl. }
   subst B0' F0'.
   split; auto.
-Qed. *)
-Admitted.
+Qed. 
 

@@ -23,8 +23,6 @@ Require Import directed.
 
 From Equations Require Import Equations.
 
-
-
 (* Library stuff *)
 
 Lemma option_eta {A} (o:option A) : match o with Some x => Some x | None => None end = o.
@@ -113,7 +111,7 @@ Module Raw.
 Inductive elt := 
   | bot   : elt 
   | tnat  : elt 
-  | tuniv : nat -> elt
+  | tuniv : elt
   | zero  : elt
   | succ  : elt -> elt
   | tpi   : elt -> list (elt * elt) -> elt
@@ -144,7 +142,7 @@ Fixpoint rk (u : elt) : nat :=
   match u with 
   | bot => 0 
   | tnat => 1
-  | tuniv k => 1
+  | tuniv => 1
   | zero => 1 
   | succ v => 1 + rk v
   | tpi a f => 1 + (max (rk a) (rk_fun f))
@@ -176,8 +174,8 @@ Fixpoint compatible u v {struct u} : bool :=
   | succ u , succ v => compatible u v
   | tpi a f , tpi b g => 
       (compatible a b) && (compatible_fun f g)
-  | abs f , abs g => compatible_fun f g 
-  | tuniv i , tuniv j => Nat.eqb i j
+  | abs f , abs g => compatible_fun f g
+  | tuniv , tuniv => true
   | _ , _ => false
   end.
 
@@ -203,8 +201,7 @@ Fixpoint lub (u v : elt) : option elt :=
   | u,      bot  => Some u
   | tnat,   tnat => Some tnat
   | zero,   zero => Some zero
-  | tuniv i, tuniv j =>
-      if Nat.eqb i j then Some (tuniv i) else None
+  | tuniv, tuniv => Some tuniv
   | succ u, succ v =>
       option_map succ (lub u v)
   | tpi a f, tpi b g =>
@@ -310,10 +307,10 @@ Equations? le (u : elt) (v: elt) : bool
       | 0 => false 
       | S m => (le' a b m) && (le_fun f g m)
       end
-  | tuniv i , tuniv j => Nat.eqb i j
-  | abs f , abs g => 
-      match k with 
-      | 0 => false 
+  | tuniv , tuniv => true
+  | abs f , abs g =>
+      match k with
+      | 0 => false
       | S m => le_fun f g m
       end
   | _ , _ => false
@@ -367,10 +364,10 @@ Fixpoint le' (u v : elt) k : bool :=
       | 0 => false 
       | S m => (le' a b m) && (le_fun f g m)
       end
-  | tuniv i , tuniv j => Nat.eqb i j
-  | abs f , abs g => 
-      match k with 
-      | 0 => false 
+  | tuniv , tuniv => true
+  | abs f , abs g =>
+      match k with
+      | 0 => false
       | S m => le_fun f g m
       end
   | _ , _ => false
@@ -488,7 +485,7 @@ Proof. reflexivity. Qed.
 (* identity function, only defined on 0 and U0. 
    NOTE: This element is semantically ill-typed. *)
 Definition id_0U0  : elt := 
-  abs ((zero,zero) :: (tuniv 0,tuniv 0) :: nil).
+  abs ((zero,zero) :: (tuniv,tuniv) :: nil).
 
 (* even though it is ill-typed, we can include it as a subterm 
    of a term that equivalent to a well-typed term. *)
@@ -548,8 +545,7 @@ Proof.
   all: destruct v.
   all: intros h; inversion h; subst.
   all: cbn; auto.
-  - destruct PeanoNat.Nat.eqb; inversion h. cbn. reflexivity.
-  - destruct (lub u v) eqn:LU; cbn in h; inversion h. 
+  - destruct (lub u v) eqn:LU; cbn in h; inversion h.
     cbn. f_equal. eauto. 
   - fold rk_fun.
     destruct (lub u v) eqn:LU;
@@ -639,9 +635,8 @@ Proof.
     move=> m ih.
     move=>u v Le. 
     destruct u; destruct v; cbn in *; try done.
-    all: try match goal with [ H : S _ <=  _ |- _ ] => 
+    all: try match goal with [ H : S _ <=  _ |- _ ] =>
         destruct (le_S_pred H) as [m0 [-> LL]] end.
-    - cbn. rewrite PeanoNat.Nat.eqb_sym. done.
     - eauto.
     - fold rk_fun in *.
       move=> /andP [h1 h2].
@@ -679,8 +674,6 @@ Proof.
   all: destruct v; cbn.
   all: intro h; try done.
   all: try solve [eexists; eauto].
-  - rewrite h.
-    eexists; eauto.
   - edestruct IHu as [w ->]; eauto.
     eexists; cbn; eauto.
   - move: h => /andP [h1 h2].
@@ -701,7 +694,6 @@ Proof.
   all: intros v w h.
   all: destruct v; try done.
   all: cbn in h.
-  - destruct (n =? n0) eqn:h1; done.
   - destruct (lub u v) eqn:h1; try done.
     cbn. cbn in h. eauto.
   - cbn. destruct (compatible_fun l l0) eqn:h1; try done.
@@ -809,9 +801,7 @@ Proof.
   move: v w x.
   induction u.
   all: move => v w x.
-  all: destruct v; move=>h; inversion h; try done.
-  - destruct (n =? n0) eqn:h1; try done.
-    inversion H0. subst. auto.
+  all: destruct v; move=>h; inversion h; subst; try done.
   - destruct (lub u v) eqn:h1; try done.
     cbn in H0. inversion H0. subst.
     destruct x; try done. cbn.
@@ -894,11 +884,6 @@ Proof.
   all: inversion h; subst.
   all: inversion h1; subst.
   all: cbn; try done.
-  + destruct (n =? n0); try done. inversion h. cbn. done.
-  + destruct (n =? n0) eqn:E1; try done. inversion h. cbn.
-    destruct (n0 =? n1) eqn:E2; try done. inversion h1. rewrite E1.
-    rewrite Nat.eqb_eq in E1. rewrite Nat.eqb_eq in E2. subst.
-    rewrite Nat.eqb_refl. done.
   + destruct (lub u e0) as [w0|]; try done. inversion h. subst. clear h.
       cbn. done.
     + destruct (lub u e0) as [w0|] eqn:L0; try done. inversion h. subst. clear h.
@@ -987,11 +972,7 @@ Proof.
   all: destruct e; cbn in *; inversion L1; subst.
   all: inversion L2; subst.
   all: try solve [destruct w2; try done].
-  - (* univ *) 
-    destruct (n =? n0) eqn:E1; try done. 
-    rewrite Nat.eqb_eq in E1. subst. inversion L1. subst.
-    cbn. done.
-  - (* succ *) 
+  - (* succ *)
     destruct (lub v e) eqn:LUB; try done.
     destruct w2 eqn:h2.
     all: try solve [subst; cbn in *; inversion L1; cbn; done].
@@ -1035,10 +1016,6 @@ Proof.
   all: destruct e; cbn in *; inversion L1; subst.
   all: inversion L2; subst.
   all: try solve [destruct w1; try done].
-  - (* univ *)
-    destruct (n =? n0) eqn:E1; try done.
-    rewrite Nat.eqb_eq in E1. subst. inversion L1. subst.
-    cbn. done.
   - (* succ *)
     destruct (lub v e) eqn:LUB; try done.
     destruct w1 eqn:h2.
@@ -1295,7 +1272,7 @@ Lemma le_bot' v m : le' bot v m.
  destruct v; destruct m; reflexivity.
 Qed.
 
-Lemma le_tuniv i j : le (tuniv i) (tuniv j) = (i =? j).
+Lemma le_tuniv : le tuniv tuniv = true.
   reflexivity.
 Qed.
 
@@ -1514,7 +1491,6 @@ Proof.
   induction u.
   all: cbn.
   all: auto.
-  - intro h. apply PeanoNat.Nat.eqb_refl.
   - move=> /andP [Vu Vf].
     apply /andP. split; eauto using valid.
     eapply valid_fun_compatible; eauto.
@@ -1597,8 +1573,7 @@ Proof.
   induction u.
   all: intros v w Vu Vw h.
   all: destruct v; cbn in h, Vu, Vw; inversion h; subst; try done.
-  - destruct Nat.eqb; inversion h. done.
-  - destruct (lub u v) eqn:EQ; inversion h. cbn. 
+  - destruct (lub u v) eqn:EQ; inversion h. cbn.
     eapply IHu; eauto.
   - move: Vu => /andP [Vu Vfl].
     move: Vw => /andP [Vw Vfl0].
@@ -1677,11 +1652,10 @@ Lemma le_zero_inv : forall u, le zero u -> u = zero.
   all: cbn in LE1; try done.
 Qed.
 
-Lemma le_tuniv_inv : forall u i, le (tuniv i) u -> u = tuniv i.
+Lemma le_tuniv_inv : forall u, le tuniv u -> u = tuniv.
   induction u.
-  all: move=> i LE1.
+  all: move=> LE1.
   all: cbn in LE1; try done.
-  apply Nat.eqb_eq in LE1. subst. done.
 Qed.
 
 Lemma le_succ_inv : forall u v, le (succ u) v -> 
@@ -1892,10 +1866,8 @@ Proof.
     destruct u eqn:Eu; destruct u' eqn:Eu'.
     all: try solve [cbn in *; done].
     all: destruct v eqn:Ev; try done.
-    all: try match goal with [ H : S _ <=  _ |- _ ] => 
-        destruct (le_S_pred H) as [m0 [-> LL]] end.    
-    - subst; cbn. 
-      move=> /Nat.eqb_spec -> /Nat.eqb_spec ->. eapply Nat.eqb_refl.
+    all: try match goal with [ H : S _ <=  _ |- _ ] =>
+        destruct (le_S_pred H) as [m0 [-> LL]] end.
     - rewrite le_succ. cbn in *.
       eapply ih; eauto. 
     - rewrite le_tpi.      
@@ -2728,8 +2700,7 @@ Proof.
     destruct a.
     all: cbn in RK.
     all: try solve [cbn;done].
-    + cbn. eapply Nat.eqb_refl.
-    + rewrite le_succ. 
+    + rewrite le_succ.
       specialize (ih (rk a)).
       eapply le_refl; eauto.
     + fold rk_fun in RK. rewrite le_tpi.
@@ -2748,11 +2719,6 @@ Proof.
     all: move=> v RK Cu w h Vu Vv.
     all: try solve [destruct w; try done].
     all: try solve [destruct v; inversion h; subst; auto].
-    + (* univ *)
-    destruct v; inversion h; subst; cbn in *. 
-    apply Nat.eqb_refl. 
-    destruct (n =? n0) eqn:EQ; try done.
-    inversion H0. cbn. apply Nat.eqb_refl.
     + (* succ *)
     destruct v; inversion h; subst; cbn in *. 
     ++ (* needs le_refl *) eapply le_refl; eauto. 
@@ -2795,11 +2761,6 @@ Proof.
     all: move=> u RK Cu w h Vu Vv.
     all: try solve [destruct w; try done].
     all: try solve [destruct u; inversion h; subst; auto].
-    + (* univ *)
-    destruct u; inversion h; subst; cbn in *. 
-    apply Nat.eqb_refl. 
-    destruct (n0 =? n) eqn:EQ; try done.
-    inversion H0. cbn. rewrite Nat.eqb_sym. eapply EQ.
     + (* succ *)
     destruct u; inversion h; subst; cbn in *. 
     ++ (* needs le_refl *) eapply le_refl; eauto. 
@@ -2840,10 +2801,7 @@ Proof.
     move=> u v w RK Vu Vv Vw L1 L2.
     destruct u; destruct v; destruct w;
       try solve [cbn in L1; cbn in L2; done].
-    + apply Nat.eqb_eq in L1.
-      apply Nat.eqb_eq in L2.
-      subst. cbn. eapply Nat.eqb_eq. done.
-    + rewrite le_succ. rewrite -> le_succ in L1, L2. 
+    + rewrite le_succ. rewrite -> le_succ in L1, L2.
       cbn in RK.
       eapply (@le_trans _ (ih _ RK) u v w); eauto.
     + rewrite le_tpi.  rewrite -> le_tpi in L1, L2.
@@ -2866,12 +2824,7 @@ Proof.
 
   - (* le_sup_lub *)
     move=> u v w1 w2 RK LE1 LE2 LUB.
-    destruct u; destruct v; cbn in LUB; inversion LUB; try done.    
-    + destruct (n=?n0) eqn:EQ. 2: done.
-      apply le_tuniv_inv in LE1.
-      apply le_tuniv_inv in LE2. 
-      rewrite Nat.eqb_eq in EQ. inversion LUB. subst. 
-      cbn. eapply Nat.eqb_eq. done.
+    destruct u; destruct v; cbn in LUB; inversion LUB; try done.
     + apply le_succ_inv in LE1. move: LE1 => [v1 [EQ1 LE1]].
       apply le_succ_inv in LE2. move: LE2 => [v2 [EQ2 LE2]].
       destruct (lub u v) eqn:LUB2. 2: done. inversion LUB. subst.
@@ -3082,11 +3035,11 @@ Definition singleton (a b: elt) : elt :=
 
 (** * inversion lemmas for lub *)
 
-Lemma lub_bot_inv u v : 
+Lemma lub_bot_inv u v :
   lub u v = Some bot -> u = bot /\ v = bot.
 Proof.
   destruct u; destruct v; try done.
-  all: cbn. destruct (n =? n0); done.
+  all: cbn.
   destruct (lub u v); done.
   destruct (compatible_fun l l0); try done.
   destruct (lub u v); done.
@@ -3099,14 +3052,13 @@ Lemma lub_bot_inv_l u v :
   lub u v = Some bot -> u = bot.
 Proof. move=> h. eapply (lub_bot_inv h). Qed.
 
-Lemma lub_tuniv_inv (u v:elt) i :
+Lemma lub_tuniv_inv (u v:elt) :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some (tuniv i) -> 
-  (u = tuniv i) /\ (v = tuniv i). 
+  lub u v = Some tuniv ->
+  (u = tuniv) /\ (v = tuniv).
 Proof.
   destruct u; destruct v; try done.
-  all: cbn. destruct (n =? n0) eqn:NE;
-    try done; try rewrite Nat.eqb_eq in NE.
+  all: cbn.
   move=> _ _ h. inversion h. subst. eauto.
   destruct (lub u v) eqn:hl; try done.
   destruct (compatible_fun l l0); try done.
@@ -3116,12 +3068,11 @@ Qed.
 
 Lemma lub_tnat_inv (u v:elt) :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some tnat -> 
-  (u = tnat) /\ (v = tnat). 
-Proof. 
+  lub u v = Some tnat ->
+  (u = tnat) /\ (v = tnat).
+Proof.
   destruct u; destruct v; try done.
   all: cbn.
-  destruct (n =? n0); done.
   destruct (lub u v) eqn:hl; try done.
   destruct (compatible_fun l l0); try done.
   destruct (lub u v); done.
@@ -3130,12 +3081,11 @@ Qed.
 
 Lemma lub_zero_inv (u v:elt) :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some zero -> 
-  (u = zero) /\ (v = zero). 
-Proof. 
+  lub u v = Some zero ->
+  (u = zero) /\ (v = zero).
+Proof.
   destruct u; destruct v; try done.
   all: cbn.
-  destruct (n =? n0); done.
   destruct (lub u v) eqn:hl; try done.
   destruct (compatible_fun l l0); try done.
   destruct (lub u v); done.
@@ -3145,12 +3095,12 @@ Qed.
 
 Lemma lub_succ_inv (u v:elt) (w : elt) :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some (succ w) -> 
-  { u1 & { v1 & (u = succ u1) * ((v = succ v1) 
+  lub u v = Some (succ w) ->
+  { u1 & { v1 & (u = succ u1) * ((v = succ v1)
        * (lub u1 v1 = Some w))}}.
 Proof.
   destruct u; destruct v; try done.
-  all: cbn. destruct (n =? n0); try done.
+  all: cbn.
   - destruct (lub u v) eqn:hl; try done.
     move=> _ _ h. inversion h. subst. eauto.
   - destruct (compatible_fun l l0); try done.
@@ -3160,12 +3110,12 @@ Qed.
 
 Lemma lub_abs_inv (u v:elt) (f : list (elt * elt)) :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some (abs f) -> 
-  { f1 & { f2 & (u = abs f1) * ((v = abs f2) 
-       * (f = f1 ++ f2)%list )}}. 
+  lub u v = Some (abs f) ->
+  { f1 & { f2 & (u = abs f1) * ((v = abs f2)
+       * (f = f1 ++ f2)%list )}}.
 Proof.
   destruct u; destruct v; try done.
-  all: cbn. destruct (n =? n0); done.
+  all: cbn.
   destruct (lub u v); done.
   destruct (compatible_fun l l0); try done.
   destruct (lub u v); done.
@@ -3175,14 +3125,13 @@ Qed.
 
 Lemma lub_tpi_inv (u v:elt) a f :
   ~~ is_bot u -> ~~ is_bot v ->
-  lub u v = Some (tpi a f) -> 
-  { a1 & { f1 & { a2 & { f2 & (u = tpi a1 f1) * ((v = tpi a2 f2) 
+  lub u v = Some (tpi a f) ->
+  { a1 & { f1 & { a2 & { f2 & (u = tpi a1 f1) * ((v = tpi a2 f2)
        * ((lub a1 a2 = Some a)
        * (f = f1 ++ f2)%list))}}}}.
 Proof.
   destruct u; destruct v; try done.
-  all: cbn. 
-  destruct (n =? n0); done.
+  all: cbn.
   destruct (lub u v); done.
   destruct (compatible_fun l l0); try done.
   destruct (lub u v) eqn:h1; try done.
@@ -3221,7 +3170,7 @@ Definition nefinfun : Set :=
 
 Definition bot : elt. exists Raw.bot. auto. Defined.
 Definition tnat : elt. exists Raw.tnat. auto. Defined.
-Definition tuniv (j: nat) : elt. exists (Raw.tuniv j). auto. Defined.
+Definition tuniv : elt. exists Raw.tuniv. auto. Defined.
 Definition zero : elt. exists Raw.zero. auto. Defined.
 Definition succ (u : elt) : elt.
   exists (Raw.succ (projT1 u)). cbn. eapply projT2. Defined.
@@ -3562,7 +3511,7 @@ Definition zero : elt. Admitted.
 Definition succ : elt -> elt. Admitted.
 Definition tpi : elt -> finfun -> elt. Admitted.
 Definition abs : finfun -> elt. Admitted.
-Definition tuniv : nat -> elt. Admitted.
+Definition tuniv : elt. Admitted.
 Definition tnat : elt. exact (to_quot Valid.tnat). Defined.
 
 Definition compatible : elt -> elt -> bool. Admitted.
@@ -3594,7 +3543,7 @@ Definition elt_ind : forall (P : elt -> Prop) (Pf : finfun -> Prop),
     (forall f, Pf f -> P (abs f)) -> 
     (forall e f, P e -> Pf f -> P (tpi e f)) -> 
     P tnat ->
-    (forall k, P (tuniv k)) ->
+    P tuniv ->
     (forall l (Vf: valid_fun l), (forall u v, In (u,v) l -> P u /\ P v) -> Pf (to_finfun Vf)) ->
     forall e, (P e) /\ forall f, Pf f.
 Admitted.
@@ -3625,7 +3574,7 @@ Definition elt_rect : forall (P : elt -> Type) (Pf : finfun -> Type),
     (forall f, Pf f -> P (abs f)) -> 
     (forall e f, P e -> Pf f -> P (tpi e f)) -> 
     P tnat ->
-    (forall k, P (tuniv k)) ->
+    P tuniv ->
     (H : forall l (Vf: valid_fun l), (forall u v, In (u,v) l -> P u * P v) -> Pf (to_finfun Vf))) ->
     (forall f (Vf: valid_fun f) g (Vg: valid_fun g) 
        (to_finfun Vf) = (to_finfun Vg) ->

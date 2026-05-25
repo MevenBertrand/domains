@@ -65,54 +65,49 @@ Inductive typing : forall {n} (Γ : Ctx n), Tm n -> Tm n -> Prop :=
   | t_var n (Γ : Ctx n) x : 
     ctx Γ ->
     typing Γ (var x) (lookup x Γ)
-  | t_conv n (Γ : Ctx n) M A B i : 
+  | t_conv n (Γ : Ctx n) M A B : 
     typing Γ M A -> 
-    conv Γ A B (tuniv i) -> 
+    conv Γ A B tuniv -> 
     typing Γ M B
-  | t_abs n (Γ : Ctx n) A B N i : 
-    typing Γ A (tuniv i) ->
-    typing (Γ ++ A) B (tuniv i) -> 
+  | t_abs n (Γ : Ctx n) A B N : 
+    typing Γ A tuniv ->
+    typing (Γ ++ A) B tuniv -> 
     typing (Γ ++ A) N B ->
     typing Γ (abs A N) (tpi A B)
-  | t_app n (Γ : Ctx n) A B N M i : 
-    typing Γ A (tuniv i) -> 
-    typing (Γ ++ A) B (tuniv i) -> 
+  | t_app n (Γ : Ctx n) A B N M : 
+    typing Γ A tuniv -> 
+    typing (Γ ++ A) B tuniv -> 
     typing Γ N (tpi A B) ->
     typing Γ M A -> 
     typing Γ (app N M) B[M..]
   (* natural numbers *)
   | t_nat n (Γ : Ctx n) : 
     ctx Γ ->
-    typing Γ tnat (tuniv 0)
+    typing Γ tnat tuniv
   | t_zero n (Γ : Ctx n) : 
     ctx Γ ->
     typing Γ zero tnat 
   | t_succ n (Γ : Ctx n) M : 
     typing Γ M tnat ->
     typing Γ (succ M) tnat 
-  | t_nrec n (Γ : Ctx n) (T U : Tm (S n)) M0 M1 i :
-    typing (Γ ++ tnat) T (tuniv i) ->
+  | t_nrec n (Γ : Ctx n) (T U : Tm (S n)) M0 M1 :
+    typing (Γ ++ tnat) T tuniv ->
     typing Γ M0 (T[zero..]) ->
     U = T[rho] ->
     typing Γ M1 (tpi tnat (tpi T U⟨↑⟩ )) ->       
     typing Γ (nrec T M0 M1) (tpi tnat T)
   (* universes *)
-  | t_tpi n (Γ : Ctx n) A B i : 
-    typing Γ A (tuniv i) ->
-    typing (Γ ++ A) B (tuniv i) -> 
-    typing Γ (tpi A B) (tuniv i)
-  | t_cum n (Γ : Ctx n) A i j :
-    (* TODO: change this to <= ? *)
-    typing Γ A (tuniv i) -> (i < j)%nat -> 
-    typing Γ A (tuniv j)
-  | t_univ n (Γ : Ctx n) i j : 
+  | t_tpi n (Γ : Ctx n) A B : 
+    typing Γ A tuniv ->
+    typing (Γ ++ A) B tuniv -> 
+    typing Γ (tpi A B) tuniv
+  | t_univ n (Γ : Ctx n) : 
     ctx Γ ->
-    (i < j)%nat ->
-    typing Γ (tuniv i) (tuniv j)
+    typing Γ tuniv tuniv
 with conv :forall {n} (Γ : Ctx n), Tm n -> Tm n -> Tm n -> Prop := 
-  | c_conv n (Γ : Ctx n) M N A B i : 
+  | c_conv n (Γ : Ctx n) M N A B : 
     conv Γ M N A -> 
-    conv Γ A B (tuniv i) ->
+    conv Γ A B tuniv ->
     conv Γ M N B
   | c_refl n (Γ : Ctx n) M A : 
     typing Γ M A ->
@@ -124,55 +119,55 @@ with conv :forall {n} (Γ : Ctx n), Tm n -> Tm n -> Tm n -> Prop :=
     conv Γ M N A -> 
     conv Γ N P A -> 
     conv Γ M P A
-  | c_app1 n (Γ : Ctx n) A B N N' M i : 
-    typing Γ A (tuniv i) -> 
-    typing (Γ ++ A) B (tuniv i) -> 
+  | c_app1 n (Γ : Ctx n) A B N N' M : 
+    typing Γ A tuniv -> 
+    typing (Γ ++ A) B tuniv -> 
     conv Γ N N' (tpi A B) ->
     typing Γ M A ->
     conv Γ (app N M) (app N' M) B[M..]
-  | c_app2 n (Γ : Ctx n) A B N M M' i  :          
-    typing Γ A (tuniv i) -> 
-    typing (Γ ++ A) B (tuniv i) -> 
+  | c_app2 n (Γ : Ctx n) A B N M M'  :          
+    typing Γ A tuniv -> 
+    typing (Γ ++ A) B tuniv -> 
     typing Γ N (tpi A B) ->
     conv Γ M M' A ->
     conv Γ (app N M) (app N M') B[M..]
-  | c_beta n (Γ : Ctx n) A B M N i :
-    typing Γ A (tuniv i) -> 
-    typing (Γ ++ A) B (tuniv i) -> 
+  | c_beta n (Γ : Ctx n) A B M N :
+    typing Γ A tuniv -> 
+    typing (Γ ++ A) B tuniv -> 
     typing (Γ ++ A) N B -> 
     typing Γ M A ->
     conv Γ (app (abs A N) M) N[M..] B[M..]
-  | c_eta n (Γ : Ctx n) A B N N' i :
-    typing Γ A (tuniv i) -> 
-    typing (Γ ++ A) B (tuniv i) -> 
+  | c_eta n (Γ : Ctx n) A B N N' :
+    typing Γ A tuniv -> 
+    typing (Γ ++ A) B tuniv -> 
     typing Γ N (tpi A B) ->     
     typing Γ N' (tpi A B) ->     
     conv (Γ ++ A) (app N⟨↑⟩ (var var_zero))
       (app N'⟨↑⟩ (var var_zero)) A⟨↑⟩ ->
     conv Γ N N' (tpi A B)
   (* natural numbers: TODO add typing hyps *)
-  | c_nrec_Z n (Γ : Ctx n) M0 M1 (T : Tm (S n)) i : 
-    typing  (Γ ++ tnat) T (tuniv i) ->
+  | c_nrec_Z n (Γ : Ctx n) M0 M1 (T : Tm (S n)) : 
+    typing  (Γ ++ tnat) T tuniv ->
     typing Γ M0 (T[zero..]) ->
     typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩ )) ->   
     conv Γ (app (nrec T M0 M1) zero) M0 T[zero..]
-  | c_nrec_S n (Γ : Ctx n) T M0 M1 n i : 
-    typing (Γ ++ tnat) T (tuniv i) ->
+  | c_nrec_S n (Γ : Ctx n) T M0 M1 n : 
+    typing (Γ ++ tnat) T tuniv ->
     typing Γ M0 (T[zero..]) ->
     typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩ )) ->    
     conv Γ (app (nrec T M0 M1) (succ n)) 
       (app (app M1 n) (app (nrec T M0 M1) n)) T[(succ n)..]
-  | c_tuniv n (Γ : Ctx n) M N i j : 
-    conv Γ M N (tuniv i) -> (i < j)%nat ->
-    conv Γ M N (tuniv j)
-  | c_tpi n (Γ : Ctx n) A0 A1 B0 B1 i :
-    conv Γ A0 A1 (tuniv i) -> 
-    conv (Γ ++ A0) B0 B1 (tuniv i) -> 
-    conv Γ (tpi A0 B0) (tpi A1 B1) (tuniv i)
+  | c_tuniv n (Γ : Ctx n) M N : 
+    conv Γ M N tuniv ->
+    conv Γ M N tuniv
+  | c_tpi n (Γ : Ctx n) A0 A1 B0 B1 :
+    conv Γ A0 A1 tuniv -> 
+    conv (Γ ++ A0) B0 B1 tuniv -> 
+    conv Γ (tpi A0 B0) (tpi A1 B1) tuniv
 with ctx : forall {n}, Ctx n -> Prop :=
   | c_empty : ctx ctx_empty
-  | c_cons n (Γ : Ctx n) A i : ctx Γ -> 
-     typing Γ A (tuniv i) -> 
+  | c_cons n (Γ : Ctx n) A : ctx Γ -> 
+     typing Γ A tuniv -> 
      ctx (Γ ++ A).
 
 Lemma typing_ctx {n} (Γ : Ctx n) M A :
@@ -197,44 +192,39 @@ Definition t_var' {n} (Γ : Ctx n) x τ :
   lookup x Γ = τ -> ctx Γ -> typing Γ (var x) τ.
 intros <-. eapply t_var. Qed.
 Definition t_app' {n} (Γ : Ctx n) (A : Tm n) 
-  (B : Tm (S n)) (N M : Tm n) (C:Tm n) i :
-       typing Γ A (tuniv i) ->
-            typing (Γ ++ A) B (tuniv i) -> typing Γ N (tpi A B) 
+  (B : Tm (S n)) (N M : Tm n) (C:Tm n) :
+       typing Γ A tuniv ->
+            typing (Γ ++ A) B tuniv -> typing Γ N (tpi A B) 
        -> typing Γ M A 
        -> B[M..] = C
        -> typing Γ (app N M) C.
 intros. subst. eapply t_app; eauto. Qed. 
-Definition t_univ' {n} (Γ : Ctx n) A (i j : nat):
-  i < j -> tuniv j = A -> ctx Γ ->
-  typing Γ (tuniv i) A.
-intros h1 <- h. eapply t_univ; eauto. Qed.
-Definition t_cum' {n} (Γ : Ctx n) A i j B :
-    typing Γ A (tuniv i) -> (i < j)%nat ->
-    tuniv j = B ->
-    typing Γ A B.
-Proof. intros; subst; eauto using t_cum. Qed.
+Definition t_univ' {n} (Γ : Ctx n) A :
+  tuniv = A -> ctx Γ ->
+  typing Γ tuniv A.
+intros <- h. eapply t_univ; eauto. Qed.
 
-Definition c_app1' {n} (Γ : Ctx n) A B N N' M C i :
-    typing Γ A (tuniv i) ->
-    typing (Γ ++ A) B (tuniv i) ->
+Definition c_app1' {n} (Γ : Ctx n) A B N N' M C :
+    typing Γ A tuniv ->
+    typing (Γ ++ A) B tuniv ->
     conv Γ N N' (tpi A B) ->
     typing Γ M A ->
     B[M..] = C ->
     conv Γ (app N M) (app N' M) C.
 Proof. intros; subst; eauto using c_app1. Qed.
 
-Definition c_app2' {n} (Γ : Ctx n) A B N M M' C i :
-    typing Γ A (tuniv i) ->
-    typing (Γ ++ A) B (tuniv i) ->
+Definition c_app2' {n} (Γ : Ctx n) A B N M M' C :
+    typing Γ A tuniv ->
+    typing (Γ ++ A) B tuniv ->
     typing Γ N (tpi A B) ->
     conv Γ M M' A ->
     B[M..] = C ->
     conv Γ (app N M) (app N M') C.
 Proof. intros; subst; eauto using c_app2. Qed.
 
-Definition c_beta' {n} (Γ : Ctx n) A B M N C D i :
-    typing Γ A (tuniv i) ->
-    typing (Γ ++ A) B (tuniv i) ->
+Definition c_beta' {n} (Γ : Ctx n) A B M N C D :
+    typing Γ A tuniv ->
+    typing (Γ ++ A) B tuniv ->
     typing (Γ ++ A) N B ->
     typing Γ M A ->
     N[M..] = C ->
@@ -242,16 +232,16 @@ Definition c_beta' {n} (Γ : Ctx n) A B M N C D i :
     conv Γ (app (abs A N) M) C D.
 Proof. intros; subst; eauto using c_beta. Qed.
 
-Definition c_nrec_Z' {n} (Γ : Ctx n) M0 M1 (T : Tm (S n)) C i :
-    typing (Γ ++ tnat) T (tuniv i) ->
+Definition c_nrec_Z' {n} (Γ : Ctx n) M0 M1 (T : Tm (S n)) C :
+    typing (Γ ++ tnat) T tuniv ->
     typing Γ M0 (T[zero..]) ->
     typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩)) ->
     T[zero..] = C ->
     conv Γ (app (nrec T M0 M1) zero) M0 C.
 Proof. intros; subst; eauto using c_nrec_Z. Qed.
 
-Definition c_nrec_S' {n} (Γ : Ctx n) T M0 M1 e C i :
-    typing (Γ ++ tnat) T (tuniv i) ->
+Definition c_nrec_S' {n} (Γ : Ctx n) T M0 M1 e C :
+    typing (Γ ++ tnat) T tuniv ->
     typing Γ M0 (T[zero..]) ->
     typing Γ M1 (tpi tnat (tpi T T[rho]⟨↑⟩)) ->
     T[(succ e)..] = C ->
@@ -346,29 +336,23 @@ Proof.
     all: try solve [econstructor; eauto with renaming; cbn].
     + (* var case *)
       eapply t_var'; eauto.
-    + (* conv *) 
-      econstructor; eauto with renaming.
-      eapply renaming_conv'; eauto.
-      cbn; eauto.
     + (* abs *)
       have EC: ctx (Δ ++ A ⟨δ⟩).
-      { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in h1; eauto with renaming. } 
+      { eapply c_cons; eauto with renaming. } 
       eapply t_abs; eauto with renaming.
-      eapply renaming_typing' in h1; eauto with renaming.
-      cbn; eauto.
-      eapply renaming_typing in h2; eauto with renaming.
     + (* app *) 
       have EC: ctx (Δ ++ A ⟨δ⟩).
       { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in h1; eauto with renaming. } 
+        } 
       eapply t_app' with (B:=B⟨up_ren δ⟩); eauto with renaming. 
       eapply renaming_typing' in h1; eauto with renaming.
-      cbn; eauto.
+      admit.
+(*      cbn; eauto.
       eapply renaming_typing' in h2; eauto with renaming.
       eapply renaming_typing' in h3; eauto with renaming.
       asimpl.
-      auto.
+      auto. *)
+
     + (* nrec *)
       have EC: ctx (Δ ++ tnat).
       { eapply c_cons; eauto with renaming.
@@ -376,7 +360,6 @@ Proof.
       eapply t_nrec; eauto with renaming.
       eapply renaming_typing' in h1; eauto with renaming.
       eapply typing_renaming_lift with (τ:=tnat) in tR; eauto.
-      reflexivity.
       eapply renaming_typing' in h2; eauto. asimpl. eauto.
       eapply renaming_typing' in h3; eauto with renaming.
       asimpl.
@@ -387,11 +370,6 @@ Proof.
       eapply t_tpi; eauto with renaming.
       eapply renaming_typing'; eauto with renaming.
       eapply c_cons; eauto.
-      eapply renaming_typing'; eauto with renaming.
-      reflexivity.
-    + (* tcum *)
-      eapply t_cum'; eauto.
-      eapply renaming_typing'; eauto. 
   (* conv *)
   - have renaming_typing':
       forall n (Γ : Ctx n) a A m (Δ:Ctx m) δ B,
@@ -409,29 +387,23 @@ Proof.
     dependent destruction h; subst.
     all: asimpl.
     all: try solve [econstructor; eauto with renaming].
-    + (* c_conv *)
-      eapply c_conv.
-      eapply renaming_conv in h1; eauto.
-      eapply renaming_conv' in h2; eauto. cbn. reflexivity.
     + (* c_app1 *)
       have EC: ctx (Δ ++ A⟨δ⟩).
       { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in H; eauto with renaming. }
-      eapply c_app1' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+        } 
+      eapply c_app1' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩);
         eauto using renaming_typing' with renaming.
       asimpl. reflexivity.
     + (* c_app2 *)
       have EC: ctx (Δ ++ A⟨δ⟩).
-      { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in H; eauto with renaming. }
-      eapply c_app2' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+      { eapply c_cons; eauto with renaming. } 
+      eapply c_app2' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩);
         eauto using renaming_typing' with renaming.
       asimpl. reflexivity.
     + (* c_beta *)
       have EC: ctx (Δ ++ A⟨δ⟩).
-      { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in H; eauto with renaming. }
-      eapply c_beta' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i).
+      { eapply c_cons; eauto with renaming. } 
+      eapply c_beta' with (A:= A⟨δ⟩)(B := B⟨up_ren δ⟩).
       eapply renaming_typing'; eauto with renaming.
       eapply renaming_typing'; eauto with renaming.
       eapply renaming_typing'; eauto with renaming.
@@ -440,9 +412,8 @@ Proof.
       asimpl; auto.
     + (* c_eta *)
       have EC: ctx (Δ ++ A⟨δ⟩).
-      { eapply c_cons; eauto with renaming.
-        eapply renaming_typing in H; eauto with renaming. }
-      eapply c_eta with (A := A⟨δ⟩)(B := B⟨up_ren δ⟩)(i:=i);
+      { eapply c_cons; eauto with renaming. }
+      eapply c_eta with (A := A⟨δ⟩)(B := B⟨up_ren δ⟩);
         try (eapply renaming_typing'; eauto with renaming).
       have TR': typing_renaming (Δ ++ ⟨δ⟩ A) (up_ren δ) (Γ ++ A).
       eauto with renaming.
@@ -453,28 +424,24 @@ Proof.
       admit.
     + (* c_nrec_Z *) admit.
     + (* c_nrec_S *) admit.
-    + (* c_tuniv (cumulativity for conv) *)
-      eapply c_tuniv with (i := i).
-      eapply renaming_conv'; eauto.
-      auto.
     + (* c_tpi *) admit.
 Admitted.
 
 (* All typed in well-formed contexts are well-formed *)
 Lemma ctx_typing_lookup {n} (Γ : Ctx n) : 
   ctx Γ ->
-  forall x, exists i, typing Γ (lookup x Γ) (Core.tuniv i).
+  forall x, typing Γ (lookup x Γ) Core.tuniv.
 Proof.
   move=> h. induction h.
   - done.
   - auto_case.
-    + destruct (IHh f) as [j th].
-      exists j. unfold core.funcomp.
-      eapply renaming_typing with (A := Core.tuniv j) (δ:=↑);
+    + specialize (IHh f).
+      unfold core.funcomp.
+      eapply renaming_typing with (A := Core.tuniv) (δ:=↑);
         eauto with renaming. 
       eapply c_cons; eauto.
-    + exists i. unfold core.funcomp.
-      eapply renaming_typing with (A := Core.tuniv i) (δ:=↑);
+    + unfold core.funcomp.
+      eapply renaming_typing with (A := Core.tuniv) (δ:=↑);
         eauto with renaming. 
       eapply c_cons; eauto. 
 Qed.
@@ -540,10 +507,10 @@ Admitted.
 
 (* ----------- context conversion -------------- *)
 
-Lemma ctc_conv_typing_subst {n} (Γ:Ctx n) A A' i : 
-  typing Γ A (tuniv i) -> 
-  typing Γ A' (tuniv i) -> 
-  conv Γ A A' (tuniv i) -> 
+Lemma ctc_conv_typing_subst {n} (Γ:Ctx n) A A' : 
+  typing Γ A tuniv -> 
+  typing Γ A' tuniv -> 
+  conv Γ A A' tuniv -> 
   typing_subst (Γ ++ A) var (Γ ++ A').
 Proof. 
   move=> t1 t2 C.
@@ -554,11 +521,11 @@ Proof.
   + cbn. asimpl. eapply t_var'; eauto.
     eapply lookup_weaken; eauto.
   + cbn. 
-    eapply t_conv with (A :=⟨↑⟩A)(i:=i). 
+    eapply t_conv with (A :=⟨↑⟩A). 
     eapply t_var; eauto. 
     asimpl.
     rewrite rinstInst'_Tm.
-    eapply substitution_conv with (A := tuniv i); eauto.
+    eapply substitution_conv with (A := tuniv); eauto.
     unfold typing_subst. move=> x.
     unfold core.funcomp.
     eapply t_var'; eauto.
@@ -569,15 +536,15 @@ Proof.
     done.
 Qed.
 
-Lemma ctx_conv_typing {n} (Γ:Ctx n) A A' i M B : 
-  conv Γ A A' (tuniv i) -> 
+Lemma ctx_conv_typing {n} (Γ:Ctx n) A A' M B : 
+  conv Γ A A' tuniv -> 
   typing (Γ ++ A) M B -> typing (Γ ++ A') M B.
 Proof.
 Admitted.
 
 
-Lemma ctx_conv_conv {n} (Γ:Ctx n) A A' i M N B : 
-  conv Γ A A' (tuniv i) -> 
+Lemma ctx_conv_conv {n} (Γ:Ctx n) A A' M N B : 
+  conv Γ A A' tuniv -> 
   conv (Γ ++ A) M N B -> conv (Γ ++ A') M N B.
 Proof.
   move=> CA CMN.

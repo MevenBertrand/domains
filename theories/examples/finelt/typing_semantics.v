@@ -58,10 +58,10 @@ Import Raw.
 
 Inductive fits : forall {n} (Γ:Ctx n) (ρ : Env n), Prop :=
   | fits_empty : fits ctx_empty null
-  | fits_cons n (Γ : Ctx n) A ρ a u i :
-       typing Γ A (Core.tuniv i) ->
+  | fits_cons n (Γ : Ctx n) A ρ a u :
+       typing Γ A Core.tuniv ->
        EvalRel A ρ a ->
-       wt a (tuniv i) ->
+       wt a tuniv ->
        wt u a ->
        fits Γ ρ ->
        fits (Γ ++ A) (u .: ρ).
@@ -106,23 +106,23 @@ Hint Resolve fits_valid_env : valid typing.
 Lemma fits_var {n} (Γ : Ctx n)(ρ : Env n) :
   fits Γ ρ ->
   forall x,
-  exists a i (h: wt a (tuniv i)) (h2 : wt (ρ x) a),
-    typing Γ (lookup x Γ) (Core.tuniv i) /\
+  exists a (h: wt a tuniv) (h2 : wt (ρ x) a),
+    typing Γ (lookup x Γ) Core.tuniv /\
     EvalRel (lookup x Γ) ρ a.
 Proof.
   move=> h.
   induction h. done.
   auto_case.
-  + destruct (IHh f) as [b [j [WT1 [WT2 [Ht E ]]]]].
-    exists b. exists j. exists WT1. exists WT2.
+  + destruct (IHh f) as [b [WT1 [WT2 [Ht E]]]].
+    exists b. exists WT1. exists WT2.
     repeat split; auto.
-    eapply renaming_typing with (A := Core.tuniv j);
+    eapply renaming_typing with (A := Core.tuniv);
       eauto with renaming.
     eapply c_cons; eauto using typing_ctx.
     eapply EvalRel_wk; eauto.
-  + exists a. exists i. 
+  + exists a.
     repeat split; eauto.
-    eapply renaming_typing with (A := Core.tuniv i);
+    eapply renaming_typing with (A := Core.tuniv);
       eauto with renaming.
     eapply c_cons; eauto using typing_ctx.
     eapply EvalRel_wk; eauto.
@@ -161,9 +161,8 @@ Local Notation "Γ ⊨ M ≡ N ∈ A" := (forall ρ, fits Γ ρ -> InvConv Γ M 
 Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) :
   Typed M A ρ bot.
 Proof.
-  exists bot. exists bot.
-  repeat split; eauto using EvalRel_bot, wt_bot.
-(*  eapply wt_bot. eapply wt_bot. eapply (@wt_tuniv 0 1). lia. *)
+  exists bot, bot, (wt_bot (wt_bot wt_tuniv)).
+  repeat split; eauto using EvalRel_bot.
 Qed.
 
 (* =====================================================================
@@ -220,7 +219,7 @@ Qed.
    Lam_L1 (LemmaForTS.agda): Lam inversion with typed keys.
 
    If u ≤ ⟦Lam A M⟧ρ and u is not Bot, then there exists a, g, i such
-   that EvalRel A ρ a, wt a (tuniv i), le u (abs g),
+   that EvalRel A ρ a, wt a tuniv, le u (abs g),
    EvalRel (abs A M) ρ (abs g), and for every (x,y) ∈ g, wt x a and
    EvalRel M (x .: ρ) y.
 
@@ -251,8 +250,8 @@ Lemma Lam_L1 u {n} (A : Tm n) M ρ :
   EvalRel (Core.abs A M) ρ u ->
   valid_env ρ ->
   ~~ is_bot u ->
-  exists a g i (h : wt a (tuniv i)),
-    EvalRel A ρ a 
+  exists a g (h : wt a tuniv),
+    EvalRel A ρ a
     /\ le u (abs g)
     /\ valid (abs g)
     /\ (forall x y, In (x,y) g ->
@@ -261,8 +260,8 @@ Proof.
   destruct u; try done.
   move=> h Vρ _.
   cbn in h.
-  destruct h as [Vf [Nf [i [a [WT [E1 body]]]]]].
-  exists a, l, i.
+  destruct h as [Vf [Nf [a [WT [E1 body]]]]].
+  exists a, l.
   repeat split; auto.
   - eapply le_refl. eauto with valid.
   - eauto with valid.
@@ -272,7 +271,7 @@ Qed.
    Pi_L1 (LemmaForTS.agda): Pi inversion with typed keys.
 
    If EvalRel (Pi A B) ρ (tpi b f), then there exist a, f' with
-   EvalRel A ρ a, wt a (tuniv i), le_fun f f',
+   EvalRel A ρ a, wt a tuniv, le_fun f f',
    EvalRel (Pi A B) ρ (tpi a f'), and for every (x,y) ∈ f',
    wt x a and EvalRel B (x .: ρ) y.
 
@@ -288,8 +287,8 @@ Qed.
 Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
   EvalRel (Core.tpi A B) ρ (tpi b f) ->
   valid_env ρ ->
-  exists a i (h : wt a (tuniv i)),
-    EvalRel A ρ a /\ 
+  exists a (h : wt a tuniv),
+    EvalRel A ρ a /\
     le (tpi b f) (tpi a f) /\
     valid (tpi a f) /\
     (forall x y, In (x,y) f ->
@@ -297,10 +296,10 @@ Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
 Proof.
   move=> h Vρ.
   cbn in h.
-  destruct h as [Vb [Vf [i [EA [Wb Hbody]]]]].
-  exists b, i.
+  destruct h as [Vb [Vf [EA [Wb Hbody]]]].
+  exists b.
   have Vtpi : valid (tpi b f).
-  { eapply valid_tpi_intro; eauto. } 
+  { eapply valid_tpi_intro; eauto. }
   split; first exact EA.
   split; first exact Wb.
   split; first by eapply le_refl; exact Vtpi.
@@ -317,28 +316,28 @@ Qed.
        InvTyp at (tuniv i).
    ===================================================================== *)
 
-Lemma InvTyp_Pi {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) i ρ :
+Lemma InvTyp_Pi {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) ρ :
   fits Γ ρ ->
-  InvTyped Γ A (Core.tuniv i) ρ ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
-    InvTyped (Γ ++ A) B (Core.tuniv i) (x .: ρ)) ->
-  InvTyped Γ (Core.tpi A B) (Core.tuniv i) ρ.
+  InvTyped Γ A Core.tuniv ρ ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
+    InvTyped (Γ ++ A) B Core.tuniv (x .: ρ)) ->
+  InvTyped Γ (Core.tpi A B) Core.tuniv ρ.
 Proof.
   move=> Fρ IHA IHB u Eu.
   destruct u; try solve [cbn in Eu; done].
   { (* u = bot *) apply Typed_bot. }
   (* u = tpi b f *)
   cbn in Eu.
-  destruct Eu as [Vb [Vf [j [WTbj [EAb Hbody]]]]].
-  (* Apply IHA to enlarge the type code b to b', well-typed at tuniv i *)
+  destruct Eu as [Vb [Vf [WTbj [EAb Hbody]]]].
+  (* Apply IHA to enlarge the type code b to b', well-typed at tuniv *)
   destruct (IHA _ EAb) as [b' [c [WTb'c [LEbb' [EAb'  LEcuniv]]]]].
   cbn in LEcuniv.
   have Vb' : valid b' by eapply EvalRel_valid; exact EAb'.
-  have Vti : valid (tuniv i) by [].
-  have WTb' : wt b' (tuniv i). eapply wt_le; eauto. admit. admit.
+  have Vti : valid tuniv by [].
+  have WTb' : wt b' tuniv. eapply wt_le; eauto. admit. admit.
   (* For each edge (ui, vi) ∈ l, the per-edge witness xi has wt xi b,
      hence wt xi b' by wt_le. Applying IHB at (xi, b') gives a typed
-     enlargement vi' of vi with wt vi' (tuniv i).
+     enlargement vi' of vi with wt vi' tuniv.
      Building a coherent replacement graph f' = [(xi, vi') | ...] then
      yields the witness v = tpi b' f' for the InvTyp goal. The graph
      properties (compatibility, no_bot_result, le_fun f f') need
@@ -355,10 +354,9 @@ Admitted.
 
 
 
-Lemma InvTyp_Lam' {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) (M : Tm (S n))
-  i :
-  Γ ⊨ A ∈ Core.tuniv i ->
-  Γ ++ A ⊨ B ∈ Core.tuniv i ->
+Lemma InvTyp_Lam' {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) (M : Tm (S n)) :
+  Γ ⊨ A ∈ Core.tuniv ->
+  Γ ++ A ⊨ B ∈ Core.tuniv ->
   Γ ++ A ⊨ M ∈ B ->
   Γ ⊨ (Core.abs A M) ∈ Core.tpi A B.
 Proof.
@@ -367,19 +365,19 @@ Proof.
   specialize (TA _ Fρ). unfold InvTyped in TA.
   have Vρ : valid_env ρ. eauto with valid.
   destruct (~~ is_bot u) eqn:Bu.
-  - destruct (Lam_L1 EL Vρ Bu) as 
-      (a & g & i0 & WTa & EA &  LEu & Vg & h).
+  - destruct (Lam_L1 EL Vρ Bu) as
+      (a & g & WTa & EA & LEu & Vg & h).
     clear EL.
     specialize (TA _ EA). unfold Typed in TA.
 Admitted.
 
 Lemma InvTyp_Lam {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) (M : Tm (S n))
-  i ρ :
+  ρ :
   fits Γ ρ ->
-  InvTyped Γ A (Core.tuniv i) ρ ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
-    InvTyped (Γ ++ A) B (Core.tuniv i) (x .: ρ)) ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
+  InvTyped Γ A Core.tuniv ρ ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
+    InvTyped (Γ ++ A) B Core.tuniv (x .: ρ)) ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
     InvTyped (Γ ++ A) M B (x .: ρ)) ->
   InvTyped Γ (Core.abs A M) (Core.tpi A B) ρ.
 Proof.
@@ -487,12 +485,12 @@ Qed.
        A = A' : U and B = B' : U  ⟹  Pi A B = Pi A' B' : U.
    ===================================================================== *)
 
-Lemma InvConv_Pi {n} (Γ : Ctx n) (A A' : Tm n) (B B' : Tm (S n)) i ρ :
+Lemma InvConv_Pi {n} (Γ : Ctx n) (A A' : Tm n) (B B' : Tm (S n)) ρ :
   fits Γ ρ ->
-  InvConv Γ A A' (Core.tuniv i) ρ ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
-    InvConv (Γ ++ A) B B' (Core.tuniv i) (x .: ρ)) ->
-  InvConv Γ (Core.tpi A B) (Core.tpi A' B') (Core.tuniv i) ρ.
+  InvConv Γ A A' Core.tuniv ρ ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
+    InvConv (Γ ++ A) B B' Core.tuniv (x .: ρ)) ->
+  InvConv Γ (Core.tpi A B) (Core.tpi A' B') Core.tuniv ρ.
 Proof.
   (* Translates TypingSemantics.convSound' for conv-Pi.
 
@@ -509,11 +507,11 @@ Admitted.
    ===================================================================== *)
 
 Lemma InvConv_beta {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n))
-  (M : Tm (S n)) (N : Tm n) i ρ :
+  (M : Tm (S n)) (N : Tm n) ρ :
   fits Γ ρ ->
   InvTyped Γ N A ρ ->
-  InvTyped Γ A (Core.tuniv i) ρ ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
+  InvTyped Γ A Core.tuniv ρ ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
     InvTyped (Γ ++ A) M B (x .: ρ)) ->
   InvConv Γ (Core.app (Core.abs A M) N) M[N..] B[N..] ρ.
 Proof.
@@ -541,12 +539,12 @@ Admitted.
    ===================================================================== *)
 
 Lemma InvConv_funext {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n))
-  (M N : Tm n) i ρ :
+  (M N : Tm n) ρ :
   fits Γ ρ ->
-  InvTyped Γ A (Core.tuniv i) ρ ->
+  InvTyped Γ A Core.tuniv ρ ->
   InvTyped Γ M (Core.tpi A B) ρ ->
   InvTyped Γ N (Core.tpi A B) ρ ->
-  (forall x a, wt x a -> wt a (tuniv i) -> EvalRel A ρ a ->
+  (forall x a, wt x a -> wt a tuniv -> EvalRel A ρ a ->
     InvConv (Γ ++ A) (Core.app M⟨↑⟩ (var var_zero))
                      (Core.app N⟨↑⟩ (var var_zero))
                      B (x .: ρ)) ->
@@ -590,20 +588,20 @@ Proof.
       unfold InvTyped, Typed.
       move=> u E.
       move: E => [Vu Lu].
-      move: (fits_var Fρ x) => [a [i [hT [Ea [WT1 WT2]]]]].
+      move: (fits_var Fρ x) => [a [hT [Ea [WT1 WT2]]]].
       exists (ρ x). exists a.
       repeat split;
       eauto using le_refl, EvalRel_valid with valid.
     + (* t_conv *)
       have ihM : InvTyped Γ M A ρ by eapply typing_EvalRel; eauto.
-      have ihAB : InvConv Γ A B (Core.tuniv i) ρ
+      have ihAB : InvConv Γ A B Core.tuniv ρ
         by eapply conv_EvalRel; eauto.
       move: ihAB => [_ [_ [fwdAB _]]].
       move=> u Eu. specialize (ihM u Eu).
       move: ihM => [v [a [LE [EM [Wv EA]]]]].
       exists v, a. repeat split; eauto.
     + (* t_abs *)
-      apply (@InvTyp_Lam _ _ _ _ _ i _ Fρ).
+      apply (@InvTyp_Lam _ _ _ _ _ _ Fρ).
       * exact (typing_EvalRel _ _ _ _ h1 ρ Fρ).
       * move=> x a Wx Wa EA.
         apply (typing_EvalRel _ _ _ _ h2 (x .: ρ)).
@@ -625,30 +623,27 @@ Proof.
       admit.
     + (* t_nrec — nrec is a fake case in EvalRel: only produces bot. *)
       admit.
-    + (* t_tpi: tpi A B : tuniv i *)
-      apply (@InvTyp_Pi _ Γ A B i ρ Fρ).
+    + (* t_tpi: tpi A B : tuniv *)
+      apply (@InvTyp_Pi _ Γ A B ρ Fρ).
       * exact (typing_EvalRel _ _ _ _ h1 ρ Fρ).
       * move=> x a Wx Wa EA.
         apply (typing_EvalRel _ _ _ _ h2 (x .: ρ)).
         eapply fits_cons; eauto.
-    + (* t_cum: A : tuniv i, i < j ⟹ A : tuniv j — requires that the
-         universe code Tuniv j can be enlarged from Tuniv i. Admit. *)
-      admit.
     + (* t_univ *)
       admit.
   - destruct h as
-      [ ?n ?Γ ?M ?N ?A ?B ?i hMNA hAB
+      [ ?n ?Γ ?M ?N ?A ?B hMNA hAB
       | ?n ?Γ ?M ?A hM
       | ?n ?Γ ?M ?N ?A hMN
       | ?n ?Γ ?M ?N ?P ?A hMN hNP
-      | ?n ?Γ ?A ?B ?N ?N' ?M ?i hA hB hNN' hM
-      | ?n ?Γ ?A ?B ?N ?M ?M' ?i hA hB hN hMM'
-      | ?n ?Γ ?A ?B ?M ?N ?i hA hB hM hN
-      | ?n ?Γ ?A ?B ?N ?N' ?i hA hB hN hN' hbody
-      | ?n ?Γ ?M0 ?M1 ?T ?i hT hM0 hM1
-      | ?n ?Γ ?T ?M0 ?M1 ?z ?i hT hM0 hM1
-      | ?n ?Γ ?M ?N ?i ?j hMN ?Lij
-      | ?n ?Γ ?A0 ?A1 ?B0 ?B1 ?i hA hB ].
+      | ?n ?Γ ?A ?B ?N ?N' ?M hA hB hNN' hM
+      | ?n ?Γ ?A ?B ?N ?M ?M' hA hB hN hMM'
+      | ?n ?Γ ?A ?B ?M ?N hA hB hM hN
+      | ?n ?Γ ?A ?B ?N ?N' hA hB hN hN' hbody
+      | ?n ?Γ ?M0 ?M1 ?T hT hM0 hM1
+      | ?n ?Γ ?T ?M0 ?M1 ?z hT hM0 hM1
+      | ?n ?Γ ?M ?N hMN
+      | ?n ?Γ ?A0 ?A1 ?B0 ?B1 hA hB ].
     all: move=> ρ Fρ.
     + (* c_conv: M = N : A, A = B : U_i ⟹ M = N : B *)
       apply (@InvConv_conv _ Γ M N A B ρ).
@@ -673,7 +668,7 @@ Proof.
       * exact (conv_EvalRel _ _ _ _ _ hMM' ρ Fρ).
     + (* c_beta: M is the argument (Tm n), N is the body (Tm (S n));
          destruct order follows the rule c_beta's variables. *)
-      apply (@InvConv_beta _ Γ A B N M i ρ Fρ).
+      apply (@InvConv_beta _ Γ A B N M ρ Fρ).
       * exact (typing_EvalRel _ _ _ _ hN ρ Fρ).
       * exact (typing_EvalRel _ _ _ _ hA ρ Fρ).
       * move=> x a Wx Wa EA.
@@ -688,7 +683,7 @@ Proof.
     + (* c_tuniv *)
       admit.
     + (* c_tpi: tpi A0 B0 = tpi A1 B1 : tuniv i *)
-      apply (@InvConv_Pi _ Γ A0 A1 B0 B1 i ρ Fρ).
+      apply (@InvConv_Pi _ Γ A0 A1 B0 B1 ρ Fρ).
       * exact (conv_EvalRel _ _ _ _ _ hA ρ Fρ).
       * move=> x a Wx Wa EA.
         apply (conv_EvalRel _ _ _ _ _ hB (x .: ρ)).
