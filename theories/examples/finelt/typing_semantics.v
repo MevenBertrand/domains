@@ -682,13 +682,3 @@ Proof.
            A0, which the conv rules in the system don't directly give. *)
         admit.
 Admitted.
-
-(*
-Lemma typing_EvalRel' {n} (Γ : Ctx n) (M : Tm n) (A : Tm n)
-  (h : typing Γ M A) :
-  forall ρ, fits Γ ρ -> exists a, EvalRel M ρ a.
-Proof.
-  move=> ρ F.
-  move: (typing_EvalRel h F) => h1. 
-  unfold InvTyped in h1. unfold Typed in h1.
-*)
