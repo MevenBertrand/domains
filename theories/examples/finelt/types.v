@@ -130,7 +130,6 @@ Fixpoint wt_unique u a (h1 h2 : wt u a) {struct h1} : h1 = h2.
 Qed.
 
 
-
 (* app f ui = lub { vj | uj <= ui  and (uj,vj) in f } *)
 
 (* For some functions: we might want this property
@@ -460,10 +459,9 @@ all: split; [ move => i0 WTa b LE WTb
 Lemma 2 
 If u : a and a <= b, then u : b.
 *)
-Fixpoint wt_le u a :
-  wt u a -> forall b, le a b -> wt a tuniv -> wt b tuniv -> wt u b.
+Fixpoint wt_le u a 
+  (h : wt u a) {struct h} : forall b, le a b -> wt a tuniv -> wt b tuniv -> wt u b.
 Proof.
-  move=> h.
     dependent destruction h.
     all: move=> b LE WTa WTb.
   + eapply wt_bot; eauto.

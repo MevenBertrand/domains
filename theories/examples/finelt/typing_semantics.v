@@ -154,8 +154,12 @@ Definition InvConv
   /\ (forall u, EvalRel M ρ u -> EvalRel N ρ u)
   /\ (forall u, EvalRel N ρ u -> EvalRel M ρ u).
 
-Local Notation "Γ ⊨ M ∈ A" := (forall ρ, fits Γ ρ -> InvTyped Γ M A ρ) (at level 70).
-Local Notation "Γ ⊨ M ≡ N ∈ A" := (forall ρ, fits Γ ρ -> InvConv Γ M N A ρ) (at level 70).
+
+Reserved Notation "Γ ⊨ M ∈ A" (at level 70).
+Reserved Notation "Γ ⊨ M ≡ N ∈ A" (at level 70).
+
+Local Notation "Γ ⊨ M ∈ A" := (forall ρ, fits Γ ρ -> InvTyped Γ M A ρ).
+Local Notation "Γ ⊨ M ≡ N ∈ A" := (forall ρ, fits Γ ρ -> InvConv Γ M N A ρ).
 
 
 Lemma Typed_bot {n} (M A : Tm n) (ρ : Env n) :
@@ -220,22 +224,10 @@ Qed.
 
    If u ≤ ⟦Lam A M⟧ρ and u is not Bot, then there exists a, g, i such
    that EvalRel A ρ a, wt a tuniv, le u (abs g),
-   EvalRel (abs A M) ρ (abs g), and for every (x,y) ∈ g, wt x a and
+   EvalRel (abs A M) ρ (abs g), and for every g x = y, wt x a and
    EvalRel M (x .: ρ) y.
 
-   This corresponds to the Lam-L1 lemma in LemmaForTS.agda which builds
-   a replacement graph from the original via replaceKeys.
-
-   In the Coq formulation EvalRel (abs A M) ρ (abs g) already gives us
-   the "edgewise" property directly via lam_edgewise — the witness keys
-   are already typed. So this lemma is essentially repackaging.
    ===================================================================== *)
-
-(* Weaker form (matches what Coq's EvalRel for Lam directly provides):
-   the per-edge witnesses give us, for each edge (x,y) in g, *some*
-   z ≤ x with [wt z a] and EvalRel M (z .: ρ) y. The Agda Lam-L1 uses a
-   replacement-graph construction to upgrade these to the keys
-   themselves; that construction is not yet in the Coq development. *)
 
 Lemma valid_abs f : 
   valid_fun f -> ~~ is_nil f -> valid (abs f).
@@ -254,36 +246,30 @@ Lemma Lam_L1 u {n} (A : Tm n) M ρ :
     EvalRel A ρ a
     /\ le u (abs g)
     /\ valid (abs g)
-    /\ (forall x y, In (x,y) g ->
+    /\ (forall x y, valid x -> app g x = Some y ->
          exists z (hz: wt z a), le z x /\ EvalRel M (z .: ρ) y).
 Proof.
   destruct u; try done.
   move=> h Vρ _.
   cbn in h.
   destruct h as [Vf [Nf [a [WT [E1 body]]]]].
-  exists a, l.
+  exists a, l. exists WT.
   repeat split; auto.
   - eapply le_refl. eauto with valid.
   - eauto with valid.
-Qed.
+Qed. 
 
 (* =====================================================================
    Pi_L1 (LemmaForTS.agda): Pi inversion with typed keys.
 
    If EvalRel (Pi A B) ρ (tpi b f), then there exist a, f' with
    EvalRel A ρ a, wt a tuniv, le_fun f f',
-   EvalRel (Pi A B) ρ (tpi a f'), and for every (x,y) ∈ f',
+   EvalRel (Pi A B) ρ (tpi a f'), and for every f' x = y,
    wt x a and EvalRel B (x .: ρ) y.
 
-   Just like Lam_L1, the Coq EvalRel for tpi already gives us the
-   witnesses directly — but with key z ≤ ui rather than at ui itself.
    ===================================================================== *)
 
-(* Weaker form (matches what Coq's EvalRel for Pi directly provides):
-   the type-code witness [a] of the input [b] is just [b] itself, and
-   per-edge witnesses give us, for each edge (x,y) in f, *some* z ≤ x
-   with [wt z a] and EvalRel B (z .: ρ) y. *)
-
+(*
 Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
   EvalRel (Core.tpi A B) ρ (tpi b f) ->
   valid_env ρ ->
@@ -291,12 +277,12 @@ Lemma Pi_L1 {n} (A : Tm n) (B : Tm (S n)) ρ b f :
     EvalRel A ρ a /\
     le (tpi b f) (tpi a f) /\
     valid (tpi a f) /\
-    (forall x y, In (x,y) f ->
+    (forall x y, valid x -> app f x = Some y ->
        exists z (hz: wt z a), le z x /\ EvalRel B (z .: ρ) y).
 Proof.
   move=> h Vρ.
   cbn in h.
-  destruct h as [Vb [Vf [EA [Wb Hbody]]]].
+  destruct h as [Vb [Vf [EA [a0 [EA0 Hbody]]]]].
   exists b.
   have Vtpi : valid (tpi b f).
   { eapply valid_tpi_intro; eauto. }
@@ -307,6 +293,7 @@ Proof.
   move=> x y In_xy.
   eapply Hbody; eauto.
 Qed.
+*)
 
 (* =====================================================================
    InvTyp_Pi (LemmaForTS.agda): Pi case at universe level.
@@ -328,13 +315,15 @@ Proof.
   { (* u = bot *) apply Typed_bot. }
   (* u = tpi b f *)
   cbn in Eu.
-  destruct Eu as [Vb [Vf [WTbj [EAb Hbody]]]].
+  destruct Eu as [Vb [Vf [EAb [WTbj  Hbody]]]].
   (* Apply IHA to enlarge the type code b to b', well-typed at tuniv *)
+  unfold InvTyped in IHA.
   destruct (IHA _ EAb) as [b' [c [WTb'c [LEbb' [EAb'  LEcuniv]]]]].
   cbn in LEcuniv.
   have Vb' : valid b' by eapply EvalRel_valid; exact EAb'.
   have Vti : valid tuniv by [].
-  have WTb' : wt b' tuniv. eapply wt_le; eauto. admit. admit.
+  have WTb' : wt b' tuniv. { eapply wt_le; eauto. eapply wt_ty_tuniv; eauto. eapply wt_tuniv. }  
+  
   (* For each edge (ui, vi) ∈ l, the per-edge witness xi has wt xi b,
      hence wt xi b' by wt_le. Applying IHB at (xi, b') gives a typed
      enlargement vi' of vi with wt vi' tuniv.

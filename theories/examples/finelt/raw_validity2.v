@@ -70,6 +70,64 @@ Proof.
     eauto.
 Qed.
 
+Lemma HeadRed_tpi_eq {n}( A1 : Tm n) B1 A2 B2 :
+   HeadRed (Core.tpi A1 B1) (Core.tpi A2 B2) -> 
+   A1 = A2 /\ B1 = B2.
+Proof. 
+  move=> R1.
+  have R2: HeadRed (Core.tpi A1 B1) (Core.tpi A1 B1).
+  { eapply ms_refl. }
+  eapply HeadRed_tpi_det; eauto.
+Qed.
+
+Lemma typing_app_inv n (Γ : Ctx n) M N A : 
+ typing Γ (app M N) A -> 
+      exists A1 , exists A2, typing Γ M (tpi A1 A2) /\ typing Γ N A1 /\ conv Γ A2[N..] A tuniv.
+Proof. 
+  move=> h.
+  dependent induction h.
+  - specialize (IHh M N ltac:(eauto)).
+    destruct IHh as [A1 [A2 [TM [TN CC]]]].
+    exists A1. exists A2. repeat split; auto.
+    eapply c_trans; eauto.
+  - clear IHh1 IHh2 IHh3 IHh4.
+    exists A. exists B. repeat split; auto.
+    eapply c_refl; eauto.
+    eapply substitution_tm with (σ := N..) in h2. cbn in h2.
+    eapply h2.
+    eapply typing_subst_cons. asimpl. auto.
+    eapply typing_subst_id. eapply typing_ctx; eauto.
+    eapply typing_ctx; eauto.
+Qed.
+
+Lemma typing_abs_inv n (Γ : Ctx n) M A B: 
+ typing Γ (abs A M) B -> 
+      exists B2, typing (Γ ++ A) M B2 /\ conv Γ (tpi A B2) B tuniv.
+Proof. 
+  move=>h.
+  dependent induction h.
+  - specialize (IHh M A ltac:(eauto)).
+    destruct IHh as [B2 [TM CC]].
+    exists B2. repeat split; auto.
+    eapply c_trans; eauto.
+  - clear IHh1 IHh2 IHh3.
+    exists B. repeat split; auto.
+    eapply c_refl; eauto.
+    eapply t_tpi; eauto.
+Qed.
+
+
+Lemma HeadRed1_conv {n} Γ (M N : Tm n) A :
+  HeadRed1 M N -> typing Γ M A -> conv Γ M N A.
+Proof.
+  move=> h. induction h.
+  - move=> T.
+    destruct (typing_app_inv T) as [A1 [A2 [T1 [T3 C1]]]].
+    destruct (typing_abs_inv T1) as [B2 [T2 C2]].
+    eapply c_conv. 2: eassumption.
+    eapply c_beta; eauto.
+Abort.    
+
 Require Import findom.
 Require Import types.
 
@@ -204,36 +262,16 @@ Record F := MkF {
               Tm n -> Tm n -> forall u a, wt u a -> Prop;
    EqVal : forall {n} (Γ : Ctx n),
               Tm n -> Tm n -> Tm n -> forall u a, wt u a -> Prop;
-(*
-   PiEdgeVal : forall {n} (Γ : Ctx n)
-     (A : Tm n) (B : Tm (S n)) (b: elt) (f : list (elt * elt))
-     (h1 : wt (tpi b f) tuniv), Prop ; 
-   PiEdgeEq  : forall {n} (Γ : Ctx n)
-                 (A : Tm n) (B : Tm (S n)) (b: elt)
-                 (f : list (elt * elt))
-                 (h1 : wt (tpi b f) tuniv), Prop;
-   PiEdgeEqTy: forall {n} (Γ : Ctx n) (A:Tm n) (B B': Tm (S n))
-                 (b: elt) (f: list (elt * elt)) 
-                 (h: wt (tpi b f) tuniv), Prop;
-   PiAppVal: forall {n} (Γ : Ctx n)
-     (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-     (h1 : wt (abs g) (tpi b f))
-     , Prop;
-   PiAppEq :forall {n} (Γ : Ctx n)
-              (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-              (h1 : wt (abs g) (tpi b f))
-                , Prop;
-PiAppEqVal : forall {n} (Γ : Ctx n)
-  (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
-  (h : wt (abs g) (tpi b f)) , Prop *)
 }.
-
-
 
 Section Helpers.
 
-Variable (Rec : F).
-
+Variable 
+   Val   : forall {n} (Γ : Ctx n),
+              Tm n -> Tm n -> forall u a, wt u a -> Prop.
+Variable
+   EqVal : forall {n} (Γ : Ctx n),
+              Tm n -> Tm n -> Tm n -> forall u a, wt u a -> Prop.
 
 
 Definition  PiEdgeEq {n} (Γ : Ctx n)
@@ -244,9 +282,9 @@ Definition  PiEdgeEq {n} (Γ : Ctx n)
       (N1 N2 : Tm n),
       conv Γ N1 N2 A ->
       (* take related arguments *)
-      EqVal Rec Γ N1 N2 A (wt_tpi_inv1 h Vu APP NB) ->
+      EqVal Γ N1 N2 A (wt_tpi_inv1 h Vu APP NB) ->
       (* to related results *)
-      EqVal Rec Γ B[N1..] B[N2..] Core.tuniv (wt_tpi_inv2 h Vu APP NB).
+      EqVal Γ B[N1..] B[N2..] Core.tuniv (wt_tpi_inv2 h Vu APP NB).
 
 Definition PiAppVal {n} (Γ : Ctx n)
   (M : Tm n) (A0 : Tm n) (B0 : Tm (S n)) b f g
@@ -255,8 +293,8 @@ Definition PiAppVal {n} (Γ : Ctx n)
   (APP: app f u = Some v) (NB: ~ is_bot v) 
   (APPg : app g u = Some t)
   (P : Tm n), typing Γ P A0 -> 
-              Val Rec Γ P A0 (wt_abs_inv1 h Vu APP NB) -> 
-              Val Rec Γ (Core.app M P) B0[P..] 
+              Val  Γ P A0 (wt_abs_inv1 h Vu APP NB) -> 
+              Val  Γ (Core.app M P) B0[P..] 
                   (wt_abs_inv2 h Vu APP NB APPg). 
 
 Definition PiAppEq {n} (Γ : Ctx n)
@@ -267,8 +305,8 @@ Definition PiAppEq {n} (Γ : Ctx n)
     (APPg : app g u = Some t)
     (N1 N2 : Tm n),
     conv Γ N1 N2 A0 ->
-    EqVal Rec Γ N1 N2 A0 (wt_abs_inv1 h Vu APP NB) ->
-    EqVal Rec Γ (Core.app M N1) (Core.app M N2) B0[N1..] 
+    EqVal  Γ N1 N2 A0 (wt_abs_inv1 h Vu APP NB) ->
+    EqVal  Γ (Core.app M N1) (Core.app M N2) B0[N1..] 
           (wt_abs_inv2 h Vu APP NB APPg).
     
 Definition PiAppEqVal {n} (Γ : Ctx n)
@@ -278,8 +316,8 @@ Definition PiAppEqVal {n} (Γ : Ctx n)
   (APP: app f u = Some v) (NB: ~ is_bot v) 
   (APPg : app g u = Some t) (P : Tm n),
         typing Γ P A0 ->
-        Val Rec Γ P A0 (wt_abs_inv1 h Vu APP NB) ->
-        EqVal Rec Γ (Core.app M P) (Core.app N P) B0[P..]
+        Val  Γ P A0 (wt_abs_inv1 h Vu APP NB) ->
+        EqVal  Γ (Core.app M P) (Core.app N P) B0[P..]
           (wt_abs_inv2 h Vu APP NB APPg).
 
 Definition ValPi {n} (Γ : Ctx n)
@@ -293,8 +331,6 @@ Definition EqValPi {n} (Γ : Ctx n)
   exists A0, exists B0, HeadRed A (Core.tpi A0 B0)
   /\ PiAppEqVal Γ M N A0 B0 h.
 
-
-
 Fixpoint ValTy {n} (Γ : Ctx n)
   (M : Tm n) u (h : wt u tuniv) {struct h} : Prop  :=
 
@@ -305,7 +341,7 @@ Fixpoint ValTy {n} (Γ : Ctx n)
         (APP: app f u = Some v) (NB: ~ is_bot v) (WTu : wt u b)
         (N : Tm n), typing Γ N A ->
                     (* take related arguments *)
-                    Val Rec Γ N A (wt_tpi_inv1 h Vu APP NB) ->
+                    Val  Γ N A (wt_tpi_inv1 h Vu APP NB) ->
                     (* to related results *)
                     ValTy Γ B[N..] (wt_tpi_inv2 h Vu APP NB)
   in
@@ -325,7 +361,7 @@ Fixpoint ValTy {n} (Γ : Ctx n)
                /\ valid (tpi b g)
 
                (* domain (b) is in the relation *)
-               /\ Val Rec Γ A Core.tuniv (wt_tpi_dom h)
+               /\ Val  Γ A Core.tuniv (wt_tpi_dom h)
                                           
                /\ PiEdgeVal Γ A B b g h 
                /\ PiEdgeEq Γ A B h
@@ -336,19 +372,6 @@ Fixpoint ValTy {n} (Γ : Ctx n)
   end) h.
 
 
-(*  match h with 
-  | wt_pi_nil _ => True
-  | @wt_pi_cons a ui vi g WTui WTvi WTf Vg => 
-      PiEdgeEqTy Γ A B B' WTf /\
-        forall (P : Tm n),
-          typing Γ P A ->
-          (* take related arguments *)
-          Val Γ P A WTui ->
-          (* to related results *)
-          Rec.EqValTy Rec Γ B[P..] B'[P..] WTvi
-  end *)
-
-
 Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) (h : wt a tuniv) {struct h} :  Prop :=
   let PiEdgeEqTy {n} (Γ : Ctx n) 
   (A : Tm n) (B B' : Tm (S n)) b f (h : wt (tpi b f) tuniv)  := 
@@ -357,7 +380,7 @@ Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) (h : wt a tuniv) {struct h} :  P
       (P : Tm n),
           typing Γ P A ->
           (* take related arguments *)
-          Val Rec Γ P A (wt_tpi_inv1 h Vu APP NB) ->
+          Val  Γ P A (wt_tpi_inv1 h Vu APP NB) ->
           (* to related results *)
           EqValTy Γ B[P..] B'[P..] (wt_tpi_inv2 h Vu APP NB)
   in 
@@ -374,34 +397,32 @@ Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) (h : wt a tuniv) {struct h} :  P
              /\ conv (Γ ++ A) B B' Core.tuniv 
              /\ valid (tpi b f)
              (* ... and the domain is in the relation *)
-             /\ EqVal Rec Γ A A' Core.tuniv  (wt_tpi_dom h) 
+             /\ EqVal  Γ A A' Core.tuniv  (wt_tpi_dom h) 
              /\ PiEdgeEqTy Γ A B B' _ _ h
   | _ => fun h => True
   end) h.
 
-
-
 End Helpers.
 End Rec.
+
+Check Rec.ValTy.
 
 Fixpoint Val {n} (Γ : Ctx n)
   (M : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a)  
   { struct h } : Prop :=
-  let Rec := Rec.MkF (@Val) (@EqVal) in
       (match a return wt u _ -> Prop with
 
       | bot => fun h => True
 
       | tuniv => fun (h : wt u tuniv) =>
-          Rec.ValTy Rec Γ M h 
+          Rec.ValTy (@Val) (@EqVal) Γ M h 
 
       | tpi b f => fun h  =>
            (match u return wt _ (tpi b f) ->  Prop with
 
             | abs g => fun (h : wt (abs g) (tpi b f)) =>
-    (*    Pair (ValTy2 G A (PiCode b f)) (ValPi2 G M A g b f) *)
-                      Rec.ValTy Rec Γ A (wt_abs_ty h)
-                      /\ Rec.ValPi Rec Γ M A h 
+                        Rec.ValTy (@Val) (@EqVal) Γ A (wt_abs_ty h)
+                      /\ Rec.ValPi (@Val) Γ M A h 
 
             | _ => fun h  => True
             end) h 
@@ -416,12 +437,11 @@ Fixpoint Val {n} (Γ : Ctx n)
                | _ =>  fun h => True
                end) h
       | _ => fun h  => True
-    end) h 
+       end) h 
 (* Binary logical relation *)
 with EqVal {n} (Γ : Ctx n)
   (M : Tm n) (N : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a) 
   { struct h } : Prop :=
-  let Rec := Rec.MkF (@Val) (@EqVal)  in
        
      (match a return wt u _ -> Prop with
 
@@ -429,18 +449,18 @@ with EqVal {n} (Γ : Ctx n)
 
       | tuniv => fun (h : wt u tuniv) =>
 
-            Rec.ValTy Rec Γ M h
-          /\ Rec.ValTy Rec Γ N h
-          /\ Rec.EqValTy Rec Γ M N h 
+            Rec.ValTy (@Val) (@EqVal) Γ M h
+          /\ Rec.ValTy (@Val) (@EqVal) Γ N h
+          /\ Rec.EqValTy (@Val) (@EqVal) Γ M N h 
 
       | tpi b f => fun h =>
            (match u return wt _ (tpi b f) -> Prop with
            | bot => fun h => True
            | abs g => fun (h : wt (abs g) (tpi b f)) =>
-               Rec.ValTy Rec Γ A (wt_abs_ty h)
-             /\ Rec.ValPi Rec Γ M A h
-             /\ Rec.ValPi Rec Γ N A h
-             /\ Rec.EqValPi Rec Γ M N A h
+               Rec.ValTy (@Val) (@EqVal) Γ A (wt_abs_ty h)
+             /\ Rec.ValPi (@Val)  Γ M A h
+             /\ Rec.ValPi (@Val)  Γ N A h
+             /\ Rec.EqValPi (@Val) (@EqVal) Γ M N A h
 
            | _ => fun h => True
             end) h
@@ -461,12 +481,19 @@ with EqVal {n} (Γ : Ctx n)
 
 
 
-Notation Rec := (Rec.MkF (@Val) (@EqVal)). 
+Arguments Val : clear implicits.
+Arguments EqVal : clear implicits.
 
-Definition ValTy := (@Rec.ValTy Rec).
-Definition EqValTy := (@Rec.EqValTy Rec).
-Definition ValPi := (@Rec.ValPi Rec).
-Definition EqValPi := (@Rec.EqValPi Rec).
+Notation PiAppVal := (@Rec.PiAppVal Val).
+Notation ValTy    := (@Rec.ValTy Val EqVal).
+Notation EqValTy  := (@Rec.EqValTy Val EqVal).
+Notation ValPi    := (@Rec.ValPi Val).
+Notation EqValPi  := (@Rec.EqValPi Val EqVal).
+Notation PiEdgeEq := (@Rec.PiEdgeEq EqVal).
+Notation PiAppEqVal := (@Rec.PiAppEqVal Val EqVal).
+
+Arguments Val {_} _ _ _ {_}{_}.
+Arguments EqVal {_} _ _ _ _ {_}{_}.
 
 
 (* All terms in the relation have the right syntactic type.
@@ -565,14 +592,6 @@ Qed.
 
 Fixpoint Val_EqVal {n} (Γ : Ctx n) (M A : Tm n) u a (h : wt u a) {struct h} :
   Val Γ M A h -> EqVal Γ M M A h.
-(*
-with PiEdgeEq_PiEdgeEqTy {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n)) b f (h : wt_pi_fun b f) {struct h} :
- PiEdgeEq Γ A B h ->
-  PiEdgeEqTy Γ A B B h
-with PiAppVal_PiAppEqVal {n} (Γ : Ctx n) (M : Tm n) (A : Tm n) (B : Tm (S n)) b f g
-  (h : wt_abs_fun g b f) {struct h} : 
-  PiAppVal Γ M A B h -> 
-  PiAppEqVal Γ M M A B h. *)
 Proof.
 + dependent destruction h.
   all: cbn.
@@ -593,7 +612,7 @@ Proof.
     eapply c_refl; eauto.
     eapply c_refl; eauto. 
     move=> u v Vu APP NB P TP VA.
-    unfold Rec.PiEdgeEq in PEE.
+    unfold PiEdgeEq in PEE.
     specialize (PEV u v Vu APP NB).
     specialize (PEE u v Vu APP NB).
     eapply EqVal_EqValTy.
@@ -607,10 +626,10 @@ Proof.
     repeat split; eauto.
     unfold Rec.ValPi in PAV.
     destruct PAV as [A0 [B0 [R1 PAV]]].
-    unfold Rec.EqValPi.
+    unfold EqValPi.
     exists A0, B0. split; eauto.
-    unfold Rec.PiAppEqVal.
-    unfold Rec.PiAppVal in PAV.
+    unfold PiAppEqVal.
+    unfold PiAppVal in PAV.
     move=> u v t Vu APP NB APPg P TP VP.
     specialize (PAV u v t Vu APP NB APPg P TP VP).
     eapply Val_EqVal.
@@ -762,6 +781,134 @@ Qed.
    down/up
    ============================================================ *)
 
+
+
+Lemma upValPi : forall 
+        (upVal : forall {n} (Γ : Ctx n) (M T : Tm n) u a0 a1
+                   (h0 : wt u a0) (h1 : wt u a1)  
+                   (hUa0 : wt a0 tuniv) (hUa1 : wt a1 tuniv), 
+            le a0 a1 -> Val Γ M T h0 -> Val Γ T Core.tuniv hUa1 -> Val Γ M T h1)
+        (downVal : forall {n} (Γ : Ctx n) (M T : Tm n) u a0 a1
+                     (h0 : wt u a0) (h1: wt u a1),
+            le a0 a1 -> Val Γ M T h1 -> Val Γ M T h0)
+        f a g a0 g0 
+        (LEa : le a a0) 
+        (LEg : le_fun g g0)           
+        (h  : wt (abs f) (tpi a g))
+        (h0 : wt (abs f) (tpi a0 g0))
+        (hUa1 : wt (tpi a0 g0) tuniv)
+        {n} (Γ : Ctx n) (M T : Tm n),
+        ValPi Γ M T h -> 
+        ValTy Γ T hUa1 ->
+        ValPi Γ M T h0.
+Proof.
+      move=> upVal downVal f a g a0 g0 LEa LEg h h0 hUa1 n Γ M T VP VTya1 .
+      dependent destruction hUa1.
+      destruct VTya1 as (Av & Bv & HRv & TAv & TBv & Vpi & VDv & PEV & PEE).        
+
+      unfold Rec.ValPi in VP.
+      destruct VP as (A0 & B0 & R1 & PAV).
+      (* types are the same *)
+      destruct (HeadRed_tpi_det HRv R1) as [-> ->].
+
+      unfold Rec.ValPi.
+      exists A0, B0.
+      repeat split; try eassumption.
+      move=> u v t0 Vu APP NB APPg0 N TN VN.
+      cbn. cbn in VN.
+
+      have WTpi : wt (tpi a g) tuniv.  eapply wt_ty_tuniv; eauto.
+      have Vg: valid_fun g. eapply valid_tpi2. eauto with valid.
+      have Vg0: valid_fun g0. eapply valid_tpi2. eauto with valid.
+      destruct (valid_app_exists Vg Vu) as [t [APPg Vt]].
+      have LEt: le t t0. { eapply (@le_fun_mono g g0 u); eauto. } 
+
+      have WTt: wt t tuniv. 
+      { destruct (is_bot t) eqn:EQ. destruct t; try done.
+        eapply wt_bot. eapply wt_tuniv.
+        inversion WTpi. eapply (H3 _ _ Vu); eauto. } 
+      have WTv: wt v t.
+      { inversion h. eapply (H3 u v t); eauto. } 
+      have NBt: ~(is_bot t).
+      { move=>IB. destruct t; try done. inversion WTv. subst. done. } 
+      have NBt0: ~(is_bot t0).
+      { move=>IB. destruct t0; destruct t; try done. }  
+      have WTu: wt u a0. { eauto. } 
+
+      unfold PiAppVal in PAV.
+      specialize (PAV u v t Vu APP NB APPg N TN).
+      specialize (PEV u t0 Vu APPg0 NBt0 WTu N TN).
+      cbn in PAV.
+      eapply upVal. 
+        ++ eapply WTt. 
+        ++ eapply LEt.
+        ++ eapply PAV.
+           eapply downVal. eapply LEa. eapply VN.
+        ++ eapply ValTy_Val. 
+           eapply PEV.
+           cbn.
+           erewrite (wt_unique (w u t0 Vu APPg0 NBt0)).
+           eapply VN.
+Defined.
+
+Lemma downValPi : forall 
+        (upVal : forall {n} (Γ : Ctx n) (M T : Tm n) u a0 a1
+                   (h0 : wt u a0) (h1 : wt u a1)  
+                   (hUa0 : wt a0 tuniv) (hUa1 : wt a1 tuniv), 
+            le a0 a1 -> Val Γ M T h0 -> Val Γ T Core.tuniv hUa1 -> Val Γ M T h1)
+        (downVal : forall {n} (Γ : Ctx n) (M T : Tm n) u a0 a1
+                     (h0 : wt u a0) (h1: wt u a1),
+            le a0 a1 -> Val Γ M T h1 -> Val Γ M T h0)
+        f a g a0 g0 
+        (LEa : le a a0) 
+        (LEg : le_fun g g0)           
+        (h  : wt (abs f) (tpi a g))
+        (h0 : wt (abs f) (tpi a0 g0))
+        (hUa : wt (tpi a g) tuniv)
+        {n} (Γ : Ctx n) (M T : Tm n),
+        ValPi Γ M T h0 -> 
+        ValTy Γ T hUa ->
+        ValPi Γ M T h.
+Proof.
+  move=> upVal downVal f a g a0 g0 LEa LEg h h0 hUa n Γ M T VP VT.
+  unfold Rec.ValPi in VP.
+  destruct VP as (A0 & B0 & R1 & PAV).
+  unfold ValPi.
+  exists A0, B0.
+  repeat split; try eassumption.
+
+  (* downPiAppVal *)
+  move=> u v t Vu APP NB APPg N TN VN.
+  cbn. cbn in VN.
+
+  have WTpi : wt (tpi a g) tuniv.  eapply wt_ty_tuniv; eauto.
+  have Vg: valid_fun g. eapply valid_tpi2. eauto with valid.
+  have Vg0: valid_fun g0. eapply valid_tpi2. eauto with valid.
+  destruct (valid_app_exists Vg0 Vu) as [t0 [APPg0 Vt0]].
+  have LEt: le t t0. { eapply (@le_fun_mono g g0 u); eauto. } 
+
+  have WTt: wt t tuniv. 
+  { destruct (is_bot t) eqn:EQ. destruct t; try done.
+    eapply wt_bot. eapply wt_tuniv.
+    inversion WTpi. eapply (H3 _ _ Vu); eauto. } 
+  have WTv: wt v t.
+  { inversion h. eapply (H3 u v t); eauto. } 
+  have NBt: ~(is_bot t).
+  { move=>IB. destruct t; try done. inversion WTv. subst. done. } 
+  have NBt0: ~(is_bot t0).
+  { move=>IB. destruct t0; destruct t; try done. }  
+  have WTa: wt a tuniv. inversion WTpi. done.
+  unfold PiAppVal in PAV.
+  specialize (PAV u v t0 Vu APP NB APPg0 N TN).
+
+  cbn in PAV.
+  eapply downVal. 
+  ++ eapply LEt.
+  ++ eapply PAV.
+     eapply upVal. eapply WTa. eapply LEa. eapply VN.
+Admitted.
+
+
 (* Annoyingly, struct on first derivation is not enough. Need
    to do struct on *both* wt derivations simultaneously to
    show the termination of this proof.
@@ -787,62 +934,6 @@ with downVal {n} (Γ : Ctx n) (M T : Tm n) u a0 a1
 with downEqVal {n} (Γ : Ctx n) (M N T : Tm n) u a0 a1
   (h0 : wt u a0) (h1: wt u a1) {struct h1} :
   le a0 a1 -> EqVal Γ M N T h1 -> EqVal Γ M N T h0
-(*
-(* -------- Pi helper lemmas (mutual with Val/EqVal) --------
-   The up* helpers mirror Agda's upPiAppVal2 / upPiAppEq2 / upPiAppEqVal2
-   by additionally taking PiEdgeVal at the bigger pi (hPi1) — this
-   supplies the ValTy of the codomain at the bigger universe-element,
-   needed to invoke upVal/upEqVal on the codomain.                    *)
-with upPiAppVal {n} (Γ : Ctx n) (M : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1 (hPi0 : wt_pi_fun g0 b0) (hPi1 : wt_pi_fun g1 b1)
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h0} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiEdgeVal Γ A0 B0 hPi1 ->
-  PiAppVal Γ M A0 B0 h0 -> PiAppVal Γ M A0 B0 h1
-with downPiAppVal {n} (Γ : Ctx n) (M : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h1} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiAppVal Γ M A0 B0 h1 -> PiAppVal Γ M A0 B0 h0
-with upPiAppEq {n} (Γ : Ctx n) (M : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1 (hPi0 : wt_pi_fun g0 b0) (hPi1 : wt_pi_fun g1 b1)
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h0} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiEdgeVal Γ A0 B0 hPi1 ->
-  PiAppEq Γ M A0 B0 h0 -> PiAppEq Γ M A0 B0 h1
-with downPiAppEq {n} (Γ : Ctx n) (M : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h1} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiAppEq Γ M A0 B0 h1 -> PiAppEq Γ M A0 B0 h0
-with upPiAppEqVal {n} (Γ : Ctx n) (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1 (hPi0 : wt_pi_fun g0 b0) (hPi1 : wt_pi_fun g1 b1)
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h0} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiEdgeVal Γ A0 B0 hPi1 ->
-  PiAppEqVal Γ M N A0 B0 h0 -> PiAppEqVal Γ M N A0 B0 h1
-with downPiAppEqVal {n} (Γ : Ctx n) (M N : Tm n) (A0 : Tm n) (B0 : Tm (S n))
-  f b0 b1 g0 g1
-  (h0 : wt_abs_fun f b0 g0) (h1 : wt_abs_fun f b1 g1) {struct h1} :
-  le b0 b1 -> le_fun g0 g1 ->
-  PiAppEqVal Γ M N A0 B0 h1 -> PiAppEqVal Γ M N A0 B0 h0
-with downPiEdgeVal {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n))
-  b0 b1 f0 f1 
-  (h0 : wt_pi_fun f0 b0 ) (h1 : wt_pi_fun f1 b1 ) {struct h0} :
-  le b0 b1 -> le_fun f0 f1 ->
-  PiEdgeVal Γ A B h1 -> PiEdgeVal Γ A B h0
-with downPiEdgeEq {n} (Γ : Ctx n) (A : Tm n) (B : Tm (S n))
-  b0 b1 f0 f1 
-  (h0 : wt_pi_fun f0 b0 ) (h1 : wt_pi_fun f1 b1 ) {struct h0} :
-  le b0 b1 -> le_fun f0 f1 ->
-  PiEdgeEq Γ A B h1 -> PiEdgeEq Γ A B h0
-with downPiEdgeEqTy {n} (Γ : Ctx n) (A : Tm n) (B B' : Tm (S n))
-  b0 b1 f0 f1
-  (h0 : wt_pi_fun f0 b0 ) (h1 : wt_pi_fun f1 b1 ) {struct h0} :
-  le b0 b1 -> le_fun f0 f1 ->
-  PiEdgeEqTy Γ A B B' h1 -> PiEdgeEqTy Γ A B B' h0
-*)
-(* -------- restrictVal / restrictEqVal (moved into the mutual block) -------- *)
 with restrictVal {n} (Γ : Ctx n) (M T : Tm n) u u' a
   (h0 : wt u' a) (h1 : wt u a) {struct h1} :
   le u' u -> Val Γ M T h1 -> Val Γ M T h0
@@ -863,55 +954,30 @@ Proof.
       rewrite (wt_unique h0 h1) in VM1.
       done.
 
-    + (* tuniv: explicit ValTy destructure + rewrites identify the inner
-         witnesses (mirrors the working upVal tuniv proof shape). *)
+    + (* tuniv <= tuniv *)
       move=> LE VT _.
-      cbn in VT |- *.
-      destruct VT as (A0 & B0 & RA & TA0 & TB0 & VTpi & VV & PEV & PEE).
-(*      rewrite (wt_pi_fun_unique w w0) in PEV, PEE. *)
-      rewrite (wt_unique h0 h1) in VV.
-      exists A0, B0; repeat split; try eassumption.
-      move=> u v Vu APP NB WTu N TN VN.
-      specialize (PEV u v Vu APP NB WTu N TN).
-      rewrite (wt_unique (w1 u v Vu APP NB) (w u v Vu APP NB)) in VN.
-      specialize (PEV VN).
-      erewrite (wt_unique (w0 u v Vu APP NB)) in PEV. eapply PEV.
-      unfold Rec.PiEdgeEq.
-      move=> u v Vu APP NB WTu N TN VN.
-      specialize (PEE u v Vu APP NB WTu N TN).
-      cbn in PEE. cbn in VN.
-      rewrite (wt_unique (w1 u v Vu APP NB) (w u v Vu APP NB)) in VN.
-      specialize (PEE VN).
-      cbn.
-      erewrite (wt_unique (w0 u v Vu APP NB)) in PEE. eapply PEE.
-    + (* tpi *)
+      cbn [Val] in VT |- *.
+      erewrite (wt_unique (wt_tpi h1 w1 w2 i0)).
+      eapply VT.
+      (* nothing to do here as only tuniv <= tuniv *)
+
+    + (* tpi a g <= tpi a0 g0 *)
       dependent destruction h0.
       dependent destruction h1.
       rewrite le_tpi.
-      move=> LE.
-      apply andb_prop in LE.
-      destruct LE as [LEa LEg].
+      move=> LE. apply andb_prop in LE. destruct LE as [LEa LEg].
       move=> VAL VTa1.
-      cbn in VAL. fold ValTy in VAL. 
-      destruct VAL as [VT VP].
-      unfold Rec.ValPi in VP. 
-      destruct VP as [A0 [B0 [R1 PAV]]].
-      cbn. split.
-      * eapply Val_ValTy in VTa1.
-(* TODO: update proofs from here *)
+      split.
+      * apply Val_ValTy in VTa1. 
+        erewrite (wt_unique hUa1) in VTa1.
+        eapply VTa1.
+      * (* need to use VTa1 *)
+        move: (Val_ValTy VTa1) => VTya1.
+        (* also need VP *)
+        cbn [Val] in VAL |- *. 
+        destruct VAL as [VT VP].
+        eapply (upValPi upVal downVal LEa LEg); eauto.
 
-        destruct VTa1 as (Av & Bv & HRv & TAv & TBv & VPi & VDv & PEVv & PEEv).
-        exists Av. exists Bv.
-        rewrite (wt_unique (wt_tpi_dom hUa1) h1) in VDv. 
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv, PEEv.
-        repeat split; eauto.
-      * unfold Rec.ValPi. exists A0, B0. split; [exact R1|].
-        apply Val_ValTy in VTa1.
-        cbn in VTa1.
-        destruct VTa1 as (Av & Bv & HRv & TAv & TBv & VPi & VDv & PEVv & PEEv).
-        destruct (HeadRed_tpi_det HRv R1) as [EqA EqB]. subst.
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv.
-        exact (@upPiAppVal _ _ _ _ _ _ _ _ _ _ w0 w2 w w1 LEa LEg PEVv PAV).
   - (* upEqVal *)
     dependent destruction h1;
     dependent destruction h0.
@@ -924,81 +990,28 @@ Proof.
       exists N1. split. auto.
       rewrite (wt_unique h0 h1) in EVM.
       done.
-    + (* tuniv: split EqVal at tuniv into ValTy/ValTy/EqValTy, then rewrite
-         each component to point at h1's destructured inner witnesses. *)
-      move=> LE EV _.
-      cbn in EV |- *.
-      destruct EV as [VTm [VTn EVT]].
-      split; [|split].
-      * (* ValTy Γ M h1 *)
-        destruct VTm as (Am & Bm & RAm & TAm & TBm & Vpim & VVm & PEVm & PEEm).
-        rewrite (wt_pi_fun_unique w w0) in PEVm, PEEm.
-        rewrite (wt_unique h0 h1) in VVm.
-        exists Am, Bm; repeat split; eassumption.
-      * (* ValTy Γ N h1 *)
-        destruct VTn as (An & Bn & RAn & TAn & TBn & Vpin & VVn & PEVn & PEEn).
-        rewrite (wt_pi_fun_unique w w0) in PEVn, PEEn.
-        rewrite (wt_unique h0 h1) in VVn.
-        exists An, Bn; repeat split; eassumption.
-      * (* EqValTy Γ M N h1 *)
-        cbn in EVT |- *.
-        destruct EVT as (VTmE & VTnE & Ae & Be & RAe & Ae' & Be' & RAe' &
-                         CA & CB & VTpie & EVD & PEET).
-        split.
-        { destruct VTmE as (AmE & BmE & RAmE & TAmE & TBmE & VpimE & VVmE & PEVmE & PEEmE).
-          rewrite (wt_pi_fun_unique w w0) in PEVmE, PEEmE.
-          rewrite (wt_unique h0 h1) in VVmE.
-          exists AmE, BmE; repeat split; eassumption. }
-        split.
-        { destruct VTnE as (AnE & BnE & RAnE & TAnE & TBnE & VpinE & VVnE & PEVnE & PEEnE).
-          rewrite (wt_pi_fun_unique w w0) in PEVnE, PEEnE.
-          rewrite (wt_unique h0 h1) in VVnE.
-          exists AnE, BnE; repeat split; eassumption. }
-        exists Ae, Be; split; [exact RAe|].
-        exists Ae', Be'; split; [exact RAe'|].
-        rewrite (wt_pi_fun_unique w w0) in PEET.
-        rewrite (wt_unique h0 h1) in EVD.
-        repeat split; eassumption.
-    + (* tpi *)
-      (* Mirror Agda Validity2.agda: upEqVal2 PiCode case.
-         EqVal at (abs f) (tpi a g) is ValTy /\ ValPi M /\ ValPi N /\ EqValPi M N.
-         Use the new ValTy arg for the first conjunct; upPiAppVal /
-         upPiAppEqVal (with PiEdgeVal from the arg) for the rest. *)
+    + (* tuniv <= tuniv *)
+      move=> LE EqV VT.
+      erewrite (wt_unique (wt_tpi h1 w1 w2 i0)).
+      eapply EqV.
+
+    + (* tpi a g <= tpi a0 g0 *)
       dependent destruction h0.
       dependent destruction h1.
       rewrite le_tpi.
-      move=> LE.
-      apply andb_prop in LE.
-      destruct LE as [LEa LEg].
-      move=> EVAL VTa1.
-      cbn in EVAL.
-      unfold Rec.ValPi, Rec.EqValPi in EVAL.
-      destruct EVAL as [VT [VPM [VPN EPI]]].
-      destruct VPM as [A0_M [B0_M [R_M PAV_M]]].
-      destruct VPN as [A0_N [B0_N [R_N PAV_N]]].
-      destruct EPI as [A0_E [B0_E [R_E PAEV]]].
-      apply Val_ValTy in VTa1.
-      cbn in VTa1.
-      destruct VTa1 as (Av & Bv & HRv & TAv & TBv & VPi & VDv & PEVv & PEEv).
-      cbn. split; [|split; [|split]].
-      * exists A0_M, B0_M.        
-        destruct (HeadRed_tpi_det HRv R_M) as [EqA EqB]. subst.
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv, PEEv.
-        rewrite (wt_unique (wt_tpi_dom hUa1) h1) in VDv.
-        repeat split; eauto.
+      move=> LE. apply andb_prop in LE. destruct LE as [LEa LEg].
+      move=> EqVAL VTa1.
+      cbn [EqVal] in EqVAL |- *. 
+      destruct EqVAL as (VT & VPM & VPN & EVP).
 
-      * unfold Rec.ValPi. exists A0_M, B0_M. split; [exact R_M|].
-        destruct (HeadRed_tpi_det HRv R_M) as [EqA EqB]. subst.
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv.
-        exact (@upPiAppVal _ _ _ _ _ _ _ _ _ _ w0 w2 w w1 LEa LEg PEVv PAV_M).
-      * unfold Rec.ValPi. exists A0_N, B0_N. split; [exact R_N|].
-        destruct (HeadRed_tpi_det HRv R_N) as [EqA EqB]. subst.
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv.
-        exact (@upPiAppVal _ _ _ _ _ _ _ _ _ _ w0 w2 w w1 LEa LEg PEVv PAV_N).
-      * unfold Rec.EqValPi. exists A0_E, B0_E. split; [exact R_E|].
-        destruct (HeadRed_tpi_det HRv R_E) as [EqA EqB]. subst.
-        rewrite (wt_pi_fun_unique (wt_tpi_inv hUa1) w2) in PEVv.
-        exact (@upPiAppEqVal _ _ _ _ _ _ _ _ _ _ _ w0 w2 w w1 LEa LEg PEVv PAEV).
+      apply Val_ValTy in VTa1. 
+      erewrite (wt_unique hUa1) in VTa1.
+      repeat split.
+      * eapply VTa1.
+      * eapply (upValPi upVal downVal LEa LEg); eauto. 
+      * eapply (upValPi upVal downVal LEa LEg); eauto. 
+      * (* need upEqValPi lemma *)
+        admit. 
 
   - (* downVal *)
     dependent destruction h1;
@@ -1011,33 +1024,29 @@ Proof.
       exists M1. split. auto.
       rewrite (wt_unique h1 h0) in VM1.
       done.
-    + (* tuniv: same pattern as upVal, but going h1 → h0. *)
-      move=> LE VT.
-      cbn in VT |- *.
-      destruct VT as (A0 & B0 & RA & TA0 & TB0 & VTpi & VV & PEV & PEE).
-      rewrite (wt_pi_fun_unique w0 w) in PEV, PEE.
-      rewrite (wt_unique h1 h0) in VV.
-      exists A0, B0; repeat split; eassumption.
+    + (* tuniv <= tuniv *)
+      move=> _ VT.
+      erewrite (wt_unique (wt_tpi h1 w1 w2 i0)) in VT.
+      eapply VT.
     + (* tpi *)
-      have Vag: valid (tpi a g).  eauto with valid.
       dependent destruction h0.
       dependent destruction h1.
       rewrite le_tpi.
-      move=> LE.
-      apply andb_prop in LE.
-      destruct LE as [LEa LEg].
+      move=> LE. apply andb_prop in LE. destruct LE as [LEa LEg].
       move=> VAL.
-      cbn in VAL. fold ValTy in VAL. destruct VAL as [VT VP].
-      cbn. fold ValPi. split.
-      * destruct VT as (Am & Bm & RAm & TAm & TBm & Vpim & VVm & PEVm & PEEm).
-        exists Am, Bm.
-        repeat split; try eassumption.
+      cbn [Val] in VAL |- *. 
+      destruct VAL as (VT & VP).
+      split.
+      * eapply Val_ValTy.
+        eapply ValTy_Val in VT.
         eapply restrictVal; eauto.
-        eapply downPiEdgeVal; eauto.
-        eapply downPiEdgeEq; eauto.
-      * destruct VP as [A0 [B0 [R1 PAV]]].
-        unfold Rec.ValPi. exists A0, B0. split. exact R1.
-        eapply downPiAppVal; eauto.
+        rewrite le_tpi. rewrite LEa. rewrite LEg. done.
+      * eapply (downValPi upVal downVal LEa LEg); eauto. 
+        eapply Val_ValTy.
+        eapply ValTy_Val in VT.
+        eapply restrictVal; eauto.
+        rewrite le_tpi. rewrite LEa. rewrite LEg. done.
+
   - (* downEqVal *)
     dependent destruction h1;
     dependent destruction h0.
@@ -1048,7 +1057,89 @@ Proof.
       exists N1. split. auto.
       rewrite (wt_unique h1 h0) in EVM.
       done.
-    + (* tuniv: split EqVal then rewrite each component (going h1 → h0). *)
+    + move=> _ EV.
+      erewrite (wt_unique (wt_tpi h0 w w0 i)).
+      eapply EV.
+    + (* tpi *)
+      dependent destruction h0.
+      dependent destruction h1.
+      rewrite le_tpi.
+      move=> LE. apply andb_prop in LE. destruct LE as [LEa LEg].
+      move=> VAL.
+      cbn [EqVal] in VAL |- *. 
+      destruct VAL as (VT & VPM & VPN & EVP).
+      repeat split.
+      * eapply Val_ValTy.
+        eapply ValTy_Val in VT.
+        eapply restrictVal; eauto.
+        rewrite le_tpi. rewrite LEa. rewrite LEg. done.
+      * eapply (downValPi upVal downVal LEa LEg); eauto. 
+        eapply Val_ValTy.
+        eapply ValTy_Val in VT.
+        eapply restrictVal; eauto.
+        rewrite le_tpi. rewrite LEa. rewrite LEg. done.
+      * eapply (downValPi upVal downVal LEa LEg); eauto. 
+        eapply Val_ValTy.
+        eapply ValTy_Val in VT.
+        eapply restrictVal; eauto.
+        rewrite le_tpi. rewrite LEa. rewrite LEg. done.
+      * (* downEqValPi *)
+        admit.
+  - (* restrictVal *)
+    dependent destruction h1.
+    (* bot <= bot *)
+    1: { move=> LE. apply le_bot_inv in LE. subst.
+         move=> h. erewrite (wt_unique h0). eapply h.
+    } 
+    all: dependent destruction h0.
+    all: try solve [cbn; done].
+    + (* succ <= succ *)
+      rewrite le_succ. move => LE VM.
+      destruct VM as [n1 [R1 T1]].
+      exists n1. split; auto.
+      cbn in T1 |- *. 
+      eapply restrictVal; eassumption.
+    + (* tpi a g <= tpi a0 g0 *)
+      rewrite le_tpi.
+      move=> /andP. move=> [LEa LEg].
+      move=> VM.
+      cbn [Val] in VM |- *.
+      destruct VM as (A & B & R1 & TA & TB & Vtpi & VA & PEV & PEE).
+      exists A. exists B. repeat split; eauto.
+      * (* PEV *)
+        move=> u v Vu APP NB WTu N TN VN.
+        have Vg : valid_fun g. eapply valid_tpi2. eauto. 
+        have Vg0 : valid_fun g0. eapply valid_tpi2. eauto. 
+        destruct (valid_app_exists Vg0 Vu) as [v0 [APP0 Vv0]].
+        move: (le_fun_mono Vg Vg0 LEg Vu APP APP0) => LEv.
+        have NB0: ~ (is_bot v0). { destruct v0; destruct v; try done. } 
+        have WTua0: wt u a0. eapply wt_le; eauto.
+        specialize (PEV _ _  Vu APP0 NB0 WTua0 N TN).
+        cbn in VN , PEV |- *.
+        eapply Val_ValTy.
+        eapply restrictVal; eauto.
+        eapply ValTy_Val.
+        eapply PEV.
+        eapply upVal. 3: eassumption. 2: eassumption. eapply wt_ty_tuniv; eauto.
+        eapply VA.
+      * (* PEE *) 
+        admit.
+    + (* abs f <= abs f0 *)
+      rewrite le_abs.
+      move=> LEf VM.
+      cbn in VM |- *.
+      move: VM => [ VTT VPM].
+      split.
+      * erewrite (wt_unique h0). eapply VTT.
+      * admit.
+  - (* restrictEqVal *)
+    admit.
+Admitted.
+
+
+(*
+
+
       move=> LE EV.
       cbn in EV |- *.
       destruct EV as [VTm [VTn EVT]].
@@ -1251,42 +1342,7 @@ Proof.
     apply EqValTy_EqVal in VT1.
     eapply restrictEqVal; eauto.
 Qed.
-
-
-(* ---- Sup / lub ---- *)
-
-Fixpoint wt_lub u1 u2 a u  
-  (h1: wt u1 a) (h2: wt u2 a) : lub u1 u2 = Some u -> wt u a
-with wt_pi_fun_lub a a0 g g0 e  
-  (w : wt_pi_fun g a) (w0 : wt_pi_fun g0 a0) :
-  lub a a0 = Some e -> 
-  (wt_pi_fun (g ++ g0) e).
-Proof.
-- dependent destruction h1;
-  dependent destruction h2.
-  all: cbn.
-  all: move=> h; inversion h; clear h; subst.
-  all: try solve [econstructor; eauto].
-  + destruct (lub u0 u1) eqn:EQ. inversion H0. subst.
-    eapply wt_succ; eauto.
-    inversion H0.
-  + destruct (compatible_fun g g0) eqn:Cg.
-    destruct (lub a a0) eqn:EQ; inversion H0; subst; clear H0.
-    eapply wt_tpi; eauto. 
-    eapply valid_tpi_intro; eauto with valid.    
-    eapply valid_append. eapply valid_tpi2; eauto.
-    eapply valid_tpi2; eauto. auto.
-    inversion H0.
-  +  destruct (compatible_fun f f0) eqn:EQ; inversion H0; subst; clear H0.
-    eapply wt_abs; eauto. 
-    admit.
-    admit.
-- dependent destruction w;
-  dependent destruction w0.
-  all: cbn.
-  all: move=> h; inversion h; clear h; subst.
-  all: try solve [econstructor; eauto].
-Admitted.
+*)
 
 
 (* ValTy2-Sup: if a1 and a2 are universe-members and lub a1 a2 = Some a,
@@ -1296,14 +1352,15 @@ Fixpoint ValTy_Sup {n} (Γ : Ctx n) (T : Tm n) a1 a2 a
   lub a1 a2 = Some a ->
   ValTy Γ T h1 -> ValTy Γ T h2 -> ValTy Γ T h.
 Proof.
-Admitted.
+Abort.
 
 (* EqValTy2-Sup *)
 Lemma EqValTy_Sup {n} (Γ : Ctx n) (M N : Tm n) a1 a2 a 
   (h1 : wt a1 tuniv) (h2 : wt a2 tuniv) (h : wt a tuniv) :
   lub a1 a2 = Some a ->
   EqValTy Γ M N h1 -> EqValTy Γ M N h2 -> EqValTy Γ M N h.
-Proof. Admitted.
+Proof. 
+Abort.
 
 
 (* ----------------------------------------------------- *)
@@ -1322,7 +1379,25 @@ with EqVal_trans {n} (Γ : Ctx n) (M1 M2 M3 A : Tm n) u a (h : wt u a) {struct h
   EqVal Γ M1 M2 A h -> EqVal Γ M2 M3 A h -> EqVal Γ M1 M3 A h.
 Proof.
   - (* Val_EqVal_fwd *)
-    admit.
+    move=> VM EVTA.
+    dependent destruction h';
+      dependent destruction h.
+    all: try solve [cbn; try done].
+    cbn [EqValTy] in EVTA.
+    cbn in VM  |- *.
+    move: EVTA => [VTA [VTB [A0 [B0 [R0 [A1 [B1 [R1 [CA [CB [Vtpi [EVA PEET]]]]]]]]]]]].
+    split.
+    * erewrite (wt_unique h). eapply VTB.
+    * unfold ValPi.
+      exists A1, B1. split; auto.
+      unfold Rec.PiAppVal.
+      move=> u v t Vu APP NB APPg P TP VP.
+      specialize (PEET u t Vu APPg).
+      move: (w0 u v t Vu APP NB APPg) => WTv.
+      have NBt : ~ (is_bot t).
+      { destruct v; destruct t; inversion WTv; try done. } 
+      specialize (PEET NBt P). cbn in PEET |- *. cbn in VP. cbn in EVA.
+      admit.
   - (* EqVal_EqVal_fwd *)
     admit.
   - (* EqVal_sym *)
@@ -1504,39 +1579,4 @@ Lemma EqValPi_headred_contract {n} (Γ : Ctx n) (M1 M2 M1' M2' T : Tm n) b f g
   EqValPi Γ M1 M2 T h -> EqValPi Γ M1' M2' T h.
 Proof. Admitted.
 
-
-
-
-(* ============================================================
-   Level 6 (BIG SCC) — symmetry, transitivity, fwd-along-EqValTy,
-   sup, up/down, restrict, and all Pi helper lemmas.
-   ============================================================ *)
-
-(* ---- Symmetry / transitivity ---- *)
-
-
-
-
-
-
-
-(* ---- Pi helper lemmas: down/up/transport/restrict on PiApp / PiEdge ----
-
-   NOTE: The up/down PiAppVal / PiAppEq / PiAppEqVal lemmas, and the
-   transport PiEdgeVal / PiEdgeEq / PiEdgeEqTy lemmas, are now part of
-   the mutual Fixpoint block defining upVal / upEqVal / downVal / downEqVal
-   above. The signatures there take wt_abs_fun / wt_pi_fun derivations
-   directly (the underlying derivations of the wt judgment), instead of
-   wt (abs g) (tpi b f) / wt (tpi b f) tuniv — see the block above
-   for the actual statements.
-
-   The transport / restrict lemmas below remain as standalone (Admitted)
-   stubs since they are not directly used by upVal / downVal. *)
-
-(* The transport / restrict lemmas previously listed here referred to
-   helper inversions (wt_abs_key, wt_abs_elt, wt_tpi_cod_key,
-   wt_tpi_cod_elt) and a non-existent PiEdgeEqVal. Their signatures
-   need to be rewritten in terms of wt_pi_fun / wt_abs_fun derivations
-   directly (matching the mutual block above) before they can be
-   re-stated as standalone lemmas. They are omitted here for now. *)
 
