@@ -180,9 +180,6 @@ Lemma wt_abs_elt (a : elt) (f g : list (elt * elt)) :
 move=>h. inversion h. done. Defined.
 *)
 
-Lemma wt_succ_inv u:
-  wt (succ u) tnat -> wt u tnat.
-move=>h. inversion h. done. Defined.
 
 
 (* Logical relation, defined by recursion on the wt judgement for
@@ -197,57 +194,6 @@ move=>h. inversion h. done. Defined.
    To begin, when u is bot, it is the total set.
 
 *)
-
-Definition ForallP {a} (p : a -> Prop) (l : list a) : Prop := 
-  List.fold_right (fun x y => p x /\ y) True l.
-Lemma ForallP_forall {a} p (l : list a) :
-  ForallP p l <-> forall x, In x l -> p x.
-Admitted.
-
-
-
-Lemma wt_abs_ty g b f : 
-  wt (abs g) (tpi b f) -> wt (tpi b f) tuniv.
-Proof. 
-  move=> h. inversion h. eauto.
-Defined.
-
-
-Lemma wt_abs_inv1 g a f : 
-  wt (abs f) (tpi a g) ->     
-  (forall u v, valid u -> app f u = Some v -> ~ is_bot v -> wt u a).
-Proof. 
-  move=> h. inversion h. eauto.
-Defined.
-
-Lemma wt_abs_inv2 g a f : 
-  wt (abs f) (tpi a g) ->    
-  (forall u v t, valid u -> app f u = Some v -> ~ is_bot v -> app g u = Some t -> wt v t). 
-Proof. 
-  move=> h. inversion h. eauto.
-Defined.
-
-
-Lemma wt_tpi_dom a g :
-  wt (tpi a g) tuniv  -> wt a tuniv.
-Proof.
-  move=> h. inversion h. eauto.
-Defined.
-
-
-Lemma wt_tpi_inv1 a g :
-  wt (tpi a g) tuniv -> 
-  (forall u v, valid u -> app g u = Some v -> ~ is_bot v -> wt u a).
-Proof.
-  move=> h. inversion h. eauto.
-Defined.
-
-Lemma wt_tpi_inv2 a g :
-  wt (tpi a g) tuniv -> 
-  (forall u v, valid u -> app g u = Some v -> ~ is_bot v -> wt v tuniv).
-Proof.
-  move=> h. inversion h. eauto.
-Defined.
 
 
 (* This module defines various helper operations on the logical
@@ -405,7 +351,6 @@ Fixpoint EqValTy {n} (Γ : Ctx n) M N (a : elt) (h : wt a tuniv) {struct h} :  P
 End Helpers.
 End Rec.
 
-Check Rec.ValTy.
 
 Fixpoint Val {n} (Γ : Ctx n)
   (M : Tm n) (A : Tm n) (u : elt) (a: elt) (h : wt u a)  

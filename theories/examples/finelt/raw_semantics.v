@@ -270,21 +270,12 @@ Proof.
   apply /implyP.
   move=> Cu.
 
-(*
-  specialize (h1 _ _ Inl).
-  move: h1 => [x1 [WTx1 [LE1 E21]]].
-
-  specialize (h2 _ _ Inl0).
-  move: h2 => [x0 [WTx0 [LE0 E20]]].
-*)
   unfold EvalRel_fun in h1, h2.
-  have Vu1 : valid u1. admit.
-  have Vu2 : valid u2. admit.
+  move: (valid_elt Vl Inl) => [Vu1 _].
+  move: (valid_elt Vl0 Inl0) => [Vu2 _].
   destruct (valid_app_compatible Vl Vu1) as 
     [w [APPl [Vw Cui]]].
 
-  have LEv1: le v1 w. admit. 
-  (* need to reason about app *)
 
   have Cv1w: compatible v1 w.
   { eapply (Cui _ _ Inl). rewrite compatible_refl; eauto.
@@ -297,27 +288,13 @@ Proof.
   { eapply (Cui0 _ _ Inl0). rewrite compatible_refl; eauto.
     rewrite le_refl; eauto. } clear Cui0.
 
-  have LEv2: le v2 w0. admit.
 
   destruct (h2 _ _ Vu2 APPl0) as [x0 [WTx0 [LEx0 ERx0]]].
   have Cab: compatible a b. 
   { eapply lub_compatible; eauto. } 
-  have Vx1 : valid x1. eauto with valid.
-  have Vx0 : valid x0. eauto with valid.
-  (*
-  have WTc: wt c tuniv. 
-  { eapply (@wt_lub a _ _ b); eauto using wt_ty_tuniv. } 
-  have WTxc: wt x1 c. 
-  { eapply wt_le; eauto. 
-    eapply le_lub_left; eauto. 
-    eapply wt_ty_tuniv; eauto.
-  } 
-  have WTx0c: wt x0 c. 
-  { eapply wt_le; eauto. 
-    eapply le_lub_right; eauto. 
-    eapply wt_ty_tuniv; eauto.
-  } 
-  *)
+  have Vx1 : valid x1. eapply wt_valid_tm; eauto.
+  have Vx0 : valid x0. eapply wt_valid_tm; eauto.
+
   have Cx: compatible x1 x0.
   { move: (comp_down LEx1 Cu) => C1.
       move: (compatible_sym C1) => C2.
@@ -344,6 +321,9 @@ Proof.
   move: (EvalRel_mono_env ERx0 Vx0ρ Vxρ LEE0) => hR0.
   have Cww0: compatible w w0.
   { eapply IHM; eauto. } 
+
+  move: (le_app Vl Vu1 APPl Inl (le_refl Vu1)) => LEv1.
+  move: (le_app Vl0 Vu2 APPl0 Inl0 (le_refl Vu2)) => LEv2.
 
   move: (comp_down LEv1 Cww0) => C1.
   move: (comp_down LEv2 (compatible_sym C1)) => C2.
@@ -472,6 +452,13 @@ Lemma EvalRel_compatible {n} (M : Tm n) :
   compatible a b.
 Admitted.
 
+Lemma EvalRel_sup n (M : Tm n) (ρ : Env n) u u' v :
+  valid_env ρ -> valid u -> valid u' -> compatible u u' -> 
+  lub u u' = Some v ->
+  EvalRel M ρ u -> EvalRel M ρ u' -> EvalRel M ρ v.
+Proof.
+Admitted.
+
 
 Lemma EvalRel_down n (M : Tm n) (ρ : Env n) u u' :
   valid_env ρ -> valid u' ->
@@ -577,12 +564,6 @@ Proof.
 
   - (* tpi A B *)
 
-(*
-EvalRel-down : {n : Nat} (M : Expr n) (rho : EnvApprox n)
-  (u u' : FinEl) -> CoherentEnv rho -> Coherent u' ->
-  EvalRel M rho u -> LeCode u' u -> EvalRel M rho u'
-*)
-
     destruct u as [ | | | | | a f |]; try done.
     + (* u = bot, u' = bot *)
       apply le_bot_inv in LE. subst u'. done.
@@ -609,20 +590,13 @@ EvalRel-down : {n : Nat} (M : Expr n) (rho : EnvApprox n)
       split. auto.
       split. auto.
       eapply IHM2; eauto.
-      eapply valid_cons; eauto with valid.
+      eapply valid_cons. eapply wt_valid_tm. eauto. eauto.
       eapply (@valid_app f' u); eauto.
   - (* tuniv *)
     have Vt: valid tuniv by done.
     eapply (le_trans (v := u)); eauto.
-Admitted.
+Qed.
 
-Lemma EvalRel_sup n (M : Tm n) (ρ : Env n) u u' v :
-  valid_env ρ -> valid u -> valid u' -> compatible u u' -> 
-  lub u u' = Some v ->
-  EvalRel M ρ u -> EvalRel M ρ u' -> EvalRel M ρ v.
-Proof.
-(* by induction on M *)
-Admitted.
 
 Lemma EvalRel_compatible_ext {n} (M : Tm (S n)) ρ x1 x2 y1 y2 : 
   valid_env ρ -> compatible x1 x2 -> valid x1 -> valid x2 -> 

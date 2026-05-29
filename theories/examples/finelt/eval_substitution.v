@@ -603,7 +603,6 @@ Proof.
     move: E => [Vu [Vf [EA [a0 [Ea0 body]]]]].
     move: (IHM1 _ _ _ _ Vρ EA) => [ρA [VρA [SRρA EA']]].
     move: (IHM1 _ σ ρ _ Vρ Ea0) => [ρA0 [VρA0 [SRρA0 EA0']]]. 
-Search SubRel.
     move: (combine_fwd Vρ VρA VρA0 SRρA SRρA0) => [ρA1 [VρA1 [SRρA1 [LEρA LEρA0]]]].
     have body' : forall u' v', valid u' -> app l u' = Some v' ->
       exists x (h: wt x a0) ρ_uv,

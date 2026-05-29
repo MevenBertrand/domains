@@ -1477,6 +1477,19 @@ Proof. move => /valid_fun_subterms h3.
        auto.
 Qed.
 
+
+Lemma valid_tpi1 a g : valid (tpi a g) -> valid a.
+move=> /andP [h1 h2]. exact h1.
+Qed.
+Lemma valid_tpi2 a g : valid (tpi a g) -> valid_fun g.
+move=> /andP [h1 h2]. exact h2.
+Qed.
+Lemma valid_abs f : valid (abs f) -> valid_fun f.
+move=> /andP [h1 _]. exact h1.
+Qed.
+Hint Resolve valid_tpi1 valid_tpi2 valid_abs : valid.
+
+
 Create HintDb valid.
 Hint Resolve
   valid_fun_head valid_fun_tail key_valid val_valid compat
@@ -2141,6 +2154,24 @@ Proof.
   specialize (Lfn (u,v) ltac:(left; eauto)). simpl in Lfn.
   rewrite Lfn in NBf. done.
 Qed.
+
+Lemma compatible_app_inv f g u v :
+  valid_fun f -> 
+  valid_fun g -> 
+  valid u ->
+  compatible_fun f g ->
+  app (f ++ g) u = Some v -> 
+  { vf & { vg &  app f u = Some vf /\ app g u = Some vg /\ lub vf vg = Some v}}.
+Proof.
+  move=> Vf Vg Vu Cfg APPu.
+  destruct (valid_app_exists Vf Vu) as [vf [APPf Vvf]].
+  destruct (valid_app_exists Vg Vu) as [vg [APPg Vvg]].
+  move: (app_append_eq Cfg APPf APPg) => EQ.
+  exists vf. exists vg.
+  repeat split; eauto.
+  rewrite APPu in EQ. done.
+Qed.
+
 
 (*
 ------------------------------------------------------------------------
@@ -2977,6 +3008,52 @@ Proof.
   eapply le_trans with (v := w1); eauto.
 Qed.
 
+Lemma valid_elt x y f : 
+  valid_fun f -> In (x,y) f -> valid x /\ valid y.
+Proof.
+  move=> /andP [_ /forallb_forall V] IN.
+  specialize (V _ IN).
+  move: V => /andP [Vx Vy].
+  easy.
+Qed.
+
+Lemma le_app f ui vi : forall u v,
+  valid_fun f ->
+  valid u ->
+  app f u = Some v -> In (ui,vi) f -> le ui u -> le vi v.
+Proof. 
+  induction f.
+  - easy.
+  - move=> u v Vf Vu APP IN LEu.
+    destruct (valid_elt Vf IN) as [Vui Vvi].
+    destruct IN as [h1|h1].
+    + subst.
+      rewrite app_cons_eq in APP.
+      have CC: compatible ui u. eapply le_valid_compatible; eauto.
+      rewrite CC in APP.
+      rewrite LEu in APP.
+      cbn in APP.
+      destruct (app f u) eqn:EA; try done.
+      eapply le_lub_left in APP; eauto.
+      eapply lub_compatible; eauto.
+      eauto with valid.
+    + destruct a as [uj vj].
+      rewrite app_cons_eq in APP.
+      have Vft: valid_fun f. eauto with valid.
+      destruct (compatible uj u && le uj u) eqn:CC.
+      ++ destruct (app f u) eqn:EA; try done.
+         specialize (IHf _ _ Vft Vu EA h1 LEu).
+         have Ve: valid e. eapply (valid_app Vft Vu); eauto.
+         have Vvj: valid vj. eauto with valid.
+         have Vv: valid v. eapply (valid_lub Vvj Ve); eauto.
+         have LEv: le e v. 
+         { eapply le_lub_right in APP; eauto.
+           eapply lub_compatible; eauto. } 
+         eapply le_trans with (v := e); eauto.      
+      ++ destruct (app f u) eqn:EA; try done.
+         specialize (IHf _ _ Vft Vu EA h1 LEu).
+         inversion APP; subst; eauto.
+Qed.
 
 Lemma valid_tpi_intro a f :
   valid a -> valid_fun f -> valid (tpi a f).
